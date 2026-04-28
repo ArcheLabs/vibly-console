@@ -1,0 +1,16 @@
+export const queryKeys = {
+  health: ["health"] as const,
+  projects: ["projects"] as const,
+  project: (projectId: string) => ["project", projectId] as const,
+  objectives: (projectId: string) => ["objectives", projectId] as const,
+  boundary: (projectId: string) => ["boundary", projectId] as const,
+  principals: ["principals"] as const,
+  agents: ["agents"] as const,
+  runtimeBindings: (agentId: string) => ["runtime-bindings", agentId] as const,
+  state: (projectId: string) => ["state", projectId] as const,
+  knowledge: (projectId: string) => ["knowledge", projectId] as const,
+  section: (projectId: string, section: string) => ["section", projectId, section] as const,
+  traces: ["traces"] as const,
+  trace: (traceId: string) => ["trace", traceId] as const,
+  events: (projectId: string) => ["events", projectId] as const,
+};
