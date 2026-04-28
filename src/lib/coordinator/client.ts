@@ -306,7 +306,7 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   streamProjectEvents(projectId: string, handlers: StreamHandlers) {
-    const url = this.makeUrl(`/projects/${projectId}/stream`);
+    const url = this.makeStreamUrl(`/projects/${projectId}/stream`);
     const eventSource = new EventSource(url);
     handlers.onStatus?.("connected");
     const handleMessage = (event: MessageEvent) => {
@@ -374,6 +374,14 @@ class HttpCoordinatorClient implements CoordinatorClient {
       if (this.auth.apiToken) url.searchParams.set("__apiToken", this.auth.apiToken);
     }
     return this.auth.mode === "proxy" ? `${url.pathname}${url.search}` : url.toString();
+  }
+
+  private makeStreamUrl(path: string): string {
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    const url = new URL(`/api/coordinator${cleanPath}`, typeof window === "undefined" ? "http://localhost:3000" : window.location.origin);
+    url.searchParams.set("__coordinatorUrl", this.auth.coordinatorUrl);
+    if (this.auth.apiToken) url.searchParams.set("__apiToken", this.auth.apiToken);
+    return `${url.pathname}${url.search}`;
   }
 
   private headers(body: RequestBody): HeadersInit {
