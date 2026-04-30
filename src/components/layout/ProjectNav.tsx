@@ -32,6 +32,7 @@ export const projectSections = [
   { label: "Observations", href: "observations", icon: Bell, group: "Coordination" },
   { label: "Actions", href: "actions", icon: Activity, group: "Coordination" },
   { label: "Negotiations", href: "negotiations", icon: Vote, group: "Coordination" },
+  { label: "Timeline", href: "timeline", icon: FileClock, group: "Coordination" },
   { label: "Work", href: "work", icon: Workflow, group: "Coordination" },
   { label: "Reviews", href: "reviews", icon: ClipboardCheck, group: "Coordination" },
   { label: "State", href: "state", icon: FileClock, group: "Knowledge & State" },
@@ -40,6 +41,7 @@ export const projectSections = [
   { label: "Events", href: "events", icon: ListChecks, group: "Knowledge & State" },
   { label: "Rewards", href: "rewards", icon: Coins, group: "Governance" },
   { label: "Governance", href: "governance", icon: Scale, group: "Governance" },
+  { label: "Phase F", href: "phase-f", icon: Sparkles, group: "Governance" },
   { label: "Guardian", href: "guardian", icon: KeyRound, group: "Governance" },
   { label: "Settings", href: "settings", icon: SlidersHorizontal, group: "Settings" },
 ] as const;

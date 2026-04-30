@@ -10,6 +10,8 @@ export const queryKeys = {
   state: (projectId: string) => ["state", projectId] as const,
   knowledge: (projectId: string) => ["knowledge", projectId] as const,
   section: (projectId: string, section: string) => ["section", projectId, section] as const,
+  phaseGOverview: (projectId: string) => ["phase-g", projectId, "overview"] as const,
+  phaseGTimeline: (projectId: string) => ["phase-g", projectId, "timeline"] as const,
   traces: ["traces"] as const,
   trace: (traceId: string) => ["trace", traceId] as const,
   events: (projectId: string) => ["events", projectId] as const,

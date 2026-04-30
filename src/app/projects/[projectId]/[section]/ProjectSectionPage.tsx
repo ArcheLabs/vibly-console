@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, Radio, Send } from "lucide-react";
@@ -14,8 +14,8 @@ import { JsonViewer } from "@/components/common/JsonViewer";
 import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/common/States";
 import { useCoordinatorClient } from "@/lib/query/hooks";
-import { invalidateForEvent } from "@/lib/query/eventInvalidation";
 import { queryKeys } from "@/lib/query/keys";
+import { useProjectLiveEvents } from "@/lib/query/useProjectLiveEvents";
 import type { Entity, EventEnvelope, Page } from "@/lib/coordinator/types";
 import { asArray, asRecord, compactId, formatDateTime, pickString, readableKey } from "@/lib/utils/format";
 import { appConfig } from "@/lib/config/env";
@@ -33,6 +33,7 @@ const sectionTitles: Record<string, string> = {
   assignments: "Assignments & Leases",
   actions: "Actions",
   negotiations: "Negotiations",
+  timeline: "Human-Observable Timeline",
   work: "Work Orders",
   reviews: "Reviews",
   rewards: "Rewards & Mock Ledger",
@@ -48,6 +49,7 @@ const sectionTitles: Record<string, string> = {
 export function ProjectSectionPage({ projectId, section }: { projectId: string; section: string }) {
   const client = useCoordinatorClient();
   const queryClient = useQueryClient();
+  const live = useProjectLiveEvents(projectId, { enabled: section !== "settings", limit: 10 });
   const project = useQuery({
     queryKey: queryKeys.project(projectId),
     queryFn: () => client.getProject(projectId),
@@ -63,6 +65,7 @@ export function ProjectSectionPage({ projectId, section }: { projectId: string; 
   return (
     <AppShell projectId={projectId} projectName={projectName}>
       <PageHeader title={sectionTitles[section] ?? readableKey(section)} eyebrow={projectName} actions={<SectionActions projectId={projectId} section={section} />} />
+      {section !== "settings" ? <LiveStatusPanel status={live.status} events={live.events} /> : null}
       {section === "settings" ? <SettingsPanel projectId={projectId} /> : null}
       {section === "events" ? <EventStreamPanel projectId={projectId} /> : null}
       {section === "guardian" ? <GuardianPanel projectId={projectId} /> : null}
@@ -125,6 +128,8 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
       return client.listActions(projectId, { limit: 100 });
     case "negotiations":
       return client.listNegotiations({ limit: 100 });
+    case "timeline":
+      return client.listPhaseGTimeline(projectId);
     case "work":
       return client.listWorkOrders(projectId, { limit: 100 });
     case "reviews":
@@ -229,6 +234,10 @@ function SectionContent({ projectId, section, result }: { projectId: string; sec
   return (
     <div className="space-y-5">
       {"note" in result && result.note ? <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{result.note}</div> : null}
+      {section === "timeline" || section === "phase-f" ? <TimelineExplainer data={data} /> : null}
+      {section === "phase-f" ? <AgentActivityExplainer data={data} /> : null}
+      {section === "guardian" || section === "governance" ? <HumanRequestExplainer data={data} /> : null}
+      {section === "governance" ? <GovernanceExplainer data={data} /> : null}
       <DataTable data={data} columns={columns} empty={`No ${sectionTitles[section] ?? section} found.`} />
       {first ? <EntityCard title="Selected Detail" item={first} /> : null}
       {section === "boundary" ? <BoundaryEvaluateForm projectId={projectId} /> : null}
@@ -369,7 +378,7 @@ function summarizeGovernanceBackends(backends: Entity[]): string | undefined {
 }
 
 function SectionActions({ projectId, section }: { projectId: string; section: string }) {
-  if (section !== "traces" && section !== "events" && section !== "phase-f") return null;
+  if (section !== "traces" && section !== "events" && section !== "phase-f" && section !== "timeline") return null;
   return (
     <Link className="rounded border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50" href={`/projects/${projectId}/${section}`}>
       Refresh {section}
@@ -395,6 +404,122 @@ function PhaseFSmokePanel({ projectId }: { projectId: string }) {
       </div>
       {mutation.error ? <div className="mt-3"><ErrorState error={mutation.error} /></div> : null}
       {mutation.data ? <JsonViewer value={mutation.data} title="Latest Phase F run" /> : null}
+    </div>
+  );
+}
+
+function LiveStatusPanel({ status, events }: { status: "connected" | "disconnected" | "error"; events: EventEnvelope[] }) {
+  const latest = events[0];
+  return (
+    <div className="rounded border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>Project live subscription</span>
+        <StatusBadge status={status} />
+      </div>
+      <p className="mt-1 text-teal-800">
+        {latest ? `Latest live event: ${latest.type}` : "Waiting for coordinator project events. Manual refresh remains available if SSE is unavailable."}
+      </p>
+    </div>
+  );
+}
+
+function TimelineExplainer({ data }: { data: Entity[] }) {
+  const timeline = data
+    .flatMap((item) => {
+      const rec = asRecord(item);
+      if (rec.consoleKind === "phase_f_run") return asArray(rec.timeline).map(asRecord);
+      if (rec.phase && rec.eventType) return [rec];
+      return [];
+    })
+    .sort((a, b) => String(a.timestamp ?? "").localeCompare(String(b.timestamp ?? "")));
+  if (timeline.length === 0) return null;
+  return (
+    <div className="rounded border border-slate-200 bg-white p-4">
+      <h2 className="font-semibold text-slate-950">Human-Observable Timeline</h2>
+      <div className="mt-4 space-y-3">
+        {timeline.map((entry, index) => (
+          <div key={String(entry.id ?? index)} className="border-l-2 border-teal-600 pl-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800">{String(entry.phase ?? "event")}</span>
+              <StatusBadge status={entry.status} />
+              <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp)}</span>
+            </div>
+            <p className="mt-1 font-medium text-slate-950">{String(entry.title ?? entry.eventType ?? "Timeline event")}</p>
+            {entry.reason ? <p className="mt-1 text-sm text-slate-600">{String(entry.reason)}</p> : null}
+            <p className="mt-1 text-xs text-slate-500">
+              actor={compactId(String(entry.actorId ?? "unknown"))} event={String(entry.eventType ?? "unknown")}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgentActivityExplainer({ data }: { data: Entity[] }) {
+  const run = data.map(asRecord).find((item) => item.consoleKind === "phase_f_run");
+  const roles = asRecord(run?.roles);
+  if (!Object.keys(roles).length) return null;
+  const timeline = asArray(run?.timeline).map(asRecord);
+  return (
+    <div className="rounded border border-slate-200 bg-white p-4">
+      <h2 className="font-semibold text-slate-950">Agent Activity</h2>
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {Object.entries(roles).map(([role, actorId]) => {
+          const latest = [...timeline].reverse().find((entry) => entry.actorId === actorId);
+          return (
+            <div key={role} className="rounded border border-slate-200 p-3">
+              <p className="text-xs font-medium uppercase text-slate-500">{role}</p>
+              <p className="mt-1 font-mono text-xs text-slate-700">{compactId(String(actorId))}</p>
+              <p className="mt-2 text-sm text-slate-900">{latest ? String(latest.title ?? latest.eventType) : "Seeded and waiting"}</p>
+              {latest ? <StatusBadge status={latest.status} /> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function HumanRequestExplainer({ data }: { data: Entity[] }) {
+  const requests = data.map(asRecord).filter((item) => String(item.consoleKind ?? "").includes("request") || item.guardianId || item.riskLevel);
+  if (requests.length === 0) return null;
+  return (
+    <div className="rounded border border-amber-200 bg-amber-50 p-4">
+      <h2 className="font-semibold text-amber-950">Human / Guardian Requests</h2>
+      <p className="mt-1 text-sm text-amber-900">High-risk paths show why a human or Guardian should inspect the decision before downstream impact.</p>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {requests.slice(0, 4).map((request, index) => (
+          <div key={String(request.id ?? index)} className="rounded border border-amber-200 bg-white p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <RiskBadge risk={request.riskLevel ?? request.risk} />
+              <StatusBadge status={request.status} />
+            </div>
+            <p className="mt-2 font-medium text-slate-950">{String(request.title ?? request.reason ?? request.type ?? "Request")}</p>
+            <p className="mt-1 text-sm text-slate-600">actor={compactId(String(request.guardianId ?? request.requestedBy ?? request.actorId ?? "unknown"))}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GovernanceExplainer({ data }: { data: Entity[] }) {
+  const rows = data.map(asRecord).filter((item) => item.consoleKind === "governance_merged");
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded border border-slate-200 bg-white p-4">
+      <h2 className="font-semibold text-slate-950">Governance Read Model</h2>
+      <p className="mt-1 text-sm text-slate-600">These rows explain Concord intent, coordinator merged status, on-chain readback, backend capability, and freshness from coordinator only.</p>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {rows.slice(0, 4).map((row, index) => (
+          <div key={String(row.id ?? index)} className="rounded border border-slate-200 p-3">
+            <p className="font-medium text-slate-950">{String(row.title ?? "Governance item")}</p>
+            <p className="mt-1 text-sm text-slate-600">backend={String(row.backend ?? "unknown")} readback={String(row.readbackStatus ?? "unknown")}</p>
+            <p className="mt-1 text-sm text-slate-600">freshness={String(row.freshnessStatus ?? "unknown")}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -544,21 +669,8 @@ function DangerZone({ projectId, section, onDone }: { projectId: string; section
 }
 
 function EventStreamPanel({ projectId }: { projectId: string }) {
-  const client = useCoordinatorClient();
-  const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(false);
-  const [status, setStatus] = useState<"connected" | "disconnected" | "error">("disconnected");
-  const [events, setEvents] = useState<EventEnvelope[]>([]);
-  useEffect(() => {
-    if (!enabled) return;
-    return client.streamProjectEvents(projectId, {
-      onStatus: setStatus,
-      onEvent: (event) => {
-        setEvents((current) => [event, ...current].slice(0, 20));
-        invalidateForEvent(queryClient, projectId, event);
-      },
-    });
-  }, [client, enabled, projectId, queryClient]);
+  const { status, events } = useProjectLiveEvents(projectId, { enabled, limit: 20 });
   return (
     <div className="rounded border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">

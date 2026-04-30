@@ -13,6 +13,18 @@ export function invalidateForEvent(queryClient: QueryClient, projectId: string, 
   if (type.includes("Negotiation")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "negotiations") });
   if (type.includes("Work")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "work") });
   if (type.includes("Review")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "reviews") });
+  if (type.includes("Guardian") || type.includes("HumanRequest")) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "guardian") });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-f") });
+  }
+  if (type.includes("Trace")) {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.traces });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "traces") });
+  }
+  if (type.includes("Governance") || type.includes("Checkpoint")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "governance") });
+  if (type.includes("PhaseF") || type.includes("PhaseGTimeline")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-f") });
+  if (type.includes("PhaseGTimeline")) void queryClient.invalidateQueries({ queryKey: queryKeys.phaseGTimeline(projectId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.phaseGOverview(projectId) });
   if (type.includes("Reward") || type.includes("Funding")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "rewards") });
   void queryClient.invalidateQueries({ queryKey: queryKeys.events(projectId) });
 }

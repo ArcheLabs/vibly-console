@@ -8,13 +8,19 @@ import { EntityCard, PageHeader, StatCard } from "@/components/common/EntityView
 import { ErrorState, LoadingState } from "@/components/common/States";
 import { useCoordinatorClient } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
-import { asRecord, pickString, timeAgo } from "@/lib/utils/format";
+import { useProjectLiveEvents } from "@/lib/query/useProjectLiveEvents";
+import { asArray, asRecord, formatDateTime, pickString, timeAgo } from "@/lib/utils/format";
 
 export function ProjectDashboardPage({ projectId }: { projectId: string }) {
   const client = useCoordinatorClient();
+  const live = useProjectLiveEvents(projectId, { limit: 10 });
   const project = useQuery({
     queryKey: queryKeys.project(projectId),
     queryFn: () => client.getProject(projectId),
+  });
+  const phaseGOverview = useQuery({
+    queryKey: queryKeys.phaseGOverview(projectId),
+    queryFn: () => client.getPhaseGOverview(projectId),
   });
   const [objectives, state, knowledge, actions, work, negotiations, reviews, rewards, events, traces] = useQueries({
     queries: [
@@ -68,10 +74,46 @@ export function ProjectDashboardPage({ projectId }: { projectId: string }) {
         <StatCard label="Recent events" value={events.data?.data.length ?? "-"} href={`/projects/${projectId}/events`} />
         <StatCard label="Protocol traces" value={traces.data?.data.length ?? "-"} href={`/projects/${projectId}/traces`} />
       </div>
+      <HumanObservableOverview projectId={projectId} overview={phaseGOverview.data ? asRecord(phaseGOverview.data) : null} liveStatus={live.status} liveEvents={live.events} />
       <div className="grid gap-4 xl:grid-cols-2">
         <EntityCard title="Latest StateView" item={state.data ? asRecord(state.data) : null} />
         <EntityCard title="Latest KnowledgeVersion" item={knowledge.data ? asRecord(knowledge.data) : null} />
       </div>
     </AppShell>
+  );
+}
+
+function HumanObservableOverview({ projectId, overview, liveStatus, liveEvents }: { projectId: string; overview: Record<string, unknown> | null; liveStatus: string; liveEvents: unknown[] }) {
+  const counts = asRecord(overview?.counts);
+  const latestRun = asRecord(overview?.latestRun);
+  const timeline = asArray(latestRun.timeline).map(asRecord);
+  const latestTimeline = timeline.at(-1);
+  const latestLive = asRecord(liveEvents[0]);
+  return (
+    <div className="grid gap-4 xl:grid-cols-3">
+      <div className="rounded border border-teal-200 bg-teal-50 p-4 xl:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold text-teal-950">Human-observable status</h2>
+          <StatusBadge status={liveStatus} />
+        </div>
+        <p className="mt-2 text-sm text-teal-900">
+          Console is following coordinator read models and project SSE events. It does not call chain RPC or Concord SDK directly.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <StatCard label="Phase F runs" value={String(counts.phaseFRuns ?? "-")} href={`/projects/${projectId}/phase-f`} />
+          <StatCard label="Guardian requests" value={String(counts.guardianRequests ?? "-")} href={`/projects/${projectId}/guardian`} />
+          <StatCard label="Timeline events" value={String(counts.timelineEvents ?? "-")} href={`/projects/${projectId}/timeline`} />
+          <StatCard label="Recent live events" value={String(liveEvents.length)} href={`/projects/${projectId}/events`} />
+        </div>
+      </div>
+      <div className="rounded border border-slate-200 bg-white p-4">
+        <h2 className="font-semibold text-slate-950">Latest activity</h2>
+        <p className="mt-2 text-sm text-slate-700">
+          {latestTimeline ? String(latestTimeline.title ?? latestTimeline.eventType) : latestLive.type ? `Live event: ${String(latestLive.type)}` : "No Phase G timeline events yet."}
+        </p>
+        {latestTimeline?.reason ? <p className="mt-2 text-sm text-slate-500">{String(latestTimeline.reason)}</p> : null}
+        <p className="mt-3 text-xs text-slate-500">{formatDateTime(latestTimeline?.timestamp ?? latestLive.timestamp)}</p>
+      </div>
+    </div>
   );
 }

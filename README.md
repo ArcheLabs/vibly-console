@@ -72,6 +72,7 @@ Console 支持两种连接模式：
 | `/assignments` | 分配与租约 |
 | `/actions` | 行动意图与策略检查 |
 | `/negotiations` | 协商与立场提交 |
+| `/timeline` | Phase G 人类可读协作 timeline |
 | `/work` | 工作单（open）|
 | `/reviews` | 评审与人工评审表单 |
 | `/rewards` | 奖励意图与账本摘要 |
@@ -97,6 +98,10 @@ Phase E 中，治理表格还会展示 submit receipt、pending indexer readback
 ### Phase F 页面说明
 
 `/phase-f` 页面通过 coordinator 读取 `/phase-f/runs` 与 `/guardian-requests`，展示 Observer、Delegate、Worker、Reviewer、Guardian 的 scripted smoke 结果、accepted work/review 状态、Guardian request 状态以及 trace verify/replay 摘要。开发工具开启时，可从页面触发 coordinator 的 dev-only `/phase-f/smoke`；Console 仍不直接运行 agent。
+
+### Phase G 页面说明
+
+Phase G 让项目 Dashboard、`/timeline`、`/phase-f`、`/guardian`、`/governance` 和 trace detail 以人类可读方式解释协作过程。Console 会默认订阅 `GET /projects/:projectId/stream` 的 SSE 事件流，通过 Next.js proxy 连接 coordinator；收到事件后局部追加 live events，并刷新相关 React Query 视图。SSE 不可用时，用户仍可使用手动刷新。
 
 ## 开发命令
 

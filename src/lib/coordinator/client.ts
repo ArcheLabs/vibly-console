@@ -59,6 +59,8 @@ export interface CoordinatorClient {
   runPhaseFSmoke(): Promise<Entity>;
   listPhaseFRuns(input?: PageInput): Promise<Page<Entity>>;
   listGuardianRequests(projectId?: string, input?: PageInput): Promise<Page<Entity>>;
+  getPhaseGOverview(projectId: string): Promise<Entity>;
+  listPhaseGTimeline(projectId: string): Promise<Page<Entity>>;
   submitGuardianDecision(body: Record<string, unknown>): Promise<Entity>;
   listTraces(input?: PageInput): Promise<Page<Entity>>;
   getTrace(traceId: string): Promise<Entity>;
@@ -374,6 +376,15 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   listGuardianRequests(projectId?: string, input?: PageInput) {
     return this.requestPage<Entity>("/guardian-requests", { ...input, projectId });
+  }
+
+  async getPhaseGOverview(projectId: string) {
+    return unwrapKey<Entity>(await this.request<Entity>(`/projects/${projectId}/phase-g/overview`), "overview");
+  }
+
+  async listPhaseGTimeline(projectId: string) {
+    const payload = await this.request<Entity>(`/projects/${projectId}/phase-g/timeline`);
+    return toPage<Entity>(extractArray(payload, "timeline") as Entity[]);
   }
 
   async submitGuardianDecision(_body: Record<string, unknown>): Promise<Entity> {
