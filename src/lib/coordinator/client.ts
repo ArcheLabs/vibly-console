@@ -50,6 +50,9 @@ export interface CoordinatorClient {
   listGovernanceMerged(projectId?: string, input?: PageInput): Promise<Page<Entity>>;
   getGovernanceMerged(id: string): Promise<Entity>;
   linkGovernanceIntent(intentId: string, body: Record<string, unknown>): Promise<Entity>;
+  submitGovernanceOpenGov(intentId: string, body: Record<string, unknown>): Promise<Entity>;
+  reconcileGovernanceSubject(intentId: string, body: Record<string, unknown>): Promise<Entity>;
+  submitGovernanceVoteOpenGov(subjectId: string, body: Record<string, unknown>): Promise<Entity>;
   getGovernanceCheckpointView(): Promise<Entity>;
   listGovernanceBackends(): Promise<Page<Entity>>;
   listHumanRequests(projectId: string): Promise<Page<Entity>>;
@@ -323,6 +326,18 @@ class HttpCoordinatorClient implements CoordinatorClient {
       await this.request<Entity>(`/governance/intents/${intentId}/link-subject`, { method: "POST", body }),
       "link",
     );
+  }
+
+  async submitGovernanceOpenGov(intentId: string, body: Record<string, unknown>) {
+    return this.request<Entity>(`/governance/intents/${intentId}/submit-opengov`, { method: "POST", body });
+  }
+
+  async reconcileGovernanceSubject(intentId: string, body: Record<string, unknown>) {
+    return this.request<Entity>(`/governance/intents/${intentId}/reconcile-subject`, { method: "POST", body });
+  }
+
+  async submitGovernanceVoteOpenGov(subjectId: string, body: Record<string, unknown>) {
+    return this.request<Entity>(`/governance/subjects/${encodeURIComponent(subjectId)}/vote-opengov`, { method: "POST", body });
   }
 
   async getGovernanceCheckpointView() {

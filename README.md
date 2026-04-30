@@ -91,7 +91,7 @@ Console 支持两种连接模式：
 2. **Backend descriptors**（`GET /governance/backends`）— 用于显示 `substrate-opengov`、`evm-governor` 等后端的读写 capability、health/freshness 与只读/钱包动作占位状态。
 3. **Human requests**（`GET /events` 派生）— 高风险人工请求仍作为辅助记录展示。
 
-Console 不直接调用 EVM RPC、SubQuery 或链上 signer。EVM Governor 在 Phase D.5 中只作为 coordinator 返回的 backend-neutral merged subject 和 fixture backend 渲染，钱包签名 UI 暂不实现。
+Phase E 中，治理表格还会展示 submit receipt、pending indexer readback、linked subject 与 vote readback 状态。Console 仍不直接调用 EVM RPC、SubQuery 或链上 signer；所有链状态都来自 coordinator merged view。EVM Governor 在 Phase D.5 中只作为 coordinator 返回的 backend-neutral merged subject 和 fixture backend 渲染，钱包签名 UI 暂不实现。
 
 ## 开发命令
 

@@ -146,6 +146,7 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
         const rec = asRecord(item);
         const status = asRecord(rec.status ?? {});
         const freshness = asRecord(rec.freshness ?? {});
+        const readback = asRecord(rec.readback ?? {});
         const subject = asRecord(rec.subject ?? {});
         const backend = String(subject.backend ?? "");
         const descriptor = backendByKind.get(backend);
@@ -163,6 +164,9 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
           capabilitySummary: summarizeGovernanceCapabilities(descriptor),
           actionStatus: describeGovernanceActionStatus(descriptor),
           freshnessStatus: describeGovernanceFreshness(descriptor, rowStale),
+          readbackStatus: describeGovernanceReadback(readback),
+          submitTxHash: String(readback.submitTxHash ?? ""),
+          voteReadbackStatus: String(readback.voteReadbackStatus ?? ""),
           stale: rowStale,
         };
       });
@@ -257,6 +261,10 @@ function makeColumns(projectId: string, section: string): ColumnDef<Entity>[] {
             header: "Freshness",
             accessorFn: (row: Entity) => String(row.freshnessStatus ?? ""),
           } satisfies ColumnDef<Entity>,
+          {
+            header: "Readback",
+            accessorFn: (row: Entity) => String(row.readbackStatus ?? ""),
+          } satisfies ColumnDef<Entity>,
         ]
       : []),
     {
@@ -305,6 +313,16 @@ function describeGovernanceFreshness(descriptor: Entity | undefined, rowStale: b
   if (status === "stale") return `Stale${health.reason ? ` (${String(health.reason)})` : ""}`;
   if (status === "unavailable") return `Unavailable${health.reason ? ` (${String(health.reason)})` : ""}`;
   return rowStale ? "Stale" : "";
+}
+
+function describeGovernanceReadback(readback: Record<string, unknown>): string {
+  if (readback.linked) {
+    const votes = readback.voteReadbackStatus ? `, votes ${String(readback.voteReadbackStatus)}` : "";
+    return `Linked${votes}`;
+  }
+  if (readback.pending) return "Pending indexer readback";
+  const status = readback.voteReadbackStatus ? `votes ${String(readback.voteReadbackStatus)}` : "";
+  return status || "Not submitted";
 }
 
 function summarizeGovernanceBackends(backends: Entity[]): string | undefined {
