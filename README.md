@@ -79,6 +79,7 @@ Console 支持两种连接模式：
 | `/reputation` | 声誉证据（只读）|
 | `/governance` | 统一治理 merged view、人类请求、backend capability 与 freshness 摘要 |
 | `/phase-f` | Phase F 测试 Agent 协作 smoke 结果与 Guardian/trace 状态 |
+| `/phase-h` | Phase H mock ledger 激励、声誉、slash 与 Guardian 风险状态 |
 | `/guardian` | 高风险请求检查 |
 | `/traces` | 追踪列表与创建 |
 | `/traces/:traceId` | 追踪元数据、事件时间线、verify、replay |
@@ -102,6 +103,10 @@ Phase E 中，治理表格还会展示 submit receipt、pending indexer readback
 ### Phase G 页面说明
 
 Phase G 让项目 Dashboard、`/timeline`、`/phase-f`、`/guardian`、`/governance` 和 trace detail 以人类可读方式解释协作过程。Console 会默认订阅 `GET /projects/:projectId/stream` 的 SSE 事件流，通过 Next.js proxy 连接 coordinator；收到事件后局部追加 live events，并刷新相关 React Query 视图。SSE 不可用时，用户仍可使用手动刷新。
+
+### Phase H 页面说明
+
+`/phase-h` 页面读取 coordinator 的 Phase H overview/runs、reward intents、reputation evidence 与 slash requests，展示 mock ledger 激励/风险闭环。Dashboard 会显示 claimable rewards、reputation evidence、slash requests 与 Guardian risk counts；Rewards 页面提供 mock reserve/claim 操作。Console 不直接调用链 RPC，Phase H 的真实 Vibly chain settlement 留给后续阶段。
 
 ## 开发命令
 

@@ -40,6 +40,7 @@ const sectionTitles: Record<string, string> = {
   reputation: "Reputation Evidence",
   governance: "Governance & Human Requests",
   "phase-f": "Phase F Collaboration",
+  "phase-h": "Phase H Incentive / Risk",
   guardian: "Guardian",
   traces: "Protocol Traces",
   events: "Events",
@@ -216,8 +217,35 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
         note: "Phase F runs are created by the coordinator dev smoke route; Console only observes coordinator read models.",
       };
     }
+    case "phase-h": {
+      const [overview, runs, rewards, reputationEvidence, slashRequests] = await Promise.all([
+        client.getPhaseHOverview(projectId),
+        client.listPhaseHRuns({ projectId, limit: 100 }),
+        client.listRewards(projectId, { limit: 100 }),
+        client.listReputationEvidence(projectId),
+        client.listSlashRequests(projectId, { limit: 100 }),
+      ]);
+      return {
+        data: [
+          { ...overview, id: `phase-h-overview-${projectId}`, consoleKind: "phase_h_overview" },
+          ...runs.data.map((run) => ({ ...run, consoleKind: "phase_h_run" })),
+          ...rewards.data.map((reward) => ({ ...reward, consoleKind: "reward_intent" })),
+          ...reputationEvidence.data.map((evidence) => ({ ...evidence, consoleKind: "reputation_evidence" })),
+          ...slashRequests.data.map((request) => ({ ...request, consoleKind: "slash_request" })),
+        ],
+        page: { limit: 1 + runs.data.length + rewards.data.length + reputationEvidence.data.length + slashRequests.data.length, nextCursor: null },
+        note: "Phase H uses the coordinator mock ledger. Console observes reward, reputation, slash, and Guardian risk read models.",
+      };
+    }
     case "guardian":
-      return { ...(await client.listHumanRequests(projectId)), note: "Guardian requests include Phase F high-risk smoke decisions when dev smoke has been run." };
+      {
+        const [requests, slashRequests] = await Promise.all([client.listHumanRequests(projectId), client.listSlashRequests(projectId, { limit: 100 })]);
+        return {
+          data: [...requests.data, ...slashRequests.data.map((request) => ({ ...request, consoleKind: "slash_request" }))],
+          page: { limit: requests.data.length + slashRequests.data.length, nextCursor: null },
+          note: "Guardian requests include Phase F high-risk decisions and Phase H slash/risk review paths.",
+        };
+      }
     case "traces":
       return client.listTraces({ limit: 100 });
     case "events":
@@ -236,7 +264,8 @@ function SectionContent({ projectId, section, result }: { projectId: string; sec
       {"note" in result && result.note ? <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{result.note}</div> : null}
       {section === "timeline" || section === "phase-f" ? <TimelineExplainer data={data} /> : null}
       {section === "phase-f" ? <AgentActivityExplainer data={data} /> : null}
-      {section === "guardian" || section === "governance" ? <HumanRequestExplainer data={data} /> : null}
+      {section === "phase-h" ? <PhaseHExplainer projectId={projectId} data={data} /> : null}
+      {section === "guardian" || section === "governance" || section === "phase-h" ? <HumanRequestExplainer data={data} /> : null}
       {section === "governance" ? <GovernanceExplainer data={data} /> : null}
       <DataTable data={data} columns={columns} empty={`No ${sectionTitles[section] ?? section} found.`} />
       {first ? <EntityCard title="Selected Detail" item={first} /> : null}
@@ -245,6 +274,8 @@ function SectionContent({ projectId, section, result }: { projectId: string; sec
       {section === "reviews" ? <SubmitReviewForm /> : null}
       {section === "traces" ? <CreateTraceForm projectId={projectId} /> : null}
       {section === "phase-f" ? <PhaseFSmokePanel projectId={projectId} /> : null}
+      {section === "phase-h" ? <PhaseHSmokePanel projectId={projectId} /> : null}
+      {section === "rewards" ? <RewardActionsPanel projectId={projectId} data={data} /> : null}
     </div>
   );
 }
@@ -378,7 +409,7 @@ function summarizeGovernanceBackends(backends: Entity[]): string | undefined {
 }
 
 function SectionActions({ projectId, section }: { projectId: string; section: string }) {
-  if (section !== "traces" && section !== "events" && section !== "phase-f" && section !== "timeline") return null;
+  if (section !== "traces" && section !== "events" && section !== "phase-f" && section !== "phase-h" && section !== "timeline") return null;
   return (
     <Link className="rounded border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50" href={`/projects/${projectId}/${section}`}>
       Refresh {section}
@@ -408,6 +439,34 @@ function PhaseFSmokePanel({ projectId }: { projectId: string }) {
   );
 }
 
+function PhaseHSmokePanel({ projectId }: { projectId: string }) {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => client.runPhaseHSmoke(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-h") });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.phaseHOverview(projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "rewards") });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "reputation") });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "guardian") });
+    },
+  });
+  return (
+    <div className="rounded border border-slate-200 bg-white p-4">
+      <h2 className="font-semibold text-slate-950">Phase H Smoke</h2>
+      <p className="mt-1 text-sm text-slate-600">Runs the dev-only mock ledger incentive/risk loop on top of the accepted Phase F collaboration smoke.</p>
+      <div className="mt-3">
+        <ConfirmButton confirm="Run Phase H smoke? Coordinator dev routes must be enabled." onConfirm={() => mutation.mutate()}>
+          Run Phase H Smoke
+        </ConfirmButton>
+      </div>
+      {mutation.error ? <div className="mt-3"><ErrorState error={mutation.error} /></div> : null}
+      {mutation.data ? <JsonViewer value={mutation.data} title="Latest Phase H run" /> : null}
+    </div>
+  );
+}
+
 function LiveStatusPanel({ status, events }: { status: "connected" | "disconnected" | "error"; events: EventEnvelope[] }) {
   const latest = events[0];
   return (
@@ -427,7 +486,7 @@ function TimelineExplainer({ data }: { data: Entity[] }) {
   const timeline = data
     .flatMap((item) => {
       const rec = asRecord(item);
-      if (rec.consoleKind === "phase_f_run") return asArray(rec.timeline).map(asRecord);
+      if (rec.consoleKind === "phase_f_run" || rec.consoleKind === "phase_h_run") return asArray(rec.timeline).map(asRecord);
       if (rec.phase && rec.eventType) return [rec];
       return [];
     })
@@ -477,6 +536,40 @@ function AgentActivityExplainer({ data }: { data: Entity[] }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function PhaseHExplainer({ projectId, data }: { projectId: string; data: Entity[] }) {
+  const overview = asRecord(data.find((item) => item.consoleKind === "phase_h_overview"));
+  const counts = asRecord(overview.counts);
+  const run = asRecord(data.find((item) => item.consoleKind === "phase_h_run"));
+  const timeline = asArray(run.timeline).map(asRecord);
+  return (
+    <div className="rounded border border-amber-200 bg-amber-50 p-4">
+      <h2 className="font-semibold text-amber-950">Phase H Incentive / Risk Loop</h2>
+      <p className="mt-1 text-sm text-amber-900">Reward intent, mock ledger reserve, reputation evidence, slash request, and Guardian-visible risk are all read from coordinator projections.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        <MiniMetric label="Rewards" value={counts.rewardIntents} />
+        <MiniMetric label="Claimable" value={counts.claimableRewards} />
+        <MiniMetric label="Evidence" value={counts.reputationEvidence} />
+        <MiniMetric label="Slash" value={counts.slashRequests} />
+        <MiniMetric label="Guardian" value={counts.guardianRequests} />
+      </div>
+      {timeline.length ? (
+        <div className="mt-4">
+          <Link className="text-sm font-medium text-amber-900 hover:underline" href={`/projects/${projectId}/timeline`}>Open live timeline</Link>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: unknown }) {
+  return (
+    <div className="rounded border border-amber-200 bg-white p-3">
+      <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-slate-950">{String(value ?? "-")}</p>
     </div>
   );
 }
@@ -634,6 +727,35 @@ function CreateTraceForm({ projectId }: { projectId: string }) {
         Create Trace
       </ConfirmButton>
       {mutation.error ? <div className="mt-3"><ErrorState error={mutation.error} /></div> : null}
+    </div>
+  );
+}
+
+function RewardActionsPanel({ projectId, data }: { projectId: string; data: Entity[] }) {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  const reward = data.map(asRecord).find((item) => item.consoleKind === "reward_intent" && item.id);
+  const [actorId, setActorId] = useState("");
+  const reserve = useMutation({
+    mutationFn: () => client.reserveReward(String(reward?.id)),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "rewards") }),
+  });
+  const claim = useMutation({
+    mutationFn: () => client.claimReward(String(reward?.id), actorId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "rewards") }),
+  });
+  if (!reward) return null;
+  return (
+    <div className="rounded border border-slate-200 bg-white p-4">
+      <h2 className="font-semibold text-slate-950">Reward Actions</h2>
+      <p className="mt-1 text-sm text-slate-600">Mock ledger actions operate through coordinator only. Selected reward: {compactId(String(reward.id))}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <ConfirmButton confirm="Reserve this reward in the mock ledger?" onConfirm={() => reserve.mutate()}>Reserve</ConfirmButton>
+        <input className="rounded border border-slate-300 px-3 py-2" value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder="claim actor id" />
+        <ConfirmButton confirm="Claim this reward in the mock ledger?" onConfirm={() => claim.mutate()}>Claim</ConfirmButton>
+      </div>
+      {reserve.error ? <div className="mt-3"><ErrorState error={reserve.error} /></div> : null}
+      {claim.error ? <div className="mt-3"><ErrorState error={claim.error} /></div> : null}
     </div>
   );
 }

@@ -142,6 +142,25 @@ describe("CoordinatorClient", () => {
     expect(fetch).toHaveBeenCalledWith("http://coordinator.test/projects/project_1/phase-g/timeline", expect.anything());
   });
 
+  it("loads Phase H smoke, overview, runs, reputation, and slash read models", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/phase-h/smoke")) return Response.json({ ok: true, data: { run: { id: "phase_h_1" } } });
+        if (url.includes("/phase-h/overview")) return Response.json({ ok: true, data: { overview: { counts: { claimableRewards: 1 } } } });
+        if (url.includes("/phase-h/runs")) return Response.json({ ok: true, data: [{ id: "phase_h_1" }] });
+        if (url.includes("/reputation/evidence")) return Response.json({ ok: true, data: [{ id: "rep_1" }] });
+        return Response.json({ ok: true, data: [{ id: "slash_1" }] });
+      }),
+    );
+    const client = createCoordinatorClient(auth);
+    await expect(client.runPhaseHSmoke()).resolves.toMatchObject({ id: "phase_h_1" });
+    await expect(client.getPhaseHOverview("project_1")).resolves.toMatchObject({ counts: { claimableRewards: 1 } });
+    await expect(client.listPhaseHRuns({ projectId: "project_1", limit: 100 })).resolves.toMatchObject({ data: [{ id: "phase_h_1" }] });
+    await expect(client.listReputationEvidence("project_1")).resolves.toMatchObject({ data: [{ id: "rep_1" }] });
+    await expect(client.listSlashRequests("project_1", { limit: 100 })).resolves.toMatchObject({ data: [{ id: "slash_1" }] });
+  });
+
   it("streams project events through the console proxy", () => {
     const close = vi.fn();
     const addEventListener = vi.fn();

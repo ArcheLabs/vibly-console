@@ -22,6 +22,10 @@ export function ProjectDashboardPage({ projectId }: { projectId: string }) {
     queryKey: queryKeys.phaseGOverview(projectId),
     queryFn: () => client.getPhaseGOverview(projectId),
   });
+  const phaseHOverview = useQuery({
+    queryKey: queryKeys.phaseHOverview(projectId),
+    queryFn: () => client.getPhaseHOverview(projectId),
+  });
   const [objectives, state, knowledge, actions, work, negotiations, reviews, rewards, events, traces] = useQueries({
     queries: [
       { queryKey: queryKeys.objectives(projectId), queryFn: () => client.listObjectives(projectId, { limit: 100 }) },
@@ -75,11 +79,32 @@ export function ProjectDashboardPage({ projectId }: { projectId: string }) {
         <StatCard label="Protocol traces" value={traces.data?.data.length ?? "-"} href={`/projects/${projectId}/traces`} />
       </div>
       <HumanObservableOverview projectId={projectId} overview={phaseGOverview.data ? asRecord(phaseGOverview.data) : null} liveStatus={live.status} liveEvents={live.events} />
+      <PhaseHOverview projectId={projectId} overview={phaseHOverview.data ? asRecord(phaseHOverview.data) : null} />
       <div className="grid gap-4 xl:grid-cols-2">
         <EntityCard title="Latest StateView" item={state.data ? asRecord(state.data) : null} />
         <EntityCard title="Latest KnowledgeVersion" item={knowledge.data ? asRecord(knowledge.data) : null} />
       </div>
     </AppShell>
+  );
+}
+
+function PhaseHOverview({ projectId, overview }: { projectId: string; overview: Record<string, unknown> | null }) {
+  const counts = asRecord(overview?.counts);
+  const ledger = asRecord(overview?.ledger);
+  const byStatus = asRecord(ledger.byStatus);
+  return (
+    <div className="rounded border border-amber-200 bg-amber-50 p-4">
+      <h2 className="font-semibold text-amber-950">Phase H incentive / risk loop</h2>
+      <p className="mt-2 text-sm text-amber-900">Mock ledger path for rewards, reputation evidence, slash requests, and Guardian-visible risk. Chain settlement remains out of this phase.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="Phase H runs" value={String(counts.phaseHRuns ?? "-")} href={`/projects/${projectId}/phase-h`} />
+        <StatCard label="Reward intents" value={String(counts.rewardIntents ?? "-")} href={`/projects/${projectId}/rewards`} />
+        <StatCard label="Claimable" value={String(counts.claimableRewards ?? byStatus.claimable ?? "-")} href={`/projects/${projectId}/rewards`} />
+        <StatCard label="Reputation evidence" value={String(counts.reputationEvidence ?? "-")} href={`/projects/${projectId}/reputation`} />
+        <StatCard label="Slash requests" value={String(counts.slashRequests ?? "-")} href={`/projects/${projectId}/guardian`} />
+        <StatCard label="Guardian risk" value={String(counts.guardianRequests ?? "-")} href={`/projects/${projectId}/guardian`} />
+      </div>
+    </div>
   );
 }
 

@@ -42,6 +42,7 @@ export const projectSections = [
   { label: "Rewards", href: "rewards", icon: Coins, group: "Governance" },
   { label: "Governance", href: "governance", icon: Scale, group: "Governance" },
   { label: "Phase F", href: "phase-f", icon: Sparkles, group: "Governance" },
+  { label: "Phase H", href: "phase-h", icon: Coins, group: "Governance" },
   { label: "Guardian", href: "guardian", icon: KeyRound, group: "Governance" },
   { label: "Settings", href: "settings", icon: SlidersHorizontal, group: "Settings" },
 ] as const;

@@ -61,6 +61,10 @@ export interface CoordinatorClient {
   listGuardianRequests(projectId?: string, input?: PageInput): Promise<Page<Entity>>;
   getPhaseGOverview(projectId: string): Promise<Entity>;
   listPhaseGTimeline(projectId: string): Promise<Page<Entity>>;
+  runPhaseHSmoke(): Promise<Entity>;
+  listPhaseHRuns(input?: PageInput): Promise<Page<Entity>>;
+  getPhaseHOverview(projectId: string): Promise<Entity>;
+  listSlashRequests(projectId?: string, input?: PageInput): Promise<Page<Entity>>;
   submitGuardianDecision(body: Record<string, unknown>): Promise<Entity>;
   listTraces(input?: PageInput): Promise<Page<Entity>>;
   getTrace(traceId: string): Promise<Entity>;
@@ -261,12 +265,7 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   async listReputationEvidence(projectId: string) {
-    const events = await this.listEvents({ limit: 100 });
-    const evidence = events.data
-      .filter((event) => event.type === "ReputationEvidenceCreated")
-      .map((event) => objectPayload(event))
-      .filter((item) => item.projectId === projectId || item.projectId === undefined);
-    return toPage<Entity>(evidence);
+    return this.requestPage<Entity>("/reputation/evidence", { projectId, limit: 100 });
   }
 
   async listGovernanceIntents(projectId: string) {
@@ -385,6 +384,22 @@ class HttpCoordinatorClient implements CoordinatorClient {
   async listPhaseGTimeline(projectId: string) {
     const payload = await this.request<Entity>(`/projects/${projectId}/phase-g/timeline`);
     return toPage<Entity>(extractArray(payload, "timeline") as Entity[]);
+  }
+
+  async runPhaseHSmoke() {
+    return unwrapKey<Entity>(await this.request<Entity>("/phase-h/smoke", { method: "POST" }), "run");
+  }
+
+  listPhaseHRuns(input?: PageInput) {
+    return this.requestPage<Entity>("/phase-h/runs", input);
+  }
+
+  async getPhaseHOverview(projectId: string) {
+    return unwrapKey<Entity>(await this.request<Entity>(`/projects/${projectId}/phase-h/overview`), "overview");
+  }
+
+  listSlashRequests(projectId?: string, input?: PageInput) {
+    return this.requestPage<Entity>("/slash-requests", { ...input, projectId });
   }
 
   async submitGuardianDecision(_body: Record<string, unknown>): Promise<Entity> {
