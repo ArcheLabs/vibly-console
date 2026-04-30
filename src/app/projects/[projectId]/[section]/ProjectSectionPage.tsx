@@ -135,33 +135,42 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
     case "reputation":
       return { ...(await client.listReputationEvidence(projectId)), note: "This is evidence only. Console does not calculate a final protocol reputation score." };
     case "governance": {
-      const [merged, requests] = await Promise.all([
+      const [merged, requests, backends] = await Promise.all([
         client.listGovernanceMerged(projectId, { limit: 100 }),
         client.listHumanRequests(projectId),
+        client.listGovernanceBackends(),
       ]);
+      const backendByKind = new Map(backends.data.map((backend) => [String(backend.backend ?? ""), backend]));
       // Normalize merged views into a flat shape for the generic table
       const mergedRows = merged.data.map((item) => {
         const rec = asRecord(item);
         const status = asRecord(rec.status ?? {});
         const freshness = asRecord(rec.freshness ?? {});
+        const subject = asRecord(rec.subject ?? {});
+        const backend = String(subject.backend ?? "");
+        const descriptor = backendByKind.get(backend);
         return {
           ...item,
           consoleKind: "governance_merged",
           // Hoist commonly-displayed fields to top-level for generic columns
-          title: pickString(asRecord(rec.intent ?? {}).title ?? asRecord(rec.subject ?? {}).title ?? "Untitled"),
+          title: pickString(asRecord(rec.intent ?? {}).title ?? subject.title ?? "Untitled"),
           status: String(status.merged ?? "unknown"),
           chainStatus: String(status.chain ?? ""),
           coordinationStatus: String(status.coordination ?? ""),
+          backend,
+          capabilitySummary: summarizeGovernanceCapabilities(descriptor),
+          actionStatus: describeGovernanceActionStatus(descriptor),
           stale: Boolean(freshness.stale),
         };
       });
+      const backendNote = summarizeGovernanceBackends(backends.data);
+      const staleNote = mergedRows.some((r) => r.stale)
+        ? "Some governance views are stale: the chain indexer checkpoint is older than 60s. Restart the indexer if data is outdated."
+        : undefined;
       return {
         data: [...mergedRows, ...requests.data.map((request) => ({ ...request, consoleKind: "human_request" }))],
         page: { limit: mergedRows.length + requests.data.length, nextCursor: null },
-        // Show stale warning if any merged view is stale
-        note: mergedRows.some((r) => r.stale)
-          ? "⚠ Some governance views are stale — the chain indexer checkpoint is older than 60s. Restart the indexer if data is outdated."
-          : undefined,
+        note: [staleNote, backendNote].filter(Boolean).join(" "),
       };
     }
     case "guardian":
@@ -222,6 +231,27 @@ function makeColumns(projectId: string, section: string): ColumnDef<Entity>[] {
       accessorFn: (row) => String(row.status ?? "unknown"),
       cell: ({ getValue }) => <StatusBadge status={getValue()} />,
     },
+    ...(section === "governance"
+      ? [
+          {
+            header: "Backend",
+            accessorFn: (row: Entity) => String(row.backend ?? ""),
+            cell: ({ getValue }: { getValue: () => unknown }) => {
+              const v = String(getValue());
+              if (!v) return null;
+              return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{v}</span>;
+            },
+          } satisfies ColumnDef<Entity>,
+          {
+            header: "Capabilities",
+            accessorFn: (row: Entity) => String(row.capabilitySummary ?? ""),
+          } satisfies ColumnDef<Entity>,
+          {
+            header: "Actions",
+            accessorFn: (row: Entity) => String(row.actionStatus ?? ""),
+          } satisfies ColumnDef<Entity>,
+        ]
+      : []),
     {
       header: "Risk",
       accessorFn: (row) => String(row.riskLevel ?? row.risk ?? "unknown"),
@@ -233,6 +263,42 @@ function makeColumns(projectId: string, section: string): ColumnDef<Entity>[] {
       cell: ({ getValue }) => formatDateTime(getValue()),
     },
   ];
+}
+
+function summarizeGovernanceCapabilities(descriptor?: Entity): string {
+  const capabilities = asRecord(descriptor?.capabilities ?? {});
+  const readable = [
+    capabilities.readSubjects ? "subjects" : undefined,
+    capabilities.readVotes ? "votes" : undefined,
+    capabilities.checkpoint ? "checkpoint" : undefined,
+  ].filter(Boolean);
+  return readable.length > 0 ? `Reads ${readable.join(", ")}` : "";
+}
+
+function describeGovernanceActionStatus(descriptor?: Entity): string {
+  if (!descriptor) return "";
+  const capabilities = asRecord(descriptor.capabilities ?? {});
+  const hasWriteAction = Boolean(
+    capabilities.prepareProposal ||
+      capabilities.submitProposal ||
+      capabilities.castVote ||
+      capabilities.delegate ||
+      capabilities.queueExecution ||
+      capabilities.executeProposal,
+  );
+  if (!hasWriteAction) return "Read-only";
+  if (capabilities.requiresWallet) return "Wallet action placeholder";
+  return "Coordinator action available";
+}
+
+function summarizeGovernanceBackends(backends: Entity[]): string | undefined {
+  if (backends.length === 0) return undefined;
+  const summaries = backends.map((backend) => {
+    const label = String(backend.displayName ?? backend.id ?? backend.backend ?? "unknown backend");
+    const actionStatus = describeGovernanceActionStatus(backend);
+    return actionStatus ? `${label}: ${actionStatus}` : label;
+  });
+  return `Governance backends: ${summaries.join("; ")}.`;
 }
 
 function SectionActions({ projectId, section }: { projectId: string; section: string }) {

@@ -51,6 +51,7 @@ export interface CoordinatorClient {
   getGovernanceMerged(id: string): Promise<Entity>;
   linkGovernanceIntent(intentId: string, body: Record<string, unknown>): Promise<Entity>;
   getGovernanceCheckpointView(): Promise<Entity>;
+  listGovernanceBackends(): Promise<Page<Entity>>;
   listHumanRequests(projectId: string): Promise<Page<Entity>>;
   submitGuardianDecision(body: Record<string, unknown>): Promise<Entity>;
   listTraces(input?: PageInput): Promise<Page<Entity>>;
@@ -325,6 +326,11 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   async getGovernanceCheckpointView() {
     return unwrapKey<Entity>(await this.request<Entity>("/governance/checkpoint"), "checkpoint");
+  }
+
+  async listGovernanceBackends() {
+    const payload = await this.request<Entity>("/governance/backends");
+    return toPage<Entity>(extractArray(payload, "backends") as Entity[]);
   }
 
   async listHumanRequests(projectId: string) {

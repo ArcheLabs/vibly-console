@@ -76,7 +76,7 @@ Console 支持两种连接模式：
 | `/reviews` | 评审与人工评审表单 |
 | `/rewards` | 奖励意图与账本摘要 |
 | `/reputation` | 声誉证据（只读）|
-| `/governance` | 治理意图 + 链上公投读模型（GovernanceView）|
+| `/governance` | 统一治理 merged view、人类请求与 backend capability 摘要 |
 | `/guardian` | 高风险请求检查 |
 | `/traces` | 追踪列表与创建 |
 | `/traces/:traceId` | 追踪元数据、事件时间线、verify、replay |
@@ -85,12 +85,13 @@ Console 支持两种连接模式：
 
 ### 治理页面说明
 
-`/governance` 页面整合两个数据源：
+`/governance` 页面整合 coordinator 的统一治理读模型：
 
-1. **协调层治理意图**（`GET /governance/intents`）— 通过 Concord 协议发起的治理提案
-2. **链上读模型**（`GET /governance/views`）— 由 `vibly-coordinator` 的 GovernanceIndexConsumer 从 SubQuery 索引写入的实时链上公投状态
+1. **Merged governance view**（`GET /governance/merged`）— coordinator 合并后的 intent、链上 subject、投票活动与 checkpoint freshness。
+2. **Backend descriptors**（`GET /governance/backends`）— 用于显示 `substrate-opengov`、`evm-governor` 等后端的读写 capability 与只读/钱包动作占位状态。
+3. **Human requests**（`GET /events` 派生）— 高风险人工请求仍作为辅助记录展示。
 
-可在同一页面对比协调层意图与链上实际执行状态。
+Console 不直接调用 EVM RPC、SubQuery 或链上 signer。EVM Governor 在 Phase D-min 中只作为 coordinator 返回的 backend-neutral merged subject 渲染，钱包签名 UI 暂不实现。
 
 ## 开发命令
 
