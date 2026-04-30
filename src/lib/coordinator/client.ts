@@ -43,6 +43,14 @@ export interface CoordinatorClient {
   listReputationEvidence(projectId: string): Promise<Page<Entity>>;
   listGovernanceIntents(projectId: string): Promise<Page<Entity>>;
   submitMockGovernance(governanceIntentId: string): Promise<Entity>;
+  listGovernanceSubjects(input?: PageInput): Promise<Page<Entity>>;
+  getGovernanceSubject(subjectId: string): Promise<Entity>;
+  listGovernanceSubjectVotes(subjectId: string): Promise<Page<Entity>>;
+  listGovernanceDelegations(input?: PageInput): Promise<Page<Entity>>;
+  listGovernanceMerged(projectId?: string, input?: PageInput): Promise<Page<Entity>>;
+  getGovernanceMerged(id: string): Promise<Entity>;
+  linkGovernanceIntent(intentId: string, body: Record<string, unknown>): Promise<Entity>;
+  getGovernanceCheckpointView(): Promise<Entity>;
   listHumanRequests(projectId: string): Promise<Page<Entity>>;
   submitGuardianDecision(body: Record<string, unknown>): Promise<Entity>;
   listTraces(input?: PageInput): Promise<Page<Entity>>;
@@ -262,6 +270,61 @@ class HttpCoordinatorClient implements CoordinatorClient {
       await this.request<Entity>(`/governance/intents/${governanceIntentId}/submit-mock`, { method: "POST" }),
       "governanceIntent",
     );
+  }
+
+  async listGovernanceSubjects(input?: PageInput) {
+    const params = new URLSearchParams();
+    if (input?.limit) params.set("limit", String(input.limit));
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const payload = await this.request<Entity>(`/governance/subjects${query}`);
+    return toPage<Entity>(extractArray(payload, "items") as Entity[]);
+  }
+
+  async getGovernanceSubject(subjectId: string) {
+    return unwrapKey<Entity>(
+      await this.request<Entity>(`/governance/subjects/${encodeURIComponent(subjectId)}`),
+      "subject",
+    );
+  }
+
+  async listGovernanceSubjectVotes(subjectId: string) {
+    const payload = await this.request<Entity>(`/governance/subjects/${encodeURIComponent(subjectId)}/votes`);
+    return toPage<Entity>(extractArray(payload, "items") as Entity[]);
+  }
+
+  async listGovernanceDelegations(input?: PageInput) {
+    const params = new URLSearchParams();
+    if (input?.limit) params.set("limit", String(input.limit));
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const payload = await this.request<Entity>(`/governance/delegations${query}`);
+    return toPage<Entity>(extractArray(payload, "items") as Entity[]);
+  }
+
+  async listGovernanceMerged(projectId?: string, input?: PageInput) {
+    const params = new URLSearchParams();
+    if (projectId) params.set("projectId", projectId);
+    if (input?.limit) params.set("limit", String(input.limit));
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const payload = await this.request<Entity>(`/governance/merged${query}`);
+    return toPage<Entity>(extractArray(payload, "items") as Entity[]);
+  }
+
+  async getGovernanceMerged(id: string) {
+    return unwrapKey<Entity>(
+      await this.request<Entity>(`/governance/merged/${encodeURIComponent(id)}`),
+      "merged",
+    );
+  }
+
+  async linkGovernanceIntent(intentId: string, body: Record<string, unknown>) {
+    return unwrapKey<Entity>(
+      await this.request<Entity>(`/governance/intents/${intentId}/link-subject`, { method: "POST", body }),
+      "link",
+    );
+  }
+
+  async getGovernanceCheckpointView() {
+    return unwrapKey<Entity>(await this.request<Entity>("/governance/checkpoint"), "checkpoint");
   }
 
   async listHumanRequests(projectId: string) {

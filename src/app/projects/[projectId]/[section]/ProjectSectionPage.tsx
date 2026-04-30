@@ -135,8 +135,34 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
     case "reputation":
       return { ...(await client.listReputationEvidence(projectId)), note: "This is evidence only. Console does not calculate a final protocol reputation score." };
     case "governance": {
-      const [intents, requests] = await Promise.all([client.listGovernanceIntents(projectId), client.listHumanRequests(projectId)]);
-      return { data: [...intents.data, ...requests.data.map((request) => ({ ...request, consoleKind: "human_request" }))], page: { limit: intents.data.length + requests.data.length, nextCursor: null } };
+      const [merged, requests] = await Promise.all([
+        client.listGovernanceMerged(projectId, { limit: 100 }),
+        client.listHumanRequests(projectId),
+      ]);
+      // Normalize merged views into a flat shape for the generic table
+      const mergedRows = merged.data.map((item) => {
+        const rec = asRecord(item);
+        const status = asRecord(rec.status ?? {});
+        const freshness = asRecord(rec.freshness ?? {});
+        return {
+          ...item,
+          consoleKind: "governance_merged",
+          // Hoist commonly-displayed fields to top-level for generic columns
+          title: pickString(asRecord(rec.intent ?? {}).title ?? asRecord(rec.subject ?? {}).title ?? "Untitled"),
+          status: String(status.merged ?? "unknown"),
+          chainStatus: String(status.chain ?? ""),
+          coordinationStatus: String(status.coordination ?? ""),
+          stale: Boolean(freshness.stale),
+        };
+      });
+      return {
+        data: [...mergedRows, ...requests.data.map((request) => ({ ...request, consoleKind: "human_request" }))],
+        page: { limit: mergedRows.length + requests.data.length, nextCursor: null },
+        // Show stale warning if any merged view is stale
+        note: mergedRows.some((r) => r.stale)
+          ? "⚠ Some governance views are stale — the chain indexer checkpoint is older than 60s. Restart the indexer if data is outdated."
+          : undefined,
+      };
     }
     case "guardian":
       return { ...(await client.listHumanRequests(projectId)), note: "Guardian decision API is not available in the current coordinator. Requests can be inspected here." };
