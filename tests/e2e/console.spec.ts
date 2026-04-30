@@ -49,7 +49,7 @@ test("connects to a mock coordinator and opens the project dashboard", async ({ 
                 title: "EVM Proposal #1",
               },
               status: { merged: "active_on_chain", chain: "Deciding" },
-              freshness: { stale: true },
+              freshness: { stale: true, reason: "checkpoint_age_exceeds_threshold" },
             },
           ],
         },
@@ -63,9 +63,15 @@ test("connects to a mock coordinator and opens the project dashboard", async ({ 
         data: {
           backends: [
             {
-              id: "eip155:31337",
+              id: "evm-fixture",
               backend: "evm-governor",
               displayName: "EVM Governor fixture",
+              health: {
+                status: "stale",
+                stale: true,
+                reason: "checkpoint_age_exceeds_threshold",
+                lastObservedAt: "2026-01-01T00:00:00Z",
+              },
               capabilities: {
                 readSubjects: true,
                 readVotes: true,
@@ -94,5 +100,6 @@ test("connects to a mock coordinator and opens the project dashboard", async ({ 
   await expect(page.getByRole("heading", { name: "Governance & Human Requests" })).toBeVisible();
   await expect(page.getByText("evm-governor")).toBeVisible();
   await expect(page.getByText("Wallet action placeholder")).toBeVisible();
+  await expect(page.getByText(/Stale \(checkpoint_age_exceeds_threshold\)/)).toBeVisible();
   await expect(page.getByText(/Some governance views are stale/)).toBeVisible();
 });

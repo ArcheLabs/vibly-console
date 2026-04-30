@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
+    environment: "happy-dom",
     setupFiles: ["tests/setup.ts"],
     globals: true,
     exclude: ["node_modules", ".next", "tests/e2e/**"],

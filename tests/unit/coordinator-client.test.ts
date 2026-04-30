@@ -78,6 +78,24 @@ describe("CoordinatorClient", () => {
     );
   });
 
+  it("passes backend filter to governance merged reads", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          ok: true,
+          data: { items: [] },
+        }),
+      ),
+    );
+    const client = createCoordinatorClient(auth);
+    await client.listGovernanceMerged("project_1", { backend: "evm-governor", limit: 50 });
+    expect(fetch).toHaveBeenCalledWith(
+      "http://coordinator.test/governance/merged?projectId=project_1&backend=evm-governor&limit=50",
+      expect.anything(),
+    );
+  });
+
   it("loads governance backend descriptors and capabilities", async () => {
     vi.stubGlobal(
       "fetch",
@@ -87,8 +105,9 @@ describe("CoordinatorClient", () => {
           data: {
             backends: [
               {
-                id: "eip155:31337",
+                id: "evm-fixture",
                 backend: "evm-governor",
+                health: { status: "healthy", stale: false, lastObservedAt: "2026-01-01T00:00:00Z" },
                 capabilities: { readSubjects: true, readVotes: true, checkpoint: true, requiresWallet: true },
               },
             ],
@@ -100,6 +119,7 @@ describe("CoordinatorClient", () => {
     const result = await client.listGovernanceBackends();
     expect(result.data[0]).toMatchObject({
       backend: "evm-governor",
+      health: expect.objectContaining({ status: "healthy" }),
       capabilities: expect.objectContaining({ readVotes: true, requiresWallet: true }),
     });
     expect(fetch).toHaveBeenCalledWith("http://coordinator.test/governance/backends", expect.anything());

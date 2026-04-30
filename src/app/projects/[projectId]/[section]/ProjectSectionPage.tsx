@@ -149,6 +149,8 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
         const subject = asRecord(rec.subject ?? {});
         const backend = String(subject.backend ?? "");
         const descriptor = backendByKind.get(backend);
+        const backendHealth = asRecord(descriptor?.health ?? {});
+        const rowStale = Boolean(freshness.stale || backendHealth.stale);
         return {
           ...item,
           consoleKind: "governance_merged",
@@ -160,7 +162,8 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
           backend,
           capabilitySummary: summarizeGovernanceCapabilities(descriptor),
           actionStatus: describeGovernanceActionStatus(descriptor),
-          stale: Boolean(freshness.stale),
+          freshnessStatus: describeGovernanceFreshness(descriptor, rowStale),
+          stale: rowStale,
         };
       });
       const backendNote = summarizeGovernanceBackends(backends.data);
@@ -250,6 +253,10 @@ function makeColumns(projectId: string, section: string): ColumnDef<Entity>[] {
             header: "Actions",
             accessorFn: (row: Entity) => String(row.actionStatus ?? ""),
           } satisfies ColumnDef<Entity>,
+          {
+            header: "Freshness",
+            accessorFn: (row: Entity) => String(row.freshnessStatus ?? ""),
+          } satisfies ColumnDef<Entity>,
         ]
       : []),
     {
@@ -291,12 +298,22 @@ function describeGovernanceActionStatus(descriptor?: Entity): string {
   return "Coordinator action available";
 }
 
+function describeGovernanceFreshness(descriptor: Entity | undefined, rowStale: boolean): string {
+  const health = asRecord(descriptor?.health ?? {});
+  const status = String(health.status ?? (rowStale ? "stale" : "unknown"));
+  if (status === "healthy") return "Fresh";
+  if (status === "stale") return `Stale${health.reason ? ` (${String(health.reason)})` : ""}`;
+  if (status === "unavailable") return `Unavailable${health.reason ? ` (${String(health.reason)})` : ""}`;
+  return rowStale ? "Stale" : "";
+}
+
 function summarizeGovernanceBackends(backends: Entity[]): string | undefined {
   if (backends.length === 0) return undefined;
   const summaries = backends.map((backend) => {
     const label = String(backend.displayName ?? backend.id ?? backend.backend ?? "unknown backend");
     const actionStatus = describeGovernanceActionStatus(backend);
-    return actionStatus ? `${label}: ${actionStatus}` : label;
+    const freshness = describeGovernanceFreshness(backend, false);
+    return [label, actionStatus, freshness].filter(Boolean).join(": ");
   });
   return `Governance backends: ${summaries.join("; ")}.`;
 }

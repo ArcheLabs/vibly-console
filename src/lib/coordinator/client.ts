@@ -304,6 +304,7 @@ class HttpCoordinatorClient implements CoordinatorClient {
   async listGovernanceMerged(projectId?: string, input?: PageInput) {
     const params = new URLSearchParams();
     if (projectId) params.set("projectId", projectId);
+    if (input?.backend) params.set("backend", String(input.backend));
     if (input?.limit) params.set("limit", String(input.limit));
     const query = params.toString() ? `?${params.toString()}` : "";
     const payload = await this.request<Entity>(`/governance/merged${query}`);

@@ -76,7 +76,7 @@ Console 支持两种连接模式：
 | `/reviews` | 评审与人工评审表单 |
 | `/rewards` | 奖励意图与账本摘要 |
 | `/reputation` | 声誉证据（只读）|
-| `/governance` | 统一治理 merged view、人类请求与 backend capability 摘要 |
+| `/governance` | 统一治理 merged view、人类请求、backend capability 与 freshness 摘要 |
 | `/guardian` | 高风险请求检查 |
 | `/traces` | 追踪列表与创建 |
 | `/traces/:traceId` | 追踪元数据、事件时间线、verify、replay |
@@ -88,10 +88,10 @@ Console 支持两种连接模式：
 `/governance` 页面整合 coordinator 的统一治理读模型：
 
 1. **Merged governance view**（`GET /governance/merged`）— coordinator 合并后的 intent、链上 subject、投票活动与 checkpoint freshness。
-2. **Backend descriptors**（`GET /governance/backends`）— 用于显示 `substrate-opengov`、`evm-governor` 等后端的读写 capability 与只读/钱包动作占位状态。
+2. **Backend descriptors**（`GET /governance/backends`）— 用于显示 `substrate-opengov`、`evm-governor` 等后端的读写 capability、health/freshness 与只读/钱包动作占位状态。
 3. **Human requests**（`GET /events` 派生）— 高风险人工请求仍作为辅助记录展示。
 
-Console 不直接调用 EVM RPC、SubQuery 或链上 signer。EVM Governor 在 Phase D-min 中只作为 coordinator 返回的 backend-neutral merged subject 渲染，钱包签名 UI 暂不实现。
+Console 不直接调用 EVM RPC、SubQuery 或链上 signer。EVM Governor 在 Phase D.5 中只作为 coordinator 返回的 backend-neutral merged subject 和 fixture backend 渲染，钱包签名 UI 暂不实现。
 
 ## 开发命令
 
@@ -113,6 +113,12 @@ If Playwright browsers are not installed locally, install them in your environme
 
 ```bash
 pnpm exec playwright install
+```
+
+On fresh Linux/WSL environments, install browser system dependencies as well:
+
+```bash
+pnpm exec playwright install-deps chromium
 ```
 
 ## Known Limitations
