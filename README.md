@@ -77,6 +77,7 @@ Console 支持两种连接模式：
 | `/rewards` | 奖励意图与账本摘要 |
 | `/reputation` | 声誉证据（只读）|
 | `/governance` | 统一治理 merged view、人类请求、backend capability 与 freshness 摘要 |
+| `/phase-f` | Phase F 测试 Agent 协作 smoke 结果与 Guardian/trace 状态 |
 | `/guardian` | 高风险请求检查 |
 | `/traces` | 追踪列表与创建 |
 | `/traces/:traceId` | 追踪元数据、事件时间线、verify、replay |
@@ -92,6 +93,10 @@ Console 支持两种连接模式：
 3. **Human requests**（`GET /events` 派生）— 高风险人工请求仍作为辅助记录展示。
 
 Phase E 中，治理表格还会展示 submit receipt、pending indexer readback、linked subject 与 vote readback 状态。Console 仍不直接调用 EVM RPC、SubQuery 或链上 signer；所有链状态都来自 coordinator merged view。EVM Governor 在 Phase D.5 中只作为 coordinator 返回的 backend-neutral merged subject 和 fixture backend 渲染，钱包签名 UI 暂不实现。
+
+### Phase F 页面说明
+
+`/phase-f` 页面通过 coordinator 读取 `/phase-f/runs` 与 `/guardian-requests`，展示 Observer、Delegate、Worker、Reviewer、Guardian 的 scripted smoke 结果、accepted work/review 状态、Guardian request 状态以及 trace verify/replay 摘要。开发工具开启时，可从页面触发 coordinator 的 dev-only `/phase-f/smoke`；Console 仍不直接运行 agent。
 
 ## 开发命令
 
@@ -124,7 +129,7 @@ pnpm exec playwright install-deps chromium
 ## Known Limitations
 
 - Console does not implement SDK domain rules or Coordinator server logic.
-- Guardian decisions, HumanRequest lists, ExternalInput lists, SettlementIntent lists, and ReputationEvidence lists degrade to event-derived or disabled UI when Coordinator lacks dedicated APIs.
+- Guardian decisions, ExternalInput lists, SettlementIntent lists, and ReputationEvidence lists degrade to event-derived or disabled UI when Coordinator lacks dedicated APIs.
 - Direct browser SSE cannot attach custom authorization headers, so Console uses its Next.js proxy route for project event streams.
 - No wallet signing, real OpenGov UI, EVM governor UI, production RBAC, chain transaction flow, or agent execution is included in P3.
 - Reputation summaries are UI evidence summaries only, never final protocol scores.

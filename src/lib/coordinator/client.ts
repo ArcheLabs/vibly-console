@@ -56,6 +56,9 @@ export interface CoordinatorClient {
   getGovernanceCheckpointView(): Promise<Entity>;
   listGovernanceBackends(): Promise<Page<Entity>>;
   listHumanRequests(projectId: string): Promise<Page<Entity>>;
+  runPhaseFSmoke(): Promise<Entity>;
+  listPhaseFRuns(input?: PageInput): Promise<Page<Entity>>;
+  listGuardianRequests(projectId?: string, input?: PageInput): Promise<Page<Entity>>;
   submitGuardianDecision(body: Record<string, unknown>): Promise<Entity>;
   listTraces(input?: PageInput): Promise<Page<Entity>>;
   getTrace(traceId: string): Promise<Entity>;
@@ -216,7 +219,7 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   listWorkOrders(projectId: string, input?: PageInput) {
-    return this.requestPage<Entity>("/work-orders/open", { ...input, projectId });
+    return this.requestPage<Entity>("/work-orders", { ...input, projectId });
   }
 
   async getWorkOrder(workOrderId: string) {
@@ -350,12 +353,27 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   async listHumanRequests(projectId: string) {
-    const events = await this.listEvents({ limit: 100 });
-    const requests = events.data
-      .filter((event) => ["HumanRequestCreated", "GuardianRequestCreated", "EmergencyRequestCreated"].includes(event.type))
+    const [guardianRequests, events] = await Promise.all([
+      this.listGuardianRequests(projectId, { limit: 100 }).catch(() => toPage<Entity>([])),
+      this.listEvents({ limit: 100 }),
+    ]);
+    const eventRequests = events.data
+      .filter((event) => ["HumanRequestCreated", "GuardianRequestCreated", "EmergencyRequestCreated", "GuardianReviewRequested", "GuardianReviewCompleted"].includes(event.type))
       .map((event) => objectPayload(event))
       .filter((item) => item.projectId === projectId || item.projectId === undefined);
-    return toPage<Entity>(requests);
+    return toPage<Entity>([...guardianRequests.data, ...eventRequests]);
+  }
+
+  async runPhaseFSmoke() {
+    return unwrapKey<Entity>(await this.request<Entity>("/phase-f/smoke", { method: "POST" }), "run");
+  }
+
+  listPhaseFRuns(input?: PageInput) {
+    return this.requestPage<Entity>("/phase-f/runs", input);
+  }
+
+  listGuardianRequests(projectId?: string, input?: PageInput) {
+    return this.requestPage<Entity>("/guardian-requests", { ...input, projectId });
   }
 
   async submitGuardianDecision(_body: Record<string, unknown>): Promise<Entity> {

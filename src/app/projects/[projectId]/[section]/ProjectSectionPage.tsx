@@ -38,6 +38,7 @@ const sectionTitles: Record<string, string> = {
   rewards: "Rewards & Mock Ledger",
   reputation: "Reputation Evidence",
   governance: "Governance & Human Requests",
+  "phase-f": "Phase F Collaboration",
   guardian: "Guardian",
   traces: "Protocol Traces",
   events: "Events",
@@ -180,8 +181,38 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
         note: [staleNote, backendNote].filter(Boolean).join(" "),
       };
     }
+    case "phase-f": {
+      const [runs, guardianRequests] = await Promise.all([
+        client.listPhaseFRuns({ limit: 100 }),
+        client.listGuardianRequests(projectId, { limit: 100 }),
+      ]);
+      return {
+        data: [
+          ...runs.data.map((run) => {
+            const rec = asRecord(run);
+            const action = asRecord(rec.action);
+            const workOrder = asRecord(rec.workOrder);
+            const reviewAggregation = asRecord(rec.reviewAggregation);
+            const guardianRequest = asRecord(rec.guardianRequest);
+            const verification = asRecord(rec.verification);
+            const replay = asRecord(rec.replay);
+            return {
+              ...run,
+              consoleKind: "phase_f_run",
+              title: String(action.title ?? "Phase F collaboration run"),
+              status: `${String(workOrder.status ?? "unknown")} / review ${String(reviewAggregation.result ?? "unknown")}`,
+              phaseFTraceStatus: `verify=${String(verification.ok ?? false)} replay=${String(replay.ok ?? false)}`,
+              guardianStatus: String(guardianRequest.status ?? ""),
+            };
+          }),
+          ...guardianRequests.data.map((request) => ({ ...request, consoleKind: "guardian_request" })),
+        ],
+        page: { limit: runs.data.length + guardianRequests.data.length, nextCursor: null },
+        note: "Phase F runs are created by the coordinator dev smoke route; Console only observes coordinator read models.",
+      };
+    }
     case "guardian":
-      return { ...(await client.listHumanRequests(projectId)), note: "Guardian decision API is not available in the current coordinator. Requests can be inspected here." };
+      return { ...(await client.listHumanRequests(projectId)), note: "Guardian requests include Phase F high-risk smoke decisions when dev smoke has been run." };
     case "traces":
       return client.listTraces({ limit: 100 });
     case "events":
@@ -204,6 +235,7 @@ function SectionContent({ projectId, section, result }: { projectId: string; sec
       {section === "negotiations" ? <SubmitPositionForm projectId={projectId} data={data} /> : null}
       {section === "reviews" ? <SubmitReviewForm /> : null}
       {section === "traces" ? <CreateTraceForm projectId={projectId} /> : null}
+      {section === "phase-f" ? <PhaseFSmokePanel projectId={projectId} /> : null}
     </div>
   );
 }
@@ -337,11 +369,33 @@ function summarizeGovernanceBackends(backends: Entity[]): string | undefined {
 }
 
 function SectionActions({ projectId, section }: { projectId: string; section: string }) {
-  if (section !== "traces" && section !== "events") return null;
+  if (section !== "traces" && section !== "events" && section !== "phase-f") return null;
   return (
     <Link className="rounded border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50" href={`/projects/${projectId}/${section}`}>
       Refresh {section}
     </Link>
+  );
+}
+
+function PhaseFSmokePanel({ projectId }: { projectId: string }) {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => client.runPhaseFSmoke(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-f") }),
+  });
+  return (
+    <div className="rounded border border-slate-200 bg-white p-4">
+      <h2 className="font-semibold text-slate-950">Phase F Smoke</h2>
+      <p className="mt-1 text-sm text-slate-600">Runs the dev-only Observer, Delegate, Worker, Reviewer, and Guardian collaboration loop through the coordinator.</p>
+      <div className="mt-3">
+        <ConfirmButton confirm="Run Phase F smoke? Coordinator dev routes must be enabled." onConfirm={() => mutation.mutate()}>
+          Run Phase F Smoke
+        </ConfirmButton>
+      </div>
+      {mutation.error ? <div className="mt-3"><ErrorState error={mutation.error} /></div> : null}
+      {mutation.data ? <JsonViewer value={mutation.data} title="Latest Phase F run" /> : null}
+    </div>
   );
 }
 
