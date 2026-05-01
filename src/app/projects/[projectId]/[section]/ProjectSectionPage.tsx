@@ -130,7 +130,7 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
     case "negotiations":
       return client.listNegotiations({ limit: 100 });
     case "timeline":
-      return client.listPhaseGTimeline(projectId);
+      return client.listProjectTimeline(projectId);
     case "work":
       return client.listWorkOrders(projectId, { limit: 100 });
     case "reviews":
@@ -189,7 +189,7 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
     }
     case "phase-f": {
       const [runs, guardianRequests] = await Promise.all([
-        client.listPhaseFRuns({ limit: 100 }),
+        client.listAgentCollaborationScenarioRuns({ limit: 100 }),
         client.listGuardianRequests(projectId, { limit: 100 }),
       ]);
       return {
@@ -219,8 +219,8 @@ async function loadSection(client: ReturnType<typeof useCoordinatorClient>, proj
     }
     case "phase-h": {
       const [overview, runs, rewards, reputationEvidence, slashRequests] = await Promise.all([
-        client.getPhaseHOverview(projectId),
-        client.listPhaseHRuns({ projectId, limit: 100 }),
+        client.getProjectOverview(projectId),
+        client.listIncentiveRiskScenarioRuns({ projectId, limit: 100 }),
         client.listRewards(projectId, { limit: 100 }),
         client.listReputationEvidence(projectId),
         client.listSlashRequests(projectId, { limit: 100 }),
@@ -421,7 +421,7 @@ function PhaseFSmokePanel({ projectId }: { projectId: string }) {
   const client = useCoordinatorClient();
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => client.runPhaseFSmoke(),
+    mutationFn: () => client.runAgentCollaborationScenario(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-f") }),
   });
   return (
@@ -443,10 +443,10 @@ function PhaseHSmokePanel({ projectId }: { projectId: string }) {
   const client = useCoordinatorClient();
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => client.runPhaseHSmoke(),
+    mutationFn: () => client.runIncentiveRiskScenario(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-h") });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.phaseHOverview(projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projectOverview(projectId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "rewards") });
       void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "reputation") });
       void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "guardian") });

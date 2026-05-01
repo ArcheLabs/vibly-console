@@ -51,69 +51,64 @@ describe("CoordinatorClient", () => {
   });
 
   it("loads governance merged views through coordinator", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          ok: true,
-          data: {
-            items: [
-              {
-                id: "merged:eip155:31337:prop_evm_1",
-                subject: { backend: "evm-governor", externalId: "prop_evm_1" },
-                freshness: { stale: false },
-              },
-            ],
-          },
-        }),
-      ),
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        data: {
+          items: [
+            {
+              id: "merged:eip155:31337:prop_evm_1",
+              subject: { backend: "evm-governor", externalId: "prop_evm_1" },
+              freshness: { stale: false },
+            },
+          ],
+        },
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
     const client = createCoordinatorClient(auth);
     const result = await client.listGovernanceMerged("project_1", { limit: 100 });
     expect(result.data[0].subject).toMatchObject({ backend: "evm-governor" });
-    expect(fetch).toHaveBeenCalledWith(
-      "http://coordinator.test/governance/merged?projectId=project_1&limit=100",
-      expect.anything(),
-    );
+    const request = (fetchMock.mock.calls as unknown as Array<[Request]>)[0]?.[0];
+    expect(request?.url).toContain("/governance/merged");
+    expect(request?.url).toContain("projectId=project_1");
+    expect(request?.url).toContain("limit=100");
   });
 
   it("passes backend filter to governance merged reads", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          ok: true,
-          data: { items: [] },
-        }),
-      ),
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        data: { items: [] },
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
     const client = createCoordinatorClient(auth);
     await client.listGovernanceMerged("project_1", { backend: "evm-governor", limit: 50 });
-    expect(fetch).toHaveBeenCalledWith(
-      "http://coordinator.test/governance/merged?projectId=project_1&backend=evm-governor&limit=50",
-      expect.anything(),
-    );
+    const request = (fetchMock.mock.calls as unknown as Array<[Request]>)[0]?.[0];
+    expect(request?.url).toContain("/governance/merged");
+    expect(request?.url).toContain("projectId=project_1");
+    expect(request?.url).toContain("backend=evm-governor");
+    expect(request?.url).toContain("limit=50");
   });
 
   it("loads governance backend descriptors and capabilities", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          ok: true,
-          data: {
-            backends: [
-              {
-                id: "evm-fixture",
-                backend: "evm-governor",
-                health: { status: "healthy", stale: false, lastObservedAt: "2026-01-01T00:00:00Z" },
-                capabilities: { readSubjects: true, readVotes: true, checkpoint: true, requiresWallet: true },
-              },
-            ],
-          },
-        }),
-      ),
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        data: {
+          backends: [
+            {
+              id: "evm-fixture",
+              backend: "evm-governor",
+              health: { status: "healthy", stale: false, lastObservedAt: "2026-01-01T00:00:00Z" },
+              capabilities: { readSubjects: true, readVotes: true, checkpoint: true, requiresWallet: true },
+            },
+          ],
+        },
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
     const client = createCoordinatorClient(auth);
     const result = await client.listGovernanceBackends();
     expect(result.data[0]).toMatchObject({
@@ -121,41 +116,48 @@ describe("CoordinatorClient", () => {
       health: expect.objectContaining({ status: "healthy" }),
       capabilities: expect.objectContaining({ readVotes: true, requiresWallet: true }),
     });
-    expect(fetch).toHaveBeenCalledWith("http://coordinator.test/governance/backends", expect.anything());
+    const request = (fetchMock.mock.calls as unknown as Array<[Request]>)[0]?.[0];
+    expect(request?.url).toBe("http://coordinator.test/governance/backends");
   });
 
-  it("loads Phase G overview and timeline read models", async () => {
+  it("loads project overview and timeline read models", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
-        if (url.includes("/phase-g/overview")) {
-          return Response.json({ ok: true, data: { overview: { counts: { timelineEvents: 2 } } } });
+      vi.fn(async (input: Request | string) => {
+        const url = typeof input === "string" ? input : input.url;
+        if (url.includes("/timeline")) {
+          return Response.json({ ok: true, data: { timeline: [{ id: "step_1", phase: "observe" }] } });
         }
-        return Response.json({ ok: true, data: { timeline: [{ id: "step_1", phase: "observe" }] } });
+        return Response.json({ ok: true, data: { overview: { counts: { timelineEvents: 2 } } } });
       }),
     );
     const client = createCoordinatorClient(auth);
-    await expect(client.getPhaseGOverview("project_1")).resolves.toMatchObject({ counts: { timelineEvents: 2 } });
-    await expect(client.listPhaseGTimeline("project_1")).resolves.toMatchObject({ data: [{ id: "step_1", phase: "observe" }] });
-    expect(fetch).toHaveBeenCalledWith("http://coordinator.test/projects/project_1/phase-g/overview", expect.anything());
-    expect(fetch).toHaveBeenCalledWith("http://coordinator.test/projects/project_1/phase-g/timeline", expect.anything());
+    await expect(client.getProjectOverview("project_1")).resolves.toMatchObject({ counts: { timelineEvents: 2 } });
+    await expect(client.listProjectTimeline("project_1")).resolves.toMatchObject({ data: [{ id: "step_1", phase: "observe" }] });
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls as Array<[Request]>;
+    const urls = calls.map((c) => c[0]?.url);
+    expect(urls).toContain("http://coordinator.test/projects/project_1/overview");
+    expect(urls).toContain("http://coordinator.test/projects/project_1/timeline");
   });
 
-  it("loads Phase H smoke, overview, runs, reputation, and slash read models", async () => {
+  it("loads incentive-risk scenario, overview, runs, reputation, and slash read models", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
-        if (url.endsWith("/phase-h/smoke")) return Response.json({ ok: true, data: { run: { id: "phase_h_1" } } });
-        if (url.includes("/phase-h/overview")) return Response.json({ ok: true, data: { overview: { counts: { claimableRewards: 1 } } } });
-        if (url.includes("/phase-h/runs")) return Response.json({ ok: true, data: [{ id: "phase_h_1" }] });
-        if (url.includes("/reputation/evidence")) return Response.json({ ok: true, data: [{ id: "rep_1" }] });
-        return Response.json({ ok: true, data: [{ id: "slash_1" }] });
+      vi.fn(async (input: Request | string) => {
+        const url = typeof input === "string" ? input : input.url;
+        if (url.endsWith("/dev/scenarios/incentive-risk/runs") && (typeof input === "object" ? input.method === "POST" : false)) {
+          return Response.json({ ok: true, data: { run: { id: "phase_h_1" } } });
+        }
+        if (url.includes("/dev/scenarios/incentive-risk/runs")) return Response.json({ ok: true, data: [{ id: "phase_h_1" }], page: { limit: 50, nextCursor: null } });
+        if (url.includes("/overview")) return Response.json({ ok: true, data: { overview: { counts: { claimableRewards: 1 } } } });
+        if (url.includes("/reputation/evidence")) return Response.json({ ok: true, data: [{ id: "rep_1" }], page: { limit: 50, nextCursor: null } });
+        return Response.json({ ok: true, data: [{ id: "slash_1" }], page: { limit: 50, nextCursor: null } });
       }),
     );
     const client = createCoordinatorClient(auth);
-    await expect(client.runPhaseHSmoke()).resolves.toMatchObject({ id: "phase_h_1" });
-    await expect(client.getPhaseHOverview("project_1")).resolves.toMatchObject({ counts: { claimableRewards: 1 } });
-    await expect(client.listPhaseHRuns({ projectId: "project_1", limit: 100 })).resolves.toMatchObject({ data: [{ id: "phase_h_1" }] });
+    await expect(client.runIncentiveRiskScenario()).resolves.toMatchObject({ id: "phase_h_1" });
+    await expect(client.getProjectOverview("project_1")).resolves.toMatchObject({ counts: { claimableRewards: 1 } });
+    await expect(client.listIncentiveRiskScenarioRuns({ projectId: "project_1", limit: 100 })).resolves.toMatchObject({ data: [{ id: "phase_h_1" }] });
     await expect(client.listReputationEvidence("project_1")).resolves.toMatchObject({ data: [{ id: "rep_1" }] });
     await expect(client.listSlashRequests("project_1", { limit: 100 })).resolves.toMatchObject({ data: [{ id: "slash_1" }] });
   });

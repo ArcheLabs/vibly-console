@@ -13,7 +13,10 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = new URL("../src", import.meta.url).pathname;
-const ALLOWED = ["/lib/coordinator/"];
+// Only the contract-client adapter is allowed to know about coordinator
+// transport details (proxy base URL, query params). Everything else, including
+// `client.ts`, must go through `this.contract.METHOD("/typed/path", ...)`.
+const ALLOWED = ["/lib/coordinator/contractClient.ts"];
 const PATTERNS = [
   /\bfetch\(\s*['"`]\/(projects|events|health|negotiations|reviews|incentives|governance|traces|agents|principals|objectives|knowledge|state|context|memberships|reputation|risk|guardian|streams|assignments|scenarios|phase-[a-z])\b/,
   /\bnew\s+EventSource\(\s*['"`]\/(projects|streams)\b/,

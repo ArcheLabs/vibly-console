@@ -23,15 +23,13 @@ export function invalidateForEvent(queryClient: QueryClient, projectId: string, 
   }
   if (type.includes("Governance") || type.includes("Checkpoint")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "governance") });
   if (type.includes("PhaseF") || type.includes("PhaseGTimeline")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-f") });
-  if (type.includes("PhaseGTimeline")) void queryClient.invalidateQueries({ queryKey: queryKeys.phaseGTimeline(projectId) });
+  if (type.includes("PhaseGTimeline")) void queryClient.invalidateQueries({ queryKey: queryKeys.projectTimeline(projectId) });
   if (type.includes("PhaseH") || type.includes("Reputation") || type.includes("Slash")) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "phase-h") });
     void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "reputation") });
     void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "guardian") });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.phaseHOverview(projectId) });
   }
-  void queryClient.invalidateQueries({ queryKey: queryKeys.phaseGOverview(projectId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.projectOverview(projectId) });
   if (type.includes("Reward") || type.includes("Funding")) void queryClient.invalidateQueries({ queryKey: queryKeys.section(projectId, "rewards") });
-  if (type.includes("Reward") || type.includes("Funding")) void queryClient.invalidateQueries({ queryKey: queryKeys.phaseHOverview(projectId) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.events(projectId) });
 }

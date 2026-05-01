@@ -18,13 +18,9 @@ export function ProjectDashboardPage({ projectId }: { projectId: string }) {
     queryKey: queryKeys.project(projectId),
     queryFn: () => client.getProject(projectId),
   });
-  const phaseGOverview = useQuery({
-    queryKey: queryKeys.phaseGOverview(projectId),
-    queryFn: () => client.getPhaseGOverview(projectId),
-  });
-  const phaseHOverview = useQuery({
-    queryKey: queryKeys.phaseHOverview(projectId),
-    queryFn: () => client.getPhaseHOverview(projectId),
+  const overview = useQuery({
+    queryKey: queryKeys.projectOverview(projectId),
+    queryFn: () => client.getProjectOverview(projectId),
   });
   const [objectives, state, knowledge, actions, work, negotiations, reviews, rewards, events, traces] = useQueries({
     queries: [
@@ -78,8 +74,8 @@ export function ProjectDashboardPage({ projectId }: { projectId: string }) {
         <StatCard label="Recent events" value={events.data?.data.length ?? "-"} href={`/projects/${projectId}/events`} />
         <StatCard label="Protocol traces" value={traces.data?.data.length ?? "-"} href={`/projects/${projectId}/traces`} />
       </div>
-      <HumanObservableOverview projectId={projectId} overview={phaseGOverview.data ? asRecord(phaseGOverview.data) : null} liveStatus={live.status} liveEvents={live.events} />
-      <PhaseHOverview projectId={projectId} overview={phaseHOverview.data ? asRecord(phaseHOverview.data) : null} />
+      <HumanObservableOverview projectId={projectId} overview={overview.data ? asRecord(overview.data) : null} liveStatus={live.status} liveEvents={live.events} />
+      <PhaseHOverview projectId={projectId} overview={overview.data ? asRecord(overview.data) : null} />
       <div className="grid gap-4 xl:grid-cols-2">
         <EntityCard title="Latest StateView" item={state.data ? asRecord(state.data) : null} />
         <EntityCard title="Latest KnowledgeVersion" item={knowledge.data ? asRecord(knowledge.data) : null} />
