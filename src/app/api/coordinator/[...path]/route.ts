@@ -1,37 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appConfig } from "@/lib/config/env";
+import { auth } from "@/auth";
+import {
+  CoordinatorSessionError,
+  resolveCoordinatorCredentials,
+} from "@/lib/server/coordinatorSession";
 
-const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+// Reserved query keys whose presence on a request hints at a legacy
+// transport (token/target in the URL). They are stripped before the
+// request reaches the upstream Coordinator and never honoured for
+// credential or routing decisions.
+const RESERVED_QUERY_KEYS = ["__coordinatorUrl", "__apiToken"];
 
-async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  const params = await context.params;
-  const url = new URL(request.url);
-  const coordinatorUrl = url.searchParams.get("__coordinatorUrl") ?? process.env.COORDINATOR_URL ?? appConfig.defaultCoordinatorUrl;
-  const apiToken = url.searchParams.get("__apiToken") ?? "";
-  url.searchParams.delete("__coordinatorUrl");
-  url.searchParams.delete("__apiToken");
+function jsonError(status: number, code: string, message: string): NextResponse {
+  return NextResponse.json({ ok: false, error: { code, message } }, { status });
+}
 
-  const target = new URL(`/${params.path.join("/")}`, coordinatorUrl);
-  url.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+async function proxy(
+  request: NextRequest,
+  context: { params: Promise<{ path: string[] }> },
+): Promise<NextResponse> {
+  const session = await auth();
+
+  let credentials;
+  try {
+    credentials = await resolveCoordinatorCredentials(session);
+  } catch (e) {
+    if (e instanceof CoordinatorSessionError) {
+      return jsonError(e.status, e.code, e.message);
+    }
+    return jsonError(500, "COORDINATOR_PROXY_ERROR", String(e));
+  }
+
+  const { path } = await context.params;
+  const incoming = new URL(request.url);
+  for (const key of RESERVED_QUERY_KEYS) incoming.searchParams.delete(key);
+
+  const target = new URL(`/${path.join("/")}`, credentials.baseUrl);
+  incoming.searchParams.forEach((value, key) => {
+    target.searchParams.set(key, value);
+  });
 
   const headers: HeadersInit = {};
   const contentType = request.headers.get("content-type");
   if (contentType) headers["Content-Type"] = contentType;
-  if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
+  const accept = request.headers.get("accept");
+  if (accept) headers["Accept"] = accept;
+  if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
 
-  const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.text();
-  const response = await fetch(target, {
+  const isBodyless = request.method === "GET" || request.method === "HEAD";
+  const body = isBodyless ? undefined : await request.text();
+
+  const upstream = await fetch(target, {
     method: request.method,
     headers,
     body,
   });
 
-  const responseBody = await response.arrayBuffer();
+  const upstreamContentType = upstream.headers.get("content-type") ?? "application/json";
+  const isStream = upstreamContentType.startsWith("text/event-stream");
+
+  if (isStream) {
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: {
+        "Content-Type": upstreamContentType,
+        "Cache-Control": "no-store, no-transform",
+        Connection: "keep-alive",
+      },
+    });
+  }
+
+  const responseBody = await upstream.arrayBuffer();
   return new NextResponse(responseBody, {
-    status: response.status,
-    statusText: response.statusText,
+    status: upstream.status,
+    statusText: upstream.statusText,
     headers: {
-      "Content-Type": response.headers.get("content-type") ?? "application/json",
+      "Content-Type": upstreamContentType,
     },
   });
 }
@@ -41,5 +86,3 @@ export const POST = proxy;
 export const PUT = proxy;
 export const PATCH = proxy;
 export const DELETE = proxy;
-
-void METHODS;

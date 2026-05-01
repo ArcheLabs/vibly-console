@@ -1,10 +1,23 @@
 export type ConsoleMode = "direct" | "proxy";
 
+/**
+ * Console runtime auth descriptor.
+ *
+ * In production the Console runs in `proxy` mode: the browser holds NO
+ * Coordinator credentials. `coordinatorUrl` is kept here only for UI
+ * display (header chrome) and is sourced from a server-injected public
+ * env value, not from user input.
+ *
+ * `direct` mode is a development/testing escape hatch where the browser
+ * talks straight to a Coordinator with a Bearer token. `apiToken` is
+ * therefore optional and only meaningful in `direct` mode; never persist
+ * it to localStorage in production.
+ */
 export interface AuthState {
   coordinatorUrl: string;
-  apiToken: string;
   mode: ConsoleMode;
   connected: boolean;
+  apiToken?: string;
 }
 
 export interface PageInput {

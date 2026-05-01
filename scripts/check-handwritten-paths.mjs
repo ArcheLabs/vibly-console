@@ -22,6 +22,19 @@ const PATTERNS = [
   /\bnew\s+EventSource\(\s*['"`]\/(projects|streams)\b/,
 ];
 
+// Hard ban: never put Coordinator credentials in a URL. The Console proxy
+// resolves them server-side from the Auth.js session; allowing them in
+// query strings would re-introduce token leakage via Referer / history /
+// access logs. The proxy route handler itself only deletes them, it
+// never reads them, so even there these literals must not appear as
+// transport sources.
+const FORBIDDEN_QUERY_LITERALS = ["__apiToken", "__coordinatorUrl"];
+// Files that may legitimately mention these literals (deletion lists,
+// security tests asserting absence, this guard itself).
+const QUERY_GUARD_ALLOWED = [
+  "/app/api/coordinator/[...path]/route.ts",
+];
+
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
@@ -33,21 +46,29 @@ function* walk(dir) {
 
 const violations = [];
 for (const file of walk(ROOT)) {
-  if (ALLOWED.some((allowed) => file.includes(allowed))) continue;
   const content = readFileSync(file, "utf8");
-  for (const pattern of PATTERNS) {
-    const match = content.match(pattern);
-    if (match) {
-      violations.push({ file: file.replace(`${ROOT}/`, ""), match: match[0] });
-      break;
+  if (!ALLOWED.some((allowed) => file.includes(allowed))) {
+    for (const pattern of PATTERNS) {
+      const match = content.match(pattern);
+      if (match) {
+        violations.push({ file: file.replace(`${ROOT}/`, ""), match: match[0] });
+        break;
+      }
+    }
+  }
+  if (!QUERY_GUARD_ALLOWED.some((allowed) => file.includes(allowed))) {
+    for (const literal of FORBIDDEN_QUERY_LITERALS) {
+      if (content.includes(literal)) {
+        violations.push({ file: file.replace(`${ROOT}/`, ""), match: literal });
+      }
     }
   }
 }
 
 if (violations.length > 0) {
   console.error(
-    `[contract guard] Handwritten coordinator paths detected outside src/lib/coordinator. ` +
-      `Use @vibly/coordinator-http-contract instead.`,
+    `[contract guard] Handwritten coordinator paths or URL credentials detected. ` +
+      `Use @vibly/coordinator-http-contract for paths, and the Auth.js session + server-side credential resolver for transport credentials.`,
   );
   for (const v of violations) console.error(` - ${v.file}: ${v.match}`);
   process.exit(1);

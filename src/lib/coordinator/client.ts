@@ -789,11 +789,12 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   private makeStreamUrl(path: string): string {
+    // SSE always traverses the Console proxy, which authenticates the
+    // browser via the HttpOnly Auth.js session cookie and then injects
+    // the Coordinator Bearer token server-side. Never put credentials
+    // in the URL — they would leak via Referer, history, and access logs.
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    const url = new URL(`/api/coordinator${cleanPath}`, typeof window === "undefined" ? "http://localhost:3000" : window.location.origin);
-    url.searchParams.set("__coordinatorUrl", this.auth.coordinatorUrl);
-    if (this.auth.apiToken) url.searchParams.set("__apiToken", this.auth.apiToken);
-    return `${url.pathname}${url.search}`;
+    return `/api/coordinator${cleanPath}`;
   }
 }
 

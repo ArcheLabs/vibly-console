@@ -1,9 +1,18 @@
 /**
  * Adapter that builds a `@vibly/coordinator-http-contract` client matching
  * the console's `AuthState` (direct vs proxy URL building, optional Bearer
- * token). Only the fetch + URL strategy lives here; all path strings,
- * request/response shapes, and the JSON envelope come from the contract
- * package.
+ * token).
+ *
+ * Production runs in `proxy` mode: the browser only ever talks to
+ * `/api/coordinator/*` on the same origin and forwards the Auth.js
+ * session cookie via the default fetch credentials. The Coordinator
+ * URL and API token are resolved server-side and injected as a Bearer
+ * `Authorization` header by the proxy route handler.
+ *
+ * `direct` mode is retained for unit tests / dev-only flows that still
+ * need to call a Coordinator without going through the proxy. It accepts
+ * an explicit `apiToken` purely as a transport credential and never
+ * persists it.
  */
 import { createCoordinatorClient } from "@vibly/coordinator-http-contract/client";
 import type { CoordinatorClient as ContractClient } from "@vibly/coordinator-http-contract/client";
@@ -27,21 +36,5 @@ export function createConsoleContractClient(auth: AuthState): ConsoleContractCli
   const headers: Record<string, string> = {};
   if (!proxy && auth.apiToken) headers.Authorization = `Bearer ${auth.apiToken}`;
 
-  const client = createCoordinatorClient({ baseUrl, headers });
-
-  if (proxy) {
-    // Append the same `__coordinatorUrl` / `__apiToken` query the existing
-    // proxy expects. This stays here (not in the contract package) because
-    // it is a console-specific transport detail.
-    client.use({
-      async onRequest({ request }) {
-        const url = new URL(request.url);
-        url.searchParams.set("__coordinatorUrl", auth.coordinatorUrl);
-        if (auth.apiToken) url.searchParams.set("__apiToken", auth.apiToken);
-        return new Request(url.toString(), request);
-      },
-    });
-  }
-
-  return client;
+  return createCoordinatorClient({ baseUrl, headers });
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { RefreshCw, ShieldCheck, Unplug } from "lucide-react";
 import { clearAuthState, useAuthState } from "@/lib/store/authStore";
 import { appConfig } from "@/lib/config/env";
@@ -89,14 +90,15 @@ export function AppShell({
               <button
                 type="button"
                 className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
-                onClick={() => {
+                onClick={async () => {
                   clearAuthState();
+                  await signOut({ callbackUrl: "/login" });
                   router.push("/login");
                 }}
-                title="Disconnect"
+                title="Sign out"
               >
                 <Unplug className="h-4 w-4" />
-                Disconnect
+                Sign out
               </button>
             </div>
           </div>

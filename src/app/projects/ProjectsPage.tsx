@@ -1,29 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "@/components/common/States";
 import { PageHeader } from "@/components/common/EntityViews";
 import { StatusBadge } from "@/components/common/Badge";
-import { useAuthState } from "@/lib/store/authStore";
 import { useCoordinatorClient } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
 import { compactId, pickString, timeAgo } from "@/lib/utils/format";
 
 export function ProjectsPage() {
-  const auth = useAuthState();
-  const router = useRouter();
+  // Route protection lives in `src/proxy.ts` (Next.js 16). By the time
+  // this component renders we are guaranteed to have a signed-in session.
   const client = useCoordinatorClient();
-  useEffect(() => {
-    if (!auth.connected) router.replace("/login");
-  }, [auth.connected, router]);
   const projects = useQuery({
     queryKey: queryKeys.projects,
     queryFn: () => client.listProjects({ limit: 100 }),
-    enabled: auth.connected,
   });
 
   return (

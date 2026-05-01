@@ -33,29 +33,52 @@ pnpm dev
 
 - Console：`http://localhost:3000`
 - Coordinator：`http://localhost:8787`
-- 开发 token：`dev-token`
+
+## 认证模型
+
+Console 是面向多用户的正式 Web UI，使用 [Auth.js v5](https://authjs.dev) 在服务端做身份验证：
+
+- 用户走 `/login` 登录到 OIDC IdP（生产环境）或 Dev Credentials（开发环境）。
+- 浏览器只持有 HttpOnly Auth.js session cookie，**不**存储 Coordinator API token，也**不**把 token 放进 URL/查询串/localStorage。
+- 所有 Coordinator REST/SSE 请求走同源 `/api/coordinator/*`，由 Next.js 路由处理器在服务端从 env / session 解析 Coordinator URL 与 Bearer token，再转发到上游。
+- `src/proxy.ts`（Next.js 16 代替 `middleware.ts`）保护 `/projects/*` 与 `/api/coordinator/*`，未登录会被重定向到 `/login` 或返回 401。
 
 ## 环境变量
+
+服务端必填（生产）：
+
+```bash
+AUTH_SECRET=<openssl rand -base64 32>
+AUTH_TRUST_HOST=true            # 当部署在反代/容器后面时设置
+AUTH_OIDC_ISSUER=https://idp.example.com
+AUTH_OIDC_CLIENT_ID=...
+AUTH_OIDC_CLIENT_SECRET=...
+COORDINATOR_URL=http://localhost:8787
+COORDINATOR_API_TOKEN=<server-side coordinator token>
+```
+
+仅前端展示用（公开）：
 
 ```bash
 NEXT_PUBLIC_APP_NAME=Vibly Console
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:8787
 NEXT_PUBLIC_ENABLE_DEV_TOOLS=true
-COORDINATOR_URL=http://localhost:8787
-NEXT_PUBLIC_DEMO_API_TOKEN=dev-token
 ```
 
-Console 支持两种连接模式：
+开发可选：
 
-- **直连模式**：浏览器直接调用 Coordinator（需要 Coordinator 开启 CORS）
-- **代理模式**：浏览器调用 `/api/coordinator/*`，由 Next.js 转发到 Coordinator
+```bash
+AUTH_DEV_CREDENTIALS=true       # 启用 dev email-only sign-in（无需配置 IdP）
+```
+
+> 注意：`COORDINATOR_API_TOKEN` 永远只存在于服务端 env，不会下发到浏览器。
 
 ## 页面列表
 
 ### 全局
 
-- `/login` — Coordinator URL、token 和连接模式
-- `/projects` — 项目列表
+- `/login` — OAuth/OIDC 登录入口（dev 模式下还提供 email-only sign-in）
+- `/projects` — 项目列表（受 `src/proxy.ts` 保护）
 
 ### 项目详情（`/projects/:projectId/`）
 

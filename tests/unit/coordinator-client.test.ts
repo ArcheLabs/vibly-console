@@ -162,7 +162,7 @@ describe("CoordinatorClient", () => {
     await expect(client.listSlashRequests("project_1", { limit: 100 })).resolves.toMatchObject({ data: [{ id: "slash_1" }] });
   });
 
-  it("streams project events through the console proxy", () => {
+  it("streams project events through the console proxy without URL credentials", () => {
     const close = vi.fn();
     const addEventListener = vi.fn();
     const eventSource = vi.fn(function EventSourceMock(this: { addEventListener: typeof addEventListener; close: typeof close; onerror?: () => void }) {
@@ -172,7 +172,13 @@ describe("CoordinatorClient", () => {
     vi.stubGlobal("EventSource", eventSource);
     const client = createCoordinatorClient(auth);
     const unsubscribe = client.streamProjectEvents("project_1", { onEvent: vi.fn(), onStatus: vi.fn() });
-    expect(eventSource).toHaveBeenCalledWith("/api/coordinator/projects/project_1/stream?__coordinatorUrl=http%3A%2F%2Fcoordinator.test&__apiToken=dev-token");
+    // Bearer token / coordinator URL must never enter the SSE URL: the
+    // proxy resolves credentials server-side from the Auth.js session.
+    expect(eventSource).toHaveBeenCalledWith("/api/coordinator/projects/project_1/stream");
+    const calls = eventSource.mock.calls as unknown as Array<[string]>;
+    const callArg = calls[0]?.[0] ?? "";
+    expect(callArg).not.toContain("__apiToken");
+    expect(callArg).not.toContain("__coordinatorUrl");
     expect(addEventListener).toHaveBeenCalledWith("ProjectEvent", expect.any(Function));
     unsubscribe();
     expect(close).toHaveBeenCalled();

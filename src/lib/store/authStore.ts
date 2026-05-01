@@ -4,13 +4,21 @@ import { useSyncExternalStore } from "react";
 import { appConfig } from "../config/env";
 import type { AuthState } from "../coordinator/types";
 
+/**
+ * Lightweight client-side mirror of the browser's connection state.
+ *
+ * Production console authenticates via Auth.js (HttpOnly session cookie),
+ * not via a token persisted in `localStorage`. This store therefore
+ * only persists `mode` and a `connected` flag for UI affordances and
+ * proactive deep-link routing decisions. It MUST NOT carry credentials:
+ * `apiToken` is intentionally omitted from the persisted shape.
+ */
 const AUTH_KEY = "vibly-console.auth";
 const listeners = new Set<() => void>();
 
 export const defaultAuthState: AuthState = {
   coordinatorUrl: appConfig.defaultCoordinatorUrl,
-  apiToken: "",
-  mode: "direct",
+  mode: "proxy",
   connected: false,
 };
 
@@ -26,8 +34,7 @@ export function readAuthState(): AuthState {
     const parsed = JSON.parse(raw) as Partial<AuthState>;
     return {
       coordinatorUrl: parsed.coordinatorUrl || defaultAuthState.coordinatorUrl,
-      apiToken: parsed.apiToken || "",
-      mode: parsed.mode === "proxy" ? "proxy" : "direct",
+      mode: parsed.mode === "direct" ? "direct" : "proxy",
       connected: Boolean(parsed.connected),
     };
   } catch {
@@ -37,7 +44,14 @@ export function readAuthState(): AuthState {
 
 export function writeAuthState(next: AuthState): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(AUTH_KEY, JSON.stringify(next));
+  // Strip transport credentials before persisting: even if a caller
+  // passes a transient `apiToken`, it must never enter localStorage.
+  const sanitized: AuthState = {
+    coordinatorUrl: next.coordinatorUrl,
+    mode: next.mode,
+    connected: next.connected,
+  };
+  window.localStorage.setItem(AUTH_KEY, JSON.stringify(sanitized));
   emit();
 }
 
