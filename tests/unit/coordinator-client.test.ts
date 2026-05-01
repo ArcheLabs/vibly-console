@@ -16,25 +16,24 @@ describe("CoordinatorClient", () => {
   });
 
   it("unwraps list responses", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          ok: true,
-          data: [{ id: "project_1", name: "Demo" }],
-          page: { limit: 50, nextCursor: null },
-        }),
-      ),
+    const fetchMock = vi.fn(async (_input: Request | string | URL) =>
+      Response.json({
+        ok: true,
+        data: [{ id: "project_1", name: "Demo" }],
+        page: { limit: 50, nextCursor: null },
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
     const client = createCoordinatorClient(auth);
     await expect(client.listProjects()).resolves.toMatchObject({
       data: [{ id: "project_1" }],
       page: { nextCursor: null },
     });
-    expect(fetch).toHaveBeenCalledWith(
-      "http://coordinator.test/projects",
-      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer dev-token" }) }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const calls = fetchMock.mock.calls as unknown as Array<[Request]>;
+    const request = calls[0]?.[0];
+    expect(request?.url).toBe("http://coordinator.test/projects");
+    expect(request?.headers.get("Authorization")).toBe("Bearer dev-token");
   });
 
   it("normalizes API errors", async () => {

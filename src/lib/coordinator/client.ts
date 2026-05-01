@@ -1,5 +1,8 @@
+import { unwrapEnvelope, unwrapListEnvelope } from "@vibly/coordinator-http-contract/client";
+import { CoordinatorApiError as ContractApiError } from "@vibly/coordinator-http-contract/errors";
 import { ConsoleApiError } from "./errors";
 import type { AuthState, Entity, EventEnvelope, Page, PageInput } from "./types";
+import { createConsoleContractClient, type ConsoleContractClient } from "./contractClient";
 
 type RequestBody = Record<string, unknown> | unknown[] | undefined;
 
@@ -85,22 +88,48 @@ export function createCoordinatorClient(auth: AuthState): CoordinatorClient {
 }
 
 class HttpCoordinatorClient implements CoordinatorClient {
-  constructor(private readonly auth: AuthState) {}
+  private readonly contract: ConsoleContractClient;
 
-  health() {
-    return this.request<Entity>("/health");
+  constructor(private readonly auth: AuthState) {
+    this.contract = createConsoleContractClient(auth);
   }
 
-  listProjects(input?: PageInput) {
-    return this.requestPage<Entity>("/projects", input);
+  async health() {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/health");
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapEnvelope<Entity>(result.data);
+    });
+  }
+
+  async listProjects(input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/projects", {
+        params: { query: queryFromInput(input) },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<Entity>(result.data);
+    });
   }
 
   async getProject(projectId: string) {
-    return unwrapKey<Entity>(await this.request<Entity>(`/projects/${projectId}`), "project");
+    return await runContract(async () => {
+      const result = await this.contract.GET("/projects/{projectId}", {
+        params: { path: { projectId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "project");
+    });
   }
 
-  listObjectives(projectId: string, input?: PageInput) {
-    return this.requestPage<Entity>(`/projects/${projectId}/objectives`, input);
+  async listObjectives(projectId: string, input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/projects/{projectId}/objectives", {
+        params: { path: { projectId }, query: queryFromInput(input) },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<Entity>(result.data);
+    });
   }
 
   async getBoundary(projectId: string) {
@@ -116,12 +145,24 @@ class HttpCoordinatorClient implements CoordinatorClient {
     return unwrapKey<Entity>(await this.request<Entity>(`/projects/${projectId}/boundary/evaluate`, { method: "POST", body }), "evaluation");
   }
 
-  listPrincipals(input?: PageInput) {
-    return this.requestPage<Entity>("/principals", input);
+  async listPrincipals(input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/principals", {
+        params: { query: queryFromInput(input) },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<Entity>(result.data);
+    });
   }
 
-  listAgents(input?: PageInput) {
-    return this.requestPage<Entity>("/agents", input);
+  async listAgents(input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/agents", {
+        params: { query: queryFromInput(input) },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<Entity>(result.data);
+    });
   }
 
   async listRuntimeBindings(agentId: string) {
@@ -410,12 +451,24 @@ class HttpCoordinatorClient implements CoordinatorClient {
     });
   }
 
-  listTraces(input?: PageInput) {
-    return this.requestPage<Entity>("/traces", input);
+  async listTraces(input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/traces", {
+        params: { query: queryFromInput(input) },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<Entity>(result.data);
+    });
   }
 
   async getTrace(traceId: string) {
-    return unwrapKey<Entity>(await this.request<Entity>(`/traces/${traceId}`), "trace");
+    return await runContract(async () => {
+      const result = await this.contract.GET("/traces/{traceId}", {
+        params: { path: { traceId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "trace");
+    });
   }
 
   async createTrace(projectId: string, body?: Record<string, unknown>) {
@@ -430,8 +483,14 @@ class HttpCoordinatorClient implements CoordinatorClient {
     return this.request<Entity>(`/traces/${traceId}/replay`, { method: "POST" });
   }
 
-  listEvents(input?: PageInput) {
-    return this.requestPage<EventEnvelope>("/events", input);
+  async listEvents(input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/events", {
+        params: { query: queryFromInput(input) },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<EventEnvelope>(result.data);
+    });
   }
 
   streamProjectEvents(projectId: string, handlers: StreamHandlers) {
@@ -543,4 +602,41 @@ function toPage<T>(data: T[]): Page<T> {
 
 function objectPayload(event: EventEnvelope): Entity {
   return event.payload && typeof event.payload === "object" ? (event.payload as Entity) : { payload: event.payload };
+}
+
+function queryFromInput(input?: PageInput): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input ?? {})) {
+    if (value === undefined || value === "") continue;
+    out[key] = String(value);
+  }
+  return out;
+}
+
+function fromContract(error: unknown, response: Response | undefined): ConsoleApiError {
+  if (error instanceof ContractApiError) {
+    return new ConsoleApiError({
+      code: error.code ?? `HTTP_${error.status}`,
+      message: error.message,
+      status: error.status,
+      details: error.details,
+    });
+  }
+  const status = response?.status ?? 0;
+  const failure = error && typeof error === "object" ? (error as { error?: { code?: string; message?: string; details?: unknown } }) : {};
+  return new ConsoleApiError({
+    code: failure.error?.code ?? `HTTP_${status}`,
+    message: failure.error?.message ?? "Coordinator request failed",
+    status,
+    details: failure.error?.details ?? error,
+  });
+}
+
+async function runContract<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof ContractApiError) throw fromContract(err, undefined);
+    throw err;
+  }
 }

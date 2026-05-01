@@ -8,7 +8,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit && node scripts/check-handwritten-paths.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test"
@@ -16,6 +16,8 @@
   "dependencies": {
     "@tanstack/react-query": "^5.100.5",
     "@tanstack/react-table": "^8.21.3",
+    "@vibly/coordinator-http-contract": "workspace:*",
+    "openapi-fetch": "^0.13.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.468.0",
     "next": "^16.2.4",
