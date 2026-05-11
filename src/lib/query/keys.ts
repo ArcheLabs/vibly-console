@@ -15,4 +15,22 @@ export const queryKeys = {
   traces: ["traces"] as const,
   trace: (traceId: string) => ["trace", traceId] as const,
   events: (projectId: string) => ["events", projectId] as const,
+
+  // V0.2 keys
+  networkFeed: ["network-feed"] as const,
+  feedEvent: (eventId: string) => ["feed-event", eventId] as const,
+  networkOrganizations: ["network-organizations"] as const,
+  networkOrganization: (orgId: string) => ["network-organization", orgId] as const,
+  organizationFeed: (orgId: string) => ["organization-feed", orgId] as const,
+  networkAgents: ["network-agents"] as const,
+  networkAgent: (agentId: string) => ["network-agent", agentId] as const,
+  agentReputation: (agentId: string) => ["agent-reputation", agentId] as const,
+  observationV2: (id: string) => ["observation-v2", id] as const,
+  proposalV2: (id: string) => ["proposal-v2", id] as const,
+  votingRoundV2: (id: string) => ["voting-round-v2", id] as const,
+  mechanismV2: (id: string) => ["mechanism-v2", id] as const,
+  taskV2: (id: string) => ["task-v2", id] as const,
+  artifactV2: (id: string) => ["artifact-v2", id] as const,
+  discussionV2: (id: string) => ["discussion-v2", id] as const,
+  guardianRequests: ["guardian-requests"] as const,
 };

@@ -22,7 +22,7 @@ export function TraceDetailPage({ projectId, traceId }: { projectId: string; tra
   const events = asArray(asRecord(item ?? {}).events);
 
   return (
-    <AppShell projectId={projectId} projectName={`Trace ${compactId(traceId)}`}>
+    <AppShell>
       <PageHeader
         title={`Trace ${compactId(traceId)}`}
         eyebrow="Protocol trace"

@@ -73,6 +73,31 @@ export interface CoordinatorClient {
   replayTrace(traceId: string): Promise<Entity>;
   listEvents(input?: PageInput): Promise<Page<EventEnvelope>>;
   streamProjectEvents(projectId: string, handlers: StreamHandlers): () => void;
+
+  // V0.2: Network Feed (backed by /events until /feed is in contract)
+  getNetworkFeed(limit?: number): Promise<Page<Entity>>;
+  getFeedEvent(eventId: string): Promise<Entity>;
+
+  // V0.2: Organizations (backed by /projects until /organizations is in contract)
+  getNetworkOrganizations(limit?: number): Promise<Page<Entity>>;
+  getNetworkOrganization(orgId: string): Promise<Entity>;
+  getOrganizationFeed(orgId: string, limit?: number): Promise<Page<Entity>>;
+
+  // V0.2: Agents (uses existing /agents endpoints)
+  getNetworkAgent(agentId: string): Promise<Entity>;
+  getAgentReputation(agentId: string): Promise<Entity>;
+
+  // V0.2: Domain objects
+  getObservationV2(observationId: string): Promise<Entity>;
+  getProposalV2(proposalId: string): Promise<Entity>;
+  getVotingRoundV2(votingRoundId: string): Promise<Entity>;
+  getMechanismV2(mechanismId: string): Promise<Entity>;
+  getTaskV2(taskId: string): Promise<Entity>;
+  getArtifactV2(artifactId: string): Promise<Entity>;
+  getDiscussionV2(discussionId: string): Promise<Entity>;
+
+  // V0.2: Human ActionIntent
+  submitActionIntent(body: Record<string, unknown>): Promise<Entity>;
 }
 
 export interface StreamHandlers {
@@ -786,6 +811,117 @@ class HttpCoordinatorClient implements CoordinatorClient {
       eventSource.close();
       handlers.onStatus?.("disconnected");
     };
+  }
+
+  // ── V0.2 Network Feed ────────────────────────────────────────────────────
+  // Backed by /events until the coordinator exposes /feed.
+
+  async getNetworkFeed(limit = 50) {
+    return await this.listEvents({ limit });
+  }
+
+  async getFeedEvent(eventId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/events/{eventId}", {
+        params: { path: { eventId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapEnvelope<Entity>(result.data);
+    });
+  }
+
+  // ── V0.2 Organizations ───────────────────────────────────────────────────
+  // Backed by /projects until the coordinator exposes /organizations.
+
+  async getNetworkOrganizations(limit = 50) {
+    return await this.listProjects({ limit });
+  }
+
+  async getNetworkOrganization(orgId: string) {
+    return await this.getProject(orgId);
+  }
+
+  async getOrganizationFeed(orgId: string, limit = 50) {
+    const events = await this.listEvents({ limit });
+    const filtered = events.data.filter(
+      (e) => (e as Entity).projectId === orgId || (e.payload as Entity)?.projectId === orgId,
+    );
+    return toPage<Entity>(filtered as unknown as Entity[]);
+  }
+
+  // ── V0.2 Agents ─────────────────────────────────────────────────────────
+
+  async getNetworkAgent(agentId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/agents/{agentId}", {
+        params: { path: { agentId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "agent");
+    });
+  }
+
+  async getAgentReputation(agentId: string) {
+    const evidence = await this.listReputationEvidence(agentId);
+    return { agentId, evidence: evidence.data } as Entity;
+  }
+
+  // ── V0.2 Domain objects ─────────────────────────────────────────────────
+
+  async getObservationV2(observationId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/observations/{observationId}", {
+        params: { path: { observationId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "observation");
+    });
+  }
+
+  async getProposalV2(proposalId: string) {
+    // Maps to governance/merged until /proposals is in the contract.
+    return await this.getGovernanceMerged(proposalId);
+  }
+
+  async getVotingRoundV2(votingRoundId: string) {
+    // Maps to governance/subjects until /voting-rounds is in the contract.
+    return await this.getGovernanceSubject(votingRoundId);
+  }
+
+  async getMechanismV2(_mechanismId: string): Promise<Entity> {
+    throw new ConsoleApiError({
+      code: "NOT_AVAILABLE",
+      message: "/mechanisms endpoint is not yet available in the coordinator.",
+      status: 501,
+    });
+  }
+
+  async getTaskV2(taskId: string) {
+    // Maps to work-orders until /tasks is in the contract.
+    return await this.getWorkOrder(taskId);
+  }
+
+  async getArtifactV2(_artifactId: string): Promise<Entity> {
+    throw new ConsoleApiError({
+      code: "NOT_AVAILABLE",
+      message: "/artifacts endpoint is not yet available in the coordinator.",
+      status: 501,
+    });
+  }
+
+  async getDiscussionV2(discussionId: string) {
+    // Maps to negotiations until /discussions is in the contract.
+    return await this.getNegotiation(discussionId);
+  }
+
+  async submitActionIntent(body: Record<string, unknown>): Promise<Entity> {
+    // POST /action-intents is not yet in the contract; route through governance intent
+    // as a temporary measure. Update once the coordinator exposes /action-intents.
+    throw new ConsoleApiError({
+      code: "NOT_AVAILABLE",
+      message: "/action-intents endpoint is not yet available in the coordinator.",
+      status: 501,
+    });
   }
 
   private makeStreamUrl(path: string): string {

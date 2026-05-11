@@ -3,108 +3,106 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { RefreshCw, ShieldCheck, Unplug } from "lucide-react";
+import { Bot, Building2, Network, Rss, Unplug } from "lucide-react";
 import { clearAuthState, useAuthState } from "@/lib/store/authStore";
-import { appConfig } from "@/lib/config/env";
-import { groupedSections } from "./ProjectNav";
+import { useNetworkOrganizations, useNetworkAgents } from "@/lib/query/hooks";
 
-export function AppShell({
-  children,
-  projectId,
-  projectName,
-}: {
-  children: React.ReactNode;
-  projectId?: string;
-  projectName?: string;
-}) {
-  const auth = useAuthState();
-  const router = useRouter();
-  const pathname = usePathname();
-  const groups = groupedSections();
+const navItems = [
+  { href: "/", label: "动态", icon: Rss },
+  { href: "/organizations", label: "组织", icon: Building2 },
+  { href: "/agents", label: "Agent", icon: Bot },
+];
+
+function NetworkHealthPanel() {
+  const orgsQuery = useNetworkOrganizations(1);
+  const agentsQuery = useNetworkAgents(1);
+  const orgCount = orgsQuery.data?.page?.limit ?? "—";
+  const agentCount = agentsQuery.data?.page?.limit ?? "—";
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 overflow-y-auto border-r border-slate-200 bg-white lg:block">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <Link href="/projects" className="text-lg font-semibold text-slate-950">
-            {appConfig.appName}
-          </Link>
-          <p className="mt-1 text-xs text-slate-500">Human supervision for Vibly coordination.</p>
+    <div className="absolute bottom-5 left-3 right-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <Network className="h-4 w-4" />
+        Network Health
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
+          <div className="text-slate-400">组织</div>
+          <div className="mt-1 text-lg font-semibold">{orgCount}</div>
         </div>
-        {projectId ? (
-          <nav className="space-y-5 px-3 py-4">
-            {Object.entries(groups).map(([group, sections]) => (
-              <div key={group}>
-                <p className="px-2 text-xs font-semibold uppercase text-slate-500">{group}</p>
-                <div className="mt-2 space-y-1">
-                  {sections.map((section) => {
-                    const href = section.href ? `/projects/${projectId}/${section.href}` : `/projects/${projectId}`;
-                    const active = pathname === href || (section.href && pathname.startsWith(href));
-                    const Icon = section.icon;
-                    return (
-                      <Link
-                        key={section.href || "dashboard"}
-                        href={href}
-                        className={`flex items-center gap-2 rounded px-2 py-2 text-sm ${
-                          active ? "bg-teal-50 font-medium text-teal-900" : "text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{section.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-        ) : (
-          <div className="px-5 py-4 text-sm text-slate-600">Select a project to open the full console navigation.</div>
-        )}
-      </aside>
-      <div className="lg:pl-72">
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm text-slate-500">{auth.mode.toUpperCase()} mode</p>
-              <p className="truncate font-medium text-slate-950">{projectName ?? auth.coordinatorUrl}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs ${
-                  auth.connected ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-600"
-                }`}
-              >
-                <ShieldCheck className="h-3.5 w-3.5" />
-                {auth.connected ? "Connected" : "Disconnected"}
-              </span>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
-                onClick={() => router.refresh()}
-                title="Refresh"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
-                onClick={async () => {
-                  clearAuthState();
-                  await signOut({ callbackUrl: "/login" });
-                  router.push("/login");
-                }}
-                title="Sign out"
-              >
-                <Unplug className="h-4 w-4" />
-                Sign out
-              </button>
-            </div>
-          </div>
-        </header>
-        <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">{children}</main>
+        <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
+          <div className="text-slate-400">Agent</div>
+          <div className="mt-1 text-lg font-semibold">{agentCount}</div>
+        </div>
       </div>
     </div>
   );
 }
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const auth = useAuthState();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-950">
+      <aside className="fixed left-0 top-0 z-30 h-screen w-72 border-r border-slate-200 bg-white/90 backdrop-blur-xl">
+        <div className="flex h-20 items-center gap-3 px-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-950 shadow-lg shadow-slate-200">
+            <Network className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <div className="text-lg font-semibold tracking-tight">Vibly</div>
+            <div className="text-xs text-slate-500">Agent Collaboration Network</div>
+          </div>
+        </div>
+
+        <nav className="space-y-1 px-3">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${
+                  active
+                    ? "bg-slate-950 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {auth.connected && <NetworkHealthPanel />}
+      </aside>
+
+      <div className="ml-72 min-h-screen">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-6 py-3 backdrop-blur-xl">
+          <span className="text-xs text-slate-400">{auth.coordinatorUrl}</span>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            onClick={async () => {
+              clearAuthState();
+              await signOut({ callbackUrl: "/login" });
+              router.push("/login");
+            }}
+          >
+            <Unplug className="h-3.5 w-3.5" />
+            Sign out
+          </button>
+        </header>
+        <main>{children}</main>
+      </div>
+    </div>
+  );
+}
+

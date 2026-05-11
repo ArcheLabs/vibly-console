@@ -54,26 +54,11 @@ function resolveCoordinatorBaseUrl(): string {
   return fromEnv.replace(/\/$/, "");
 }
 
-/**
- * Resolve a Coordinator API token for the authenticated console user.
- *
- * Phase 1: a server-side env token shared by all logged-in users. The
- * function still takes the session so that, when the coordinator gains
- * OIDC support, we can switch to per-user token exchange without
- * touching `/api/coordinator/[...path]`.
- */
-function resolveCoordinatorToken(_session: Session): string | null {
-  return readEnv("COORDINATOR_API_TOKEN") ?? null;
-}
-
 export async function resolveCoordinatorCredentials(
-  session: Session | null,
+  _session: Session | null,
 ): Promise<CoordinatorCredentials> {
-  if (!session?.user) {
-    throw new CoordinatorSessionError(401, "UNAUTHORIZED", "Sign in required.");
-  }
   return {
     baseUrl: resolveCoordinatorBaseUrl(),
-    token: resolveCoordinatorToken(session),
+    token: readEnv("COORDINATOR_API_TOKEN") ?? null,
   };
 }

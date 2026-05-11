@@ -19,17 +19,9 @@ export default auth((req) => {
   const { pathname } = nextUrl;
 
   const isProjects = pathname.startsWith("/projects");
-  const isCoordinatorApi = pathname.startsWith("/api/coordinator");
-  if (!isProjects && !isCoordinatorApi) return;
+  if (!isProjects) return;
 
   if (req.auth) return;
-
-  if (isCoordinatorApi) {
-    return Response.json(
-      { ok: false, error: { code: "UNAUTHORIZED", message: "Sign in required." } },
-      { status: 401 },
-    );
-  }
 
   const loginUrl = new URL("/login", nextUrl);
   loginUrl.searchParams.set("callbackUrl", `${pathname}${nextUrl.search}`);
@@ -39,6 +31,5 @@ export default auth((req) => {
 export const config = {
   matcher: [
     "/projects/:path*",
-    "/api/coordinator/:path*",
   ],
 };
