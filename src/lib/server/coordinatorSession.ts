@@ -55,8 +55,15 @@ function resolveCoordinatorBaseUrl(): string {
 }
 
 export async function resolveCoordinatorCredentials(
-  _session: Session | null,
+  session: Session | null,
 ): Promise<CoordinatorCredentials> {
+  if (!session) {
+    throw new CoordinatorSessionError(
+      401,
+      "UNAUTHORIZED",
+      "A signed-in Console session is required to access the Coordinator proxy.",
+    );
+  }
   return {
     baseUrl: resolveCoordinatorBaseUrl(),
     token: readEnv("COORDINATOR_API_TOKEN") ?? null,

@@ -834,10 +834,15 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   // ── V0.2 Network Feed ────────────────────────────────────────────────────
-  // Backed by /events until the coordinator exposes /feed.
 
   async getNetworkFeed(limit = 50) {
-    return await this.listEvents({ limit });
+    return await runContract(async () => {
+      const result = await this.contract.GET("/feed", {
+        params: { query: { limit } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return toPage<Entity>(extractArray(unwrapEnvelope<Entity>(result.data), "items") as Entity[]);
+    });
   }
 
   async getFeedEvent(eventId: string) {
@@ -851,30 +856,43 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   // ── V0.2 Organizations ───────────────────────────────────────────────────
-  // Backed by /projects until the coordinator exposes /organizations.
 
   async getNetworkOrganizations(limit = 50) {
-    return await this.listProjects({ limit });
+    return await runContract(async () => {
+      const result = await this.contract.GET("/organizations", {
+        params: { query: { limit } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapListEnvelope<Entity>(result.data);
+    });
   }
 
   async getNetworkOrganization(orgId: string) {
-    return await this.getProject(orgId);
+    return await runContract(async () => {
+      const result = await this.contract.GET("/organizations/{organizationId}", {
+        params: { path: { organizationId: orgId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "organization");
+    });
   }
 
   async getOrganizationFeed(orgId: string, limit = 50) {
-    const events = await this.listEvents({ limit });
-    const filtered = events.data.filter(
-      (e) => (e as Entity).projectId === orgId || (e.payload as Entity)?.projectId === orgId,
-    );
-    return toPage<Entity>(filtered as unknown as Entity[]);
+    return await runContract(async () => {
+      const result = await this.contract.GET("/organizations/{organizationId}/feed", {
+        params: { path: { organizationId: orgId }, query: { limit } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return toPage<Entity>(extractArray(unwrapEnvelope<Entity>(result.data), "items") as Entity[]);
+    });
   }
 
   // ── V0.2 Agents ─────────────────────────────────────────────────────────
 
   async getNetworkAgent(agentId: string) {
     return await runContract(async () => {
-      const result = await this.contract.GET("/agents/{agentId}", {
-        params: { path: { agentId } },
+      const result = await this.contract.GET("/agent-profiles/{id}", {
+        params: { path: { id: agentId } },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "agent");
@@ -899,48 +917,70 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   async getProposalV2(proposalId: string) {
-    // Maps to governance/merged until /proposals is in the contract.
-    return await this.getGovernanceMerged(proposalId);
+    return await runContract(async () => {
+      const result = await this.contract.GET("/proposals/{id}", {
+        params: { path: { id: proposalId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "proposal");
+    });
   }
 
   async getVotingRoundV2(votingRoundId: string) {
-    // Maps to governance/subjects until /voting-rounds is in the contract.
-    return await this.getGovernanceSubject(votingRoundId);
+    return await runContract(async () => {
+      const result = await this.contract.GET("/voting-rounds/{id}", {
+        params: { path: { id: votingRoundId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "votingRound");
+    });
   }
 
-  async getMechanismV2(_mechanismId: string): Promise<Entity> {
-    throw new ConsoleApiError({
-      code: "NOT_AVAILABLE",
-      message: "/mechanisms endpoint is not yet available in the coordinator.",
-      status: 501,
+  async getMechanismV2(mechanismId: string): Promise<Entity> {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/mechanisms/{id}", {
+        params: { path: { id: mechanismId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "mechanism");
     });
   }
 
   async getTaskV2(taskId: string) {
-    // Maps to work-orders until /tasks is in the contract.
-    return await this.getWorkOrder(taskId);
+    return await runContract(async () => {
+      const result = await this.contract.GET("/tasks/{id}", {
+        params: { path: { id: taskId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "task");
+    });
   }
 
-  async getArtifactV2(_artifactId: string): Promise<Entity> {
-    throw new ConsoleApiError({
-      code: "NOT_AVAILABLE",
-      message: "/artifacts endpoint is not yet available in the coordinator.",
-      status: 501,
+  async getArtifactV2(artifactId: string): Promise<Entity> {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/artifacts/{id}", {
+        params: { path: { id: artifactId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "artifact");
     });
   }
 
   async getDiscussionV2(discussionId: string) {
-    // Maps to negotiations until /discussions is in the contract.
-    return await this.getNegotiation(discussionId);
+    return await runContract(async () => {
+      const result = await this.contract.GET("/discussions/{id}", {
+        params: { path: { id: discussionId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "discussion");
+    });
   }
 
   async submitActionIntent(body: Record<string, unknown>): Promise<Entity> {
-    // POST /action-intents is not yet in the contract; route through governance intent
-    // as a temporary measure. Update once the coordinator exposes /action-intents.
-    throw new ConsoleApiError({
-      code: "NOT_AVAILABLE",
-      message: "/action-intents endpoint is not yet available in the coordinator.",
-      status: 501,
+    return await runContract(async () => {
+      const result = await this.contract.POST("/action-intents", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapEnvelope<Entity>(result.data);
     });
   }
 
