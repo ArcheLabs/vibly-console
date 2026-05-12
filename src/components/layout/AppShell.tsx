@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Bot, Building2, Network, Rss, Unplug } from "lucide-react";
+import { Bot, Building2, KeyRound, Network, Rss, Unplug } from "lucide-react";
 import { clearAuthState, useAuthState } from "@/lib/store/authStore";
 import { useNetworkOrganizations, useNetworkAgents } from "@/lib/query/hooks";
 
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/", label: "动态", icon: Rss },
   { href: "/organizations", label: "组织", icon: Building2 },
   { href: "/agents", label: "Agent", icon: Bot },
+  { href: "/onboarding", label: "身份", icon: KeyRound },
 ];
 
 function NetworkHealthPanel() {
@@ -105,4 +106,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

@@ -98,6 +98,16 @@ export interface CoordinatorClient {
 
   // V0.2: Human ActionIntent
   submitActionIntent(body: Record<string, unknown>): Promise<Entity>;
+
+  createAirdropPayload(body: Record<string, unknown>): Promise<Entity>;
+  submitAirdropClaim(body: Record<string, unknown>): Promise<Entity>;
+  getAirdropStatus(evmAddress: string): Promise<Entity>;
+  createRootRotationPayload(body: Record<string, unknown>): Promise<Entity>;
+  submitRootRotation(body: Record<string, unknown>): Promise<Entity>;
+  getIdentityByEvm(evmAddress: string): Promise<Entity>;
+  quoteDotVib(body: Record<string, unknown>): Promise<Entity>;
+  createDotVibOrder(body: Record<string, unknown>): Promise<Entity>;
+  getDotVibOrder(orderId: string): Promise<Entity>;
 }
 
 export interface StreamHandlers {
@@ -647,7 +657,8 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   async runAgentCollaborationScenario() {
     return await runContract(async () => {
-      const result = await this.contract.POST("/dev/scenarios/agent-collaboration/runs");
+      const post = this.contract.POST as unknown as (path: string) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/dev/scenarios/agent-collaboration/runs");
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "run");
     });
@@ -655,7 +666,11 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   async listAgentCollaborationScenarioRuns(input?: PageInput) {
     return await runContract(async () => {
-      const result = await this.contract.GET("/dev/scenarios/agent-collaboration/runs", {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: Record<string, string> } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/dev/scenarios/agent-collaboration/runs", {
         params: { query: queryFromInput(input) as never },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
@@ -696,7 +711,8 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   async runIncentiveRiskScenario() {
     return await runContract(async () => {
-      const result = await this.contract.POST("/dev/scenarios/incentive-risk/runs");
+      const post = this.contract.POST as unknown as (path: string) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/dev/scenarios/incentive-risk/runs");
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "run");
     });
@@ -704,7 +720,11 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   async listIncentiveRiskScenarioRuns(input?: PageInput) {
     return await runContract(async () => {
-      const result = await this.contract.GET("/dev/scenarios/incentive-risk/runs", {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: Record<string, string> } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/dev/scenarios/incentive-risk/runs", {
         params: { query: queryFromInput(input) as never },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
@@ -921,6 +941,84 @@ class HttpCoordinatorClient implements CoordinatorClient {
       code: "NOT_AVAILABLE",
       message: "/action-intents endpoint is not yet available in the coordinator.",
       status: 501,
+    });
+  }
+
+  async createAirdropPayload(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/identity/airdrop/payload", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "signingPayload");
+    });
+  }
+
+  async submitAirdropClaim(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/identity/airdrop/claim", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "claim");
+    });
+  }
+
+  async getAirdropStatus(evmAddress: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/identity/airdrop/status/{evmAddress}", {
+        params: { path: { evmAddress } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "claim");
+    });
+  }
+
+  async createRootRotationPayload(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/identity/root-rotation/payload", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "signingPayload");
+    });
+  }
+
+  async submitRootRotation(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/identity/root-rotation/submit", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "rootRotation");
+    });
+  }
+
+  async getIdentityByEvm(evmAddress: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/identity/status/evm/{evmAddress}", {
+        params: { path: { evmAddress } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "identity");
+    });
+  }
+
+  async quoteDotVib(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/conversion/dot-vib/quote", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "quote");
+    });
+  }
+
+  async createDotVibOrder(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/conversion/dot-vib/orders", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "order");
+    });
+  }
+
+  async getDotVibOrder(orderId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/conversion/dot-vib/orders/{orderId}", {
+        params: { path: { orderId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "order");
     });
   }
 
