@@ -14,6 +14,8 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@polkadot/extension-dapp": "^0.63.1",
+    "@polkadot/util": "^13.2.2",
     "@tanstack/react-query": "^5.100.5",
     "@tanstack/react-table": "^8.21.3",
     "@vibly/coordinator-http-contract": "workspace:*",
@@ -26,6 +28,8 @@
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.74.0",
     "recharts": "^3.8.1",
+    "viem": "^2.22.21",
+    "wagmi": "^2.13.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { ShieldAlert } from "lucide-react";
 import { useSubmitActionIntent } from "@/lib/query/hooks";
+import { useAuthState } from "@/lib/store/authStore";
 
 type IntentType = "request_info" | "flag_important" | "pause_settlement";
 
@@ -125,8 +126,11 @@ export function GuardianActionsPanel({ targetRef }: { targetRef: string }) {
   const [open, setOpen] = useState(false);
   const [intentType, setIntentType] = useState<IntentType>("pause_settlement");
   const { mutate: quickMutate, isPending } = useSubmitActionIntent();
+  const auth = useAuthState();
+  const canExecute = auth.connected;
 
   function quickAction(type: IntentType) {
+    if (!canExecute) return;
     if (type === "pause_settlement") {
       setIntentType(type);
       setOpen(true);
@@ -142,24 +146,30 @@ export function GuardianActionsPanel({ targetRef }: { targetRef: string }) {
           <ShieldAlert className="h-4 w-4" />
           人类 / Guardian 动作
         </div>
+        {!canExecute ? (
+          <p className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            公开浏览模式下仅可查看。连接钱包后才可执行 Guardian 写操作。
+          </p>
+        ) : null}
         <div className="space-y-2">
           <button
             onClick={() => quickAction("request_info")}
-            disabled={isPending}
+            disabled={isPending || !canExecute}
             className="w-full rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             请求补充信息
           </button>
           <button
             onClick={() => quickAction("flag_important")}
-            disabled={isPending}
+            disabled={isPending || !canExecute}
             className="w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-50"
           >
             标记为重要
           </button>
           <button
             onClick={() => quickAction("pause_settlement")}
-            className="w-full rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200"
+            disabled={!canExecute}
+            className="w-full rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200 disabled:opacity-50"
           >
             Guardian 暂停下游结算
           </button>

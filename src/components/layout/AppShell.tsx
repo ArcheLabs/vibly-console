@@ -6,6 +6,8 @@ import { signOut } from "next-auth/react";
 import { Bot, Building2, KeyRound, Network, Rss, Unplug } from "lucide-react";
 import { clearAuthState, useAuthState } from "@/lib/store/authStore";
 import { useNetworkOrganizations, useNetworkAgents } from "@/lib/query/hooks";
+import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
+import { clearWalletSessionToken } from "@/lib/wallet/sessionStore";
 
 const navItems = [
   { href: "/", label: "动态", icon: Rss },
@@ -88,18 +90,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="ml-72 min-h-screen">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-6 py-3 backdrop-blur-xl">
           <span className="text-xs text-slate-400">{auth.coordinatorUrl}</span>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-            onClick={async () => {
-              clearAuthState();
-              await signOut({ callbackUrl: "/login" });
-              router.push("/login");
-            }}
-          >
-            <Unplug className="h-3.5 w-3.5" />
-            Sign out
-          </button>
+          <div className="flex items-center gap-2">
+            <WalletConnectPanel />
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+              onClick={async () => {
+                clearWalletSessionToken();
+                clearAuthState();
+                await signOut({ callbackUrl: "/login" });
+                router.push("/login");
+              }}
+            >
+              <Unplug className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          </div>
         </header>
         <main>{children}</main>
       </div>

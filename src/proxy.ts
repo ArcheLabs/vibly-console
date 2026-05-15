@@ -1,9 +1,9 @@
 // Next.js 16 renamed `middleware.ts` to `proxy.ts`. We use it as the
 // central route protection layer for the multi-tenant Console:
 //
-// - Anything under `/projects/*` requires a signed-in session. Deep
-//   links to `/projects/:id/*` are redirected to `/login?callbackUrl=…`
-//   when the user is not signed in.
+// - Private pages (for now `/requests/*` and `/onboarding/*`) require a
+//   signed-in session and redirect to `/login?callbackUrl=…` when the
+//   user is not signed in.
 //
 // - Anything under `/api/coordinator/*` is also gated; the route handler
 //   itself re-validates the session, but blocking unauthenticated
@@ -18,8 +18,8 @@ export default auth((req) => {
   const { nextUrl } = req;
   const { pathname } = nextUrl;
 
-  const isProjects = pathname.startsWith("/projects");
-  if (!isProjects) return;
+  const isPrivatePage = pathname.startsWith("/requests") || pathname.startsWith("/onboarding");
+  if (!isPrivatePage) return;
 
   if (req.auth) return;
 
@@ -30,6 +30,7 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/projects/:path*",
+    "/requests/:path*",
+    "/onboarding/:path*",
   ],
 };

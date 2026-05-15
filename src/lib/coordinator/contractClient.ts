@@ -17,6 +17,7 @@
 import { createCoordinatorClient } from "@vibly/coordinator-http-contract/client";
 import type { CoordinatorClient as ContractClient } from "@vibly/coordinator-http-contract/client";
 import type { AuthState } from "./types";
+import { readWalletSessionToken } from "@/lib/wallet/sessionStore";
 
 const PROXY_BASE_PATH = "/api/coordinator";
 
@@ -35,6 +36,8 @@ export function createConsoleContractClient(auth: AuthState): ConsoleContractCli
 
   const headers: Record<string, string> = {};
   if (!proxy && auth.apiToken) headers.Authorization = `Bearer ${auth.apiToken}`;
+  const walletSession = readWalletSessionToken();
+  if (walletSession) headers["x-wallet-session"] = walletSession;
 
   return createCoordinatorClient({ baseUrl, headers });
 }

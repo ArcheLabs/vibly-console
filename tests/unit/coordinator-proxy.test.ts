@@ -36,7 +36,7 @@ describe("/api/coordinator/[...path] proxy", () => {
     delete process.env.COORDINATOR_API_TOKEN;
   });
 
-  it("rejects unauthenticated callers with 401", async () => {
+  it("proxies unauthenticated GET without Authorization header", async () => {
     authMock.mockResolvedValue(null);
     const fetchMock = vi.fn(async () => Response.json({ ok: true }));
     vi.stubGlobal("fetch", fetchMock);
@@ -44,11 +44,54 @@ describe("/api/coordinator/[...path] proxy", () => {
     const { GET } = await loadProxy();
     const response = await GET(makeRequest("GET", "http://console.test/api/coordinator/projects"), makeContext(["projects"]));
 
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const calls = fetchMock.mock.calls as unknown as Array<[URL, RequestInit]>;
+    const [, init] = calls[0]!;
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it("rejects unauthenticated POST with 401", async () => {
+    authMock.mockResolvedValue(null);
+    const fetchMock = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await loadProxy();
+    const response = await POST(
+      makeRequest("POST", "http://console.test/api/coordinator/action-intents", {
+        body: JSON.stringify({ type: "Ping" }),
+        headers: { "content-type": "application/json" },
+      }),
+      makeContext(["action-intents"]),
+    );
+
     expect(response.status).toBe(401);
     expect(fetchMock).not.toHaveBeenCalled();
     const body = (await response.json()) as { ok: boolean; error?: { code: string } };
     expect(body.ok).toBe(false);
     expect(body.error?.code).toBe("UNAUTHORIZED");
+  });
+
+  it("allows unauthenticated POST /wallet/challenges without Authorization header", async () => {
+    authMock.mockResolvedValue(null);
+    const fetchMock = vi.fn(async () => Response.json({ ok: true, data: { challenge: { id: "c1" } } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { POST } = await loadProxy();
+    const response = await POST(
+      makeRequest("POST", "http://console.test/api/coordinator/wallet/challenges", {
+        body: JSON.stringify({ ecosystem: "polkadot", address: "5abc" }),
+        headers: { "content-type": "application/json" },
+      }),
+      makeContext(["wallet", "challenges"]),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const calls = fetchMock.mock.calls as unknown as Array<[URL, RequestInit]>;
+    const [target, init] = calls[0]!;
+    expect(target.toString()).toBe("http://upstream.test/wallet/challenges");
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
   it("forwards authenticated GET requests with server-resolved Bearer token", async () => {
@@ -112,6 +155,24 @@ describe("/api/coordinator/[...path] proxy", () => {
     expect(init.method).toBe("POST");
     expect(init.body).toBe('{"hello":"world"}');
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+  });
+
+  it("forwards x-wallet-session header to upstream", async () => {
+    authMock.mockResolvedValue(null);
+    const fetchMock = vi.fn(async () => Response.json({ ok: true, data: { session: null } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { GET } = await loadProxy();
+    await GET(
+      makeRequest("GET", "http://console.test/api/coordinator/wallet/session", {
+        headers: { "x-wallet-session": "ws_test_123" },
+      }),
+      makeContext(["wallet", "session"]),
+    );
+
+    const calls = fetchMock.mock.calls as unknown as Array<[URL, RequestInit]>;
+    const [, init] = calls[0]!;
+    expect((init.headers as Record<string, string>)["x-wallet-session"]).toBe("ws_test_123");
   });
 
   it("returns 503 when no Coordinator URL is configured", async () => {

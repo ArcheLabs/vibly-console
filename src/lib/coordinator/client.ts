@@ -99,6 +99,11 @@ export interface CoordinatorClient {
   // V0.2: Human ActionIntent
   submitActionIntent(body: Record<string, unknown>): Promise<Entity>;
 
+  createWalletChallenge(body: Record<string, unknown>): Promise<Entity>;
+  createWalletSession(body: Record<string, unknown>): Promise<Entity>;
+  getWalletSession(): Promise<Entity | null>;
+  deleteWalletSession(): Promise<Entity | null>;
+
   createAirdropPayload(body: Record<string, unknown>): Promise<Entity>;
   submitAirdropClaim(body: Record<string, unknown>): Promise<Entity>;
   getAirdropStatus(evmAddress: string): Promise<Entity>;
@@ -981,6 +986,58 @@ class HttpCoordinatorClient implements CoordinatorClient {
       const result = await this.contract.POST("/action-intents", { body: body as never });
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapEnvelope<Entity>(result.data);
+    });
+  }
+
+  async createWalletChallenge(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const post = this.contract.POST as unknown as (
+        path: string,
+        init: { body: Record<string, unknown> },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/wallet/challenges", { body });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "challenge");
+    });
+  }
+
+  async createWalletSession(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const post = this.contract.POST as unknown as (
+        path: string,
+        init: { body: Record<string, unknown> },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/wallet/sessions", { body });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "session");
+    });
+  }
+
+  async getWalletSession() {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/wallet/session");
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      const data = unwrapEnvelope<Record<string, unknown>>(result.data);
+      const session = data.session;
+      if (session === null || session === undefined) return null;
+      return typeof session === "object" ? (session as Entity) : ({ session } as Entity);
+    });
+  }
+
+  async deleteWalletSession() {
+    return await runContract(async () => {
+      const del = this.contract.DELETE as unknown as (
+        path: string,
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await del("/wallet/session");
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      const data = unwrapEnvelope<Record<string, unknown>>(result.data);
+      const session = data.session;
+      if (session === null || session === undefined) return null;
+      return typeof session === "object" ? (session as Entity) : ({ session } as Entity);
     });
   }
 

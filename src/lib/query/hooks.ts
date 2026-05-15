@@ -49,6 +49,33 @@ export function useNetworkOrganization(orgId: string) {
   });
 }
 
+export function useProject(projectId: string) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.project(projectId),
+    queryFn: () => client.getProject(projectId),
+    enabled: !!projectId,
+  });
+}
+
+export function useProjectOverview(projectId: string) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.projectOverview(projectId),
+    queryFn: () => client.getProjectOverview(projectId),
+    enabled: !!projectId,
+  });
+}
+
+export function useProjectTimeline(projectId: string) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.projectTimeline(projectId),
+    queryFn: () => client.listProjectTimeline(projectId),
+    enabled: !!projectId,
+  });
+}
+
 export function useOrganizationFeed(orgId: string, limit = 50) {
   const client = useCoordinatorClient();
   return useQuery({

@@ -1,6 +1,10 @@
 import NextAuth, { type NextAuthConfig, type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+if (process.env.DEBUG) {
+  delete process.env.DEBUG;
+}
+
 declare module "next-auth" {
   interface Session {
     user: DefaultSession["user"] & {

@@ -19,19 +19,24 @@ async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ): Promise<NextResponse> {
+  const { path } = await context.params;
+  const routePath = `/${path.join("/")}`;
   const session = await auth();
+  const allowAnonymousRead = request.method === "GET" || request.method === "HEAD";
+  const allowAnonymousWalletAuth =
+    request.method === "POST" &&
+    (routePath === "/wallet/challenges" || routePath === "/wallet/sessions");
+  const allowAnonymous = allowAnonymousRead || allowAnonymousWalletAuth;
 
   let credentials;
   try {
-    credentials = await resolveCoordinatorCredentials(session);
+    credentials = await resolveCoordinatorCredentials(session, { allowAnonymous });
   } catch (e) {
     if (e instanceof CoordinatorSessionError) {
       return jsonError(e.status, e.code, e.message);
     }
     return jsonError(500, "COORDINATOR_PROXY_ERROR", String(e));
   }
-
-  const { path } = await context.params;
   const incoming = new URL(request.url);
   for (const key of RESERVED_QUERY_KEYS) incoming.searchParams.delete(key);
 
@@ -45,6 +50,8 @@ async function proxy(
   if (contentType) headers["Content-Type"] = contentType;
   const accept = request.headers.get("accept");
   if (accept) headers["Accept"] = accept;
+  const walletSession = request.headers.get("x-wallet-session");
+  if (walletSession) headers["x-wallet-session"] = walletSession;
   if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
 
   const isBodyless = request.method === "GET" || request.method === "HEAD";

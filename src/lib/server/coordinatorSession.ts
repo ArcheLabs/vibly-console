@@ -16,6 +16,10 @@ export interface CoordinatorCredentials {
   token: string | null;
 }
 
+export interface ResolveCoordinatorCredentialOptions {
+  allowAnonymous?: boolean;
+}
+
 export class CoordinatorSessionError extends Error {
   readonly status: number;
   readonly code: string;
@@ -56,8 +60,9 @@ function resolveCoordinatorBaseUrl(): string {
 
 export async function resolveCoordinatorCredentials(
   session: Session | null,
+  options: ResolveCoordinatorCredentialOptions = {},
 ): Promise<CoordinatorCredentials> {
-  if (!session) {
+  if (!session && !options.allowAnonymous) {
     throw new CoordinatorSessionError(
       401,
       "UNAUTHORIZED",
@@ -66,6 +71,6 @@ export async function resolveCoordinatorCredentials(
   }
   return {
     baseUrl: resolveCoordinatorBaseUrl(),
-    token: readEnv("COORDINATOR_API_TOKEN") ?? null,
+    token: session ? (readEnv("COORDINATOR_API_TOKEN") ?? null) : null,
   };
 }
