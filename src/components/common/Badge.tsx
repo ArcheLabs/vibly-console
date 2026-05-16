@@ -1,4 +1,4 @@
-import { riskTone, statusTone } from "@/lib/utils/risk";
+import { isDangerousRisk, riskTone, statusTone } from "@/lib/utils/risk";
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "critical";
 
@@ -32,6 +32,7 @@ export function StatusBadge({ status }: { status: unknown }) {
 }
 
 export function RiskBadge({ risk }: { risk: unknown }) {
+  if (!isDangerousRisk(String(risk ?? ""))) return null;
   return <Badge tone={riskTone(String(risk ?? "unknown"))}>{String(risk ?? "unknown")}</Badge>;
 }
 

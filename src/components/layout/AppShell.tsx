@@ -46,7 +46,7 @@ function NetworkHealthPanel() {
 function Brand() {
   const app = useTranslations("app");
   return (
-    <div className="flex h-20 items-center gap-3 px-5">
+    <Link href="/" className="flex h-20 items-center gap-3 px-5 hover:opacity-80 transition-opacity">
       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm">
         <Network className="h-5 w-5" />
       </div>
@@ -54,13 +54,14 @@ function Brand() {
         <div className="text-lg font-semibold tracking-tight text-[var(--text)]">{app("name")}</div>
         <div className="truncate text-xs text-[var(--text-muted)]">{app("tagline")}</div>
       </div>
-    </div>
+    </Link>
   );
 }
 
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const t = useTranslations("nav");
+  const auth = useAuthState();
 
   return (
     <nav className="space-y-1 px-3">
@@ -70,6 +71,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
           item.href === "/"
             ? pathname === "/"
             : pathname === item.href || pathname.startsWith(item.href + "/");
+        const label = item.key === "identity" && !auth.connected ? t("loginWallet") : t(item.key);
         return (
           <Link
             key={item.href}
@@ -82,7 +84,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
             }`}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            <span className="font-medium">{t(item.key)}</span>
+            <span className="font-medium">{label}</span>
           </Link>
         );
       })}

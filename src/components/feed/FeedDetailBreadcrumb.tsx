@@ -18,10 +18,10 @@ export function FeedDetailBreadcrumb({ event, organizationNames }: { event: Enti
         <div className="flex items-center gap-2 text-sm">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]"
+            className="inline-flex items-center justify-center rounded-full p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]"
+            aria-label="返回动态"
           >
             <ChevronLeft className="h-4 w-4" />
-            返回动态
           </Link>
           <span className="text-[var(--text-subtle)]">/</span>
           <span className="text-[var(--text-muted)]">Vibly</span>

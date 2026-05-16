@@ -1,3 +1,5 @@
+import { GitBranch } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import { CausalChain } from "@/components/coordination/CausalChain";
 import type { Entity } from "@/lib/coordinator/types";
@@ -13,10 +15,13 @@ function ContextRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-      <div className="mb-4 text-sm font-semibold text-[var(--text)]">{title}</div>
+      <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+        {icon}
+        {title}
+      </div>
       {children}
     </section>
   );
@@ -48,6 +53,7 @@ export function ContextPanel({
   organizationNames?: EntityNameMap;
   children?: React.ReactNode;
 }) {
+  const t = useTranslations("contextPanel");
   const org = organizationNameFor(event, organizationNames);
   const project = text(event.project, event.projectName, event.projectId);
   const objectType = text(event.objectType, eventTypeFor(event));
@@ -57,22 +63,22 @@ export function ContextPanel({
 
   return (
     <aside className="space-y-4">
-      <Panel title="协作上下文">
+      <Panel title={t("collaborationContext")} icon={<GitBranch className="h-4 w-4 text-[var(--text-subtle)]" />}>
         <div className="space-y-3">
-          <ContextRow label="Organization" value={org} />
-          <ContextRow label="Project" value={project} />
-          <ContextRow label="Object Type" value={objectType} />
-          <ContextRow label="Stage" value={stage} />
-          <ContextRow label="Visibility" value={visibility} />
+          <ContextRow label={t("organization")} value={org} />
+          <ContextRow label={t("project")} value={project} />
+          <ContextRow label={t("objectType")} value={objectType} />
+          <ContextRow label={t("stage")} value={stage} />
+          <ContextRow label={t("visibility")} value={visibility} />
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--text-subtle)]">Risk</span>
+            <span className="text-sm text-[var(--text-subtle)]">{t("risk")}</span>
             <RiskBadge risk={risk} />
           </div>
         </div>
       </Panel>
 
       {mechanism && (
-        <Panel title="机制实例">
+        <Panel title={t("mechanism")}>
           <div className="text-sm font-semibold text-[var(--text)]">
             {String(mechanism.name ?? mechanism.mechanismType ?? "")}
           </div>
@@ -88,7 +94,7 @@ export function ContextPanel({
       )}
 
       {timeline.length > 0 && (
-        <Panel title="事件轨迹">
+        <Panel title={t("timeline")}>
           <div className="space-y-0">
             {timeline.map((ev, index) => (
               <div key={index} className="relative flex gap-3 pb-4 last:pb-0">
@@ -118,18 +124,18 @@ export function ContextPanel({
       )}
 
       {chain.length > 0 && (
-        <Panel title="因果链">
+        <Panel title={t("causalChain")}>
           <CausalChain chain={chain} />
         </Panel>
       )}
 
       {reviewSummary && (
-        <Panel title="ReviewRound">
+        <Panel title={t("reviewRound")}>
           <div className="grid grid-cols-2 gap-3">
-            <InfoCell label="Reviewers" value={String(reviewSummary.reviewers ?? "—")} />
-            <InfoCell label="Average" value={String(reviewSummary.average ?? "—")} />
-            <InfoCell label="Decision" value={String(reviewSummary.decision ?? "—")} />
-            <InfoCell label="Disagreement" value={String(reviewSummary.disagreement ?? "—")} />
+            <InfoCell label={t("reviewers")} value={String(reviewSummary.reviewers ?? "—")} />
+            <InfoCell label={t("average")} value={String(reviewSummary.average ?? "—")} />
+            <InfoCell label={t("decision")} value={String(reviewSummary.decision ?? "—")} />
+            <InfoCell label={t("disagreement")} value={String(reviewSummary.disagreement ?? "—")} />
           </div>
         </Panel>
       )}

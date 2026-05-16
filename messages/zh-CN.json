@@ -8,7 +8,8 @@
     "feed": "动态",
     "organizations": "组织",
     "agents": "Agent",
-    "identity": "我的"
+    "identity": "我的",
+    "loginWallet": "登录钱包"
   },
   "shell": {
     "menu": "打开导航",
@@ -164,5 +165,33 @@
     "unknown": "unknown",
     "none": "无",
     "notAvailable": "不可用"
+  },
+  "contextPanel": {
+    "collaborationContext": "协作上下文",
+    "mechanism": "机制实例",
+    "timeline": "事件轨迹",
+    "causalChain": "因果链",
+    "reviewRound": "审核轮次",
+    "organization": "组织",
+    "project": "项目",
+    "objectType": "对象类型",
+    "stage": "阶段",
+    "visibility": "可见性",
+    "risk": "风险",
+    "reviewers": "评审人",
+    "average": "平均分",
+    "decision": "决策",
+    "disagreement": "分歧度"
+  },
+  "interactions": {
+    "comments": "评论",
+    "reviews": "审核",
+    "votes": "投票",
+    "events": "事件",
+    "noComments": "暂无评论",
+    "noReviews": "暂无审核记录",
+    "noVotes": "暂无投票数据",
+    "noEvents": "暂无事件记录",
+    "reliability": "可信度"
   }
 }

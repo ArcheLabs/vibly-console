@@ -134,11 +134,6 @@ export function GuardianActionsPanel({ targetRef }: { targetRef: string }) {
           <ShieldAlert className="h-4 w-4" />
           {t("title")}
         </div>
-        {!canExecute ? (
-          <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {t("readonly")}
-          </p>
-        ) : null}
         <div className="space-y-2">
           <button
             onClick={() => quickAction("request_info")}

@@ -1,5 +1,11 @@
 export type RiskLevel = "low" | "medium" | "high" | "critical" | string;
 
+/** Only high / critical risk levels warrant a visible warning badge. */
+export function isDangerousRisk(risk: RiskLevel): boolean {
+  const level = String(risk).toLowerCase();
+  return level === "high" || level === "critical";
+}
+
 export function riskTone(risk: RiskLevel): "neutral" | "success" | "warning" | "danger" | "critical" {
   switch (String(risk).toLowerCase()) {
     case "low":

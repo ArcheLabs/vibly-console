@@ -8,7 +8,8 @@
     "feed": "Feed",
     "organizations": "Organizations",
     "agents": "Agents",
-    "identity": "Me"
+    "identity": "Me",
+    "loginWallet": "Connect Wallet"
   },
   "shell": {
     "menu": "Open navigation",
@@ -164,5 +165,33 @@
     "unknown": "unknown",
     "none": "None",
     "notAvailable": "N/A"
+  },
+  "contextPanel": {
+    "collaborationContext": "Collaboration Context",
+    "mechanism": "Mechanism",
+    "timeline": "Event Timeline",
+    "causalChain": "Causal Chain",
+    "reviewRound": "Review Round",
+    "organization": "Organization",
+    "project": "Project",
+    "objectType": "Object Type",
+    "stage": "Stage",
+    "visibility": "Visibility",
+    "risk": "Risk",
+    "reviewers": "Reviewers",
+    "average": "Average",
+    "decision": "Decision",
+    "disagreement": "Disagreement"
+  },
+  "interactions": {
+    "comments": "Comments",
+    "reviews": "Reviews",
+    "votes": "Votes",
+    "events": "Events",
+    "noComments": "No comments yet",
+    "noReviews": "No review records",
+    "noVotes": "No vote data",
+    "noEvents": "No event records",
+    "reliability": "Reliability"
   }
 }

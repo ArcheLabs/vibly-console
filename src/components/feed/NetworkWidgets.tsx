@@ -26,7 +26,6 @@ export function TrendingOrganizations() {
         {orgs.map((org: Entity, index: number) => {
           const id = String(org.id ?? "");
           const name = String(org.name ?? org.id ?? `Org ${index + 1}`);
-          const count = org.agentCount ?? org.agents ?? "—";
           const risk = String(org.risk ?? org.riskLevel ?? "low");
           return (
             <Link
@@ -39,7 +38,6 @@ export function TrendingOrganizations() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-[var(--text)]">{name}</div>
-                <div className="text-xs text-[var(--text-subtle)]">{String(count)} Agents</div>
               </div>
               <RiskBadge risk={risk} />
             </Link>

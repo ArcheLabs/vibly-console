@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { StatusBadge } from "@/components/common/Badge";
 import { MarkdownBody } from "@/components/common/MarkdownBody";
 import type { Entity } from "@/lib/coordinator/types";
 import { timeAgo } from "@/lib/utils/format";
 
-function CommentsPanel({ items }: { items: Entity[] }) {
+function CommentsPanel({ items, t }: { items: Entity[]; t: ReturnType<typeof useTranslations> }) {
   if (items.length === 0) {
-    return <p className="py-6 text-sm text-[var(--text-subtle)]">暂无评论</p>;
+    return <p className="py-6 text-sm text-[var(--text-subtle)]">{t("noComments")}</p>;
   }
   return (
     <div className="divide-y divide-[var(--border)]">
@@ -40,9 +41,9 @@ function CommentsPanel({ items }: { items: Entity[] }) {
   );
 }
 
-function ReviewsPanel({ items }: { items: Entity[] }) {
+function ReviewsPanel({ items, t }: { items: Entity[]; t: ReturnType<typeof useTranslations> }) {
   if (items.length === 0) {
-    return <p className="py-6 text-sm text-[var(--text-subtle)]">暂无审核记录</p>;
+    return <p className="py-6 text-sm text-[var(--text-subtle)]">{t("noReviews")}</p>;
   }
   return (
     <div className="space-y-3 py-5">
@@ -54,7 +55,7 @@ function ReviewsPanel({ items }: { items: Entity[] }) {
               <div>
                 <div className="text-sm font-semibold text-[var(--text)]">{String(r.reviewer ?? r.actorId ?? "")}</div>
                 {!!r.reliability && (
-                  <div className="text-xs text-[var(--text-subtle)]">Reliability {String(r.reliability)}</div>
+                  <div className="text-xs text-[var(--text-subtle)]">{t("reliability")} {String(r.reliability)}</div>
                 )}
               </div>
             </div>
@@ -76,9 +77,9 @@ function ReviewsPanel({ items }: { items: Entity[] }) {
   );
 }
 
-function VotesPanel({ votes }: { votes: Entity[] }) {
+function VotesPanel({ votes, t }: { votes: Entity[]; t: ReturnType<typeof useTranslations> }) {
   if (votes.length === 0) {
-    return <p className="py-6 text-sm text-[var(--text-subtle)]">暂无投票数据</p>;
+    return <p className="py-6 text-sm text-[var(--text-subtle)]">{t("noVotes")}</p>;
   }
   return (
     <div className="grid grid-cols-4 gap-3 py-5">
@@ -92,9 +93,9 @@ function VotesPanel({ votes }: { votes: Entity[] }) {
   );
 }
 
-function EventsPanel({ timeline }: { timeline: Entity[] }) {
+function EventsPanel({ timeline, t }: { timeline: Entity[]; t: ReturnType<typeof useTranslations> }) {
   if (timeline.length === 0) {
-    return <p className="py-6 text-sm text-[var(--text-subtle)]">暂无事件记录</p>;
+    return <p className="py-6 text-sm text-[var(--text-subtle)]">{t("noEvents")}</p>;
   }
   return (
     <div className="space-y-0 py-5">
@@ -127,12 +128,8 @@ function EventsPanel({ timeline }: { timeline: Entity[] }) {
   );
 }
 
-const TABS = [
-  { key: "comments", label: "评论" },
-  { key: "reviews", label: "审核" },
-  { key: "votes", label: "投票" },
-  { key: "events", label: "事件" },
-] as const;
+const TAB_KEYS = ["comments", "reviews", "votes", "events"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
 
 export function InteractionTabs({
   comments,
@@ -145,9 +142,10 @@ export function InteractionTabs({
   votes: Entity[];
   timeline: Entity[];
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("comments");
+  const t = useTranslations("interactions");
+  const [tab, setTab] = useState<TabKey>("comments");
 
-  const counts: Record<string, number> = {
+  const counts: Record<TabKey, number> = {
     comments: comments.length,
     reviews: reviews.length,
     votes: votes.length,
@@ -157,26 +155,26 @@ export function InteractionTabs({
   return (
     <section className="px-6 py-5">
       <div className="flex gap-2 border-b border-[var(--border)] pb-3">
-        {TABS.map((item) => (
+        {TAB_KEYS.map((key) => (
           <button
-            key={item.key}
-            onClick={() => setTab(item.key)}
+            key={key}
+            onClick={() => setTab(key)}
             className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              tab === item.key
+              tab === key
                 ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
                 : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)]"
             }`}
           >
-            {item.label}{" "}
-            <span className="ml-1 opacity-70">{counts[item.key]}</span>
+            {t(key)}{" "}
+            <span className="ml-1 opacity-70">{counts[key]}</span>
           </button>
         ))}
       </div>
 
-      {tab === "comments" && <CommentsPanel items={comments} />}
-      {tab === "reviews" && <ReviewsPanel items={reviews} />}
-      {tab === "votes" && <VotesPanel votes={votes} />}
-      {tab === "events" && <EventsPanel timeline={timeline} />}
+      {tab === "comments" && <CommentsPanel items={comments} t={t} />}
+      {tab === "reviews" && <ReviewsPanel items={reviews} t={t} />}
+      {tab === "votes" && <VotesPanel votes={votes} t={t} />}
+      {tab === "events" && <EventsPanel timeline={timeline} t={t} />}
     </section>
   );
 }
