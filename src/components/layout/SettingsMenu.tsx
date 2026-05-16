@@ -13,7 +13,7 @@ const themeIcons = {
   system: Monitor,
 } satisfies Record<ThemeMode, typeof Sun>;
 
-export function SettingsMenu() {
+export function SettingsMenu({ placement = "header" }: { placement?: "header" | "sidebar" }) {
   const t = useTranslations("settings");
   const locale = useLocale() as AppLocale;
   const router = useRouter();
@@ -48,7 +48,11 @@ export function SettingsMenu() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow)]">
+        <div
+          className={`absolute z-40 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow)] ${
+            placement === "sidebar" ? "bottom-12 right-0" : "right-0 top-12"
+          }`}
+        >
           <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase text-[var(--text-subtle)]">
             <Languages className="h-3.5 w-3.5" />
             {t("language")}

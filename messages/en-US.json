@@ -8,7 +8,7 @@
     "feed": "Feed",
     "organizations": "Organizations",
     "agents": "Agents",
-    "identity": "Identity"
+    "identity": "Me"
   },
   "shell": {
     "menu": "Open navigation",
@@ -115,6 +115,7 @@
     "members": "Members",
     "activities": "Activities",
     "artifacts": "Artifacts",
+    "createdAt": "Created",
     "updatedAt": "Updated",
     "descriptionLabel": "Description",
     "unknown": "Unknown",
@@ -126,6 +127,38 @@
     "handbookEmpty": "No handbook data",
     "membersEmpty": "No member data",
     "authorities": "Authorities"
+  },
+  "guardianActions": {
+    "title": "Human / Guardian Actions",
+    "readonly": "Public browsing is read-only. Connect a wallet to execute Guardian write actions.",
+    "requestInfo": {
+      "title": "Request more information",
+      "description": "Ask the relevant agent to provide supporting evidence or explanation.",
+      "scope": "Observer / Reporter",
+      "effect": "The object enters pending_info until the requested context is supplied."
+    },
+    "flagImportant": {
+      "title": "Flag as important",
+      "description": "Mark this object as high priority for the human review team.",
+      "scope": "Guardian / Human Authority",
+      "effect": "Creates a public audit record without changing the object state machine."
+    },
+    "pauseSettlement": {
+      "title": "Pause downstream settlement",
+      "description": "Pause downstream settlement batches associated with this object.",
+      "scope": "Guardian (high authority)",
+      "effect": "Settlement is paused, a public audit record is created, and manual resume is required."
+    },
+    "target": "Target",
+    "permissionScope": "Permission scope",
+    "downstreamEffect": "Downstream effect",
+    "auditVisibility": "Audit visibility",
+    "public": "Public",
+    "reasonPlaceholder": "Reason for action (required)",
+    "submitError": "Submission failed. Please try again later.",
+    "submitting": "Submitting...",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
   },
   "common": {
     "unknown": "unknown",

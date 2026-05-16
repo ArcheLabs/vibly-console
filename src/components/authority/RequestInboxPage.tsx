@@ -10,18 +10,10 @@ import { LoadingState, ErrorState, EmptyState } from "@/components/common/States
 import { StatusBadge, RiskBadge } from "@/components/common/Badge";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import type { Entity } from "@/lib/coordinator/types";
+import { timeAgo } from "@/lib/utils/format";
 
 const FILTERS = ["全部", "待处理", "高风险", "已完成"] as const;
 type Filter = (typeof FILTERS)[number];
-
-function formatTime(value: unknown): string {
-  if (!value) return "";
-  try {
-    return new Date(String(value)).toLocaleString("zh-CN", { timeStyle: "short", dateStyle: "short" });
-  } catch {
-    return String(value);
-  }
-}
 
 function matchesFilter(req: Entity, filter: Filter): boolean {
   if (filter === "全部") return true;
@@ -36,7 +28,7 @@ function matchesFilter(req: Entity, filter: Filter): boolean {
 function RequestCard({ req }: { req: Entity }) {
   const title = String(req.title ?? req.type ?? req.requestType ?? req.consoleKind ?? "请求");
   const actor = String(req.guardianId ?? req.requestedBy ?? req.actorId ?? req.actor ?? "");
-  const time = formatTime(req.createdAt ?? req.timestamp);
+  const time = req.createdAt || req.timestamp ? timeAgo(req.createdAt ?? req.timestamp) : "";
   const status = String(req.status ?? "open");
   const risk = String(req.risk ?? req.riskLevel ?? "");
   const reason = String(req.reason ?? req.description ?? "");

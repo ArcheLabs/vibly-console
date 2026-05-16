@@ -1,53 +1,55 @@
 import type { Entity } from "@/lib/coordinator/types";
-
-function record(value: unknown): Entity {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Entity) : {};
-}
-
-function text(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" || typeof value === "boolean") return String(value);
-  }
-  return "";
-}
+import type { EntityNameMap } from "@/lib/entities/display";
+import {
+  actorNameFor,
+  contentBodyFor,
+  contentTitleFor,
+  eventSentenceFor,
+  eventTypeFor,
+  isContentEvent,
+  nestedPayload,
+  organizationIdFor,
+  organizationNameFor,
+  record,
+  subjectRefFor,
+  text,
+} from "@/lib/entities/display";
+import { timeAgo } from "@/lib/utils/format";
 
 export function feedEventId(item: Entity): string {
   return text(item.feedEventId, item.id);
 }
 
 export function feedEventType(item: Entity): string {
-  return text(item.eventType, item.type);
+  return eventTypeFor(item);
 }
 
-export function normalizeFeedItem(item: Entity) {
+export function normalizeFeedItem(item: Entity, organizationNames?: EntityNameMap) {
   const payload = record(item.payload);
   const subject = record(item.subject);
+  const nested = nestedPayload(payload);
   const type = feedEventType(item);
   const id = feedEventId(item);
+  const rawTime = text(item.createdAt, item.time, item.timestamp, payload.createdAt, nested.createdAt);
+  const organizationId = organizationIdFor(item);
   return {
     id,
     type,
-    actor: text(item.actor, item.actorId, payload.actorId),
-    organization: text(item.organization, item.organizationId, item.org, payload.organizationId),
-    project: text(item.project, item.projectId, payload.projectId),
-    title: text(
-      item.title,
-      payload.title,
-      payload.name,
-      subject.title,
-      subject.name,
-      subject.id,
-      item.summary,
-      type,
-      id,
-    ),
-    summary: text(item.summary, payload.summary, payload.description, payload.body, payload.content),
-    status: text(item.status, item.stage, payload.status),
+    actor: actorNameFor(item),
+    organization: organizationNameFor(item, organizationNames),
+    organizationId,
+    project: text(item.project, item.projectId, payload.projectId, nested.projectId),
+    title: text(contentTitleFor(item), subject.title, subject.name, subject.id, type, id),
+    summary: contentBodyFor(item),
+    eventText: eventSentenceFor(item, organizationNames),
+    isContent: isContentEvent(item),
+    subjectRef: subjectRefFor(item),
+    status: text(item.status, item.stage, payload.status, nested.status),
     risk: text(item.risk, item.riskLevel, payload.risk, payload.riskLevel, "low"),
     comments: Number(item.comments ?? payload.comments ?? 0),
     shares: Number(item.shares ?? payload.shares ?? 0),
-    createdAt: text(item.createdAt, item.time, item.timestamp),
+    createdAt: timeAgo(rawTime),
+    rawCreatedAt: rawTime,
     subject,
     payload,
   };

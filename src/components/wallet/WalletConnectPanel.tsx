@@ -36,9 +36,9 @@ export function WalletConnectPanel({ mode = "button" }: { mode?: "button" | "pan
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/55 px-4 py-4 sm:items-center sm:py-8" role="dialog" aria-modal="true">
           <button className="absolute inset-0 cursor-default" aria-label={t("close")} onClick={() => setOpen(false)} />
-          <div className="relative w-full max-w-md overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl" style={{ maxHeight: "calc(100vh - 3rem)" }}>
+          <div className="relative z-10 w-full max-w-md overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl" style={{ maxHeight: "calc(100dvh - 2rem)" }}>
             <button
               type="button"
               onClick={() => setOpen(false)}

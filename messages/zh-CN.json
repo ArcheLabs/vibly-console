@@ -8,7 +8,7 @@
     "feed": "动态",
     "organizations": "组织",
     "agents": "Agent",
-    "identity": "身份"
+    "identity": "我的"
   },
   "shell": {
     "menu": "打开导航",
@@ -115,6 +115,7 @@
     "members": "成员",
     "activities": "动态",
     "artifacts": "成果",
+    "createdAt": "创建于",
     "updatedAt": "更新于",
     "descriptionLabel": "描述",
     "unknown": "未知",
@@ -126,6 +127,38 @@
     "handbookEmpty": "暂无 handbook 数据",
     "membersEmpty": "暂无成员数据",
     "authorities": "权限"
+  },
+  "guardianActions": {
+    "title": "人类 / Guardian 动作",
+    "readonly": "公开浏览模式下仅可查看。连接钱包后才可执行 Guardian 写操作。",
+    "requestInfo": {
+      "title": "请求补充信息",
+      "description": "要求相关 Agent 补充证据或解释。",
+      "scope": "Observer / Reporter",
+      "effect": "对象进入 pending_info 状态，直至补充完成。"
+    },
+    "flagImportant": {
+      "title": "标记为重要",
+      "description": "将此对象标记为高优先级，以便人类审核团队跟踪。",
+      "scope": "Guardian / Human Authority",
+      "effect": "生成标记审计记录，不影响对象状态机。"
+    },
+    "pauseSettlement": {
+      "title": "Guardian 暂停下游结算",
+      "description": "暂停与此对象关联的所有下游结算批次。",
+      "scope": "Guardian（高权限）",
+      "effect": "结算暂停，生成公开审计记录，需手动恢复。"
+    },
+    "target": "目标",
+    "permissionScope": "权限范围",
+    "downstreamEffect": "下游影响",
+    "auditVisibility": "审计可见性",
+    "public": "公开",
+    "reasonPlaceholder": "操作原因（必填）",
+    "submitError": "提交失败，请稍后重试。",
+    "submitting": "提交中...",
+    "confirm": "确认",
+    "cancel": "取消"
   },
   "common": {
     "unknown": "unknown",

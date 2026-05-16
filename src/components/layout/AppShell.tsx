@@ -7,7 +7,6 @@ import { Bot, Building2, KeyRound, Menu, Network, Rss, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useAuthState } from "@/lib/store/authStore";
 import { useNetworkAgents, useNetworkOrganizations } from "@/lib/query/hooks";
-import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 import { SettingsMenu } from "@/components/layout/SettingsMenu";
 
 const navItems = [
@@ -17,7 +16,7 @@ const navItems = [
   { href: "/onboarding", key: "identity", icon: KeyRound },
 ] as const;
 
-function NetworkHealthPanel({ compact = false }: { compact?: boolean }) {
+function NetworkHealthPanel() {
   const t = useTranslations("shell");
   const orgsQuery = useNetworkOrganizations(20);
   const agentsQuery = useNetworkAgents(20);
@@ -25,7 +24,7 @@ function NetworkHealthPanel({ compact = false }: { compact?: boolean }) {
   const agentCount = agentsQuery.data?.data.length ?? "—";
 
   return (
-    <div className={`${compact ? "" : "absolute bottom-5 left-3 right-3"} rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-4`}>
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
         <Network className="h-4 w-4" />
         {t("networkHealth")}
@@ -94,7 +93,6 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useAuthState();
   const t = useTranslations("shell");
-  const app = useTranslations("app");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -102,7 +100,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-xl lg:block">
         <Brand />
         <Navigation />
-        {auth.connected ? <NetworkHealthPanel /> : null}
+        <div className="absolute bottom-5 left-3 right-3 space-y-3">
+          {auth.connected ? <NetworkHealthPanel /> : null}
+          <div className="flex justify-end">
+            <SettingsMenu placement="sidebar" />
+          </div>
+        </div>
       </aside>
 
       {mobileOpen ? (
@@ -125,32 +128,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Brand />
             <Navigation onNavigate={() => setMobileOpen(false)} />
             <div className="mt-6 px-3">
-              <NetworkHealthPanel compact />
+              <NetworkHealthPanel />
+            </div>
+            <div className="absolute bottom-5 right-5">
+              <SettingsMenu placement="sidebar" />
             </div>
           </aside>
         </div>
       ) : null}
 
       <div className="min-h-screen lg:ml-72">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/92 px-3 backdrop-blur-xl sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              aria-label={t("menu")}
-              onClick={() => setMobileOpen(true)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] shadow-sm hover:bg-[var(--surface-muted)] hover:text-[var(--text)] lg:hidden"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <span className="hidden truncate text-xs text-[var(--text-muted)] sm:inline">
-              {app("coordinator")}: {auth.coordinatorUrl}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <SettingsMenu />
-            <WalletConnectPanel />
-          </div>
-        </header>
+        <button
+          type="button"
+          aria-label={t("menu")}
+          onClick={() => setMobileOpen(true)}
+          className="fixed left-4 top-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] shadow-sm hover:bg-[var(--surface-muted)] hover:text-[var(--text)] lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <main>{children}</main>
       </div>
     </div>

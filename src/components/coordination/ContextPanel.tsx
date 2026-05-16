@@ -1,20 +1,22 @@
 import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import { CausalChain } from "@/components/coordination/CausalChain";
 import type { Entity } from "@/lib/coordinator/types";
+import type { EntityNameMap } from "@/lib/entities/display";
+import { eventTypeFor, organizationNameFor, text } from "@/lib/entities/display";
 
 function ContextRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
-      <span className="shrink-0 text-slate-400">{label}</span>
-      <span className="truncate font-medium text-slate-700">{value || "—"}</span>
+      <span className="shrink-0 text-[var(--text-subtle)]">{label}</span>
+      <span className="truncate font-medium text-[var(--text)]">{value || "—"}</span>
     </div>
   );
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 text-sm font-semibold text-slate-950">{title}</div>
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+      <div className="mb-4 text-sm font-semibold text-[var(--text)]">{title}</div>
       {children}
     </section>
   );
@@ -22,9 +24,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function InfoCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-3">
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-slate-700">{value || "—"}</div>
+    <div className="rounded-xl bg-[var(--surface-muted)] p-3">
+      <div className="text-xs text-[var(--text-subtle)]">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-[var(--text)]">{value || "—"}</div>
     </div>
   );
 }
@@ -35,6 +37,7 @@ export function ContextPanel({
   timeline,
   chain,
   reviewSummary,
+  organizationNames,
   children,
 }: {
   event: Entity;
@@ -42,11 +45,12 @@ export function ContextPanel({
   timeline: Entity[];
   chain: { group: string; items: Entity[] }[];
   reviewSummary?: Entity;
+  organizationNames?: EntityNameMap;
   children?: React.ReactNode;
 }) {
-  const org = String(event.organization ?? event.org ?? event.projectId ?? "");
-  const project = String(event.project ?? event.projectId ?? "");
-  const objectType = String(event.objectType ?? event.eventType ?? "");
+  const org = organizationNameFor(event, organizationNames);
+  const project = text(event.project, event.projectName, event.projectId);
+  const objectType = text(event.objectType, eventTypeFor(event));
   const stage = String(event.stage ?? event.status ?? "");
   const visibility = String(event.visibility ?? "public");
   const risk = String(event.risk ?? event.riskLevel ?? "low");
@@ -61,7 +65,7 @@ export function ContextPanel({
           <ContextRow label="Stage" value={stage} />
           <ContextRow label="Visibility" value={visibility} />
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-400">Risk</span>
+            <span className="text-sm text-[var(--text-subtle)]">Risk</span>
             <RiskBadge risk={risk} />
           </div>
         </div>
@@ -69,14 +73,14 @@ export function ContextPanel({
 
       {mechanism && (
         <Panel title="机制实例">
-          <div className="text-sm font-semibold text-slate-950">
+          <div className="text-sm font-semibold text-[var(--text)]">
             {String(mechanism.name ?? mechanism.mechanismType ?? "")}
           </div>
           {!!mechanism.instanceId && (
-            <div className="mt-1 text-xs text-slate-400">{String(mechanism.instanceId)}</div>
+            <div className="mt-1 text-xs text-[var(--text-subtle)]">{String(mechanism.instanceId)}</div>
           )}
           {!!(mechanism.summary ?? mechanism.description) && (
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
               {String(mechanism.summary ?? mechanism.description)}
             </p>
           )}
@@ -89,16 +93,16 @@ export function ContextPanel({
             {timeline.map((ev, index) => (
               <div key={index} className="relative flex gap-3 pb-4 last:pb-0">
                 {index !== timeline.length - 1 && (
-                  <div className="absolute left-[13px] top-7 h-full w-px bg-slate-200" />
+                  <div className="absolute left-[13px] top-7 h-full w-px bg-[var(--border)]" />
                 )}
-                <div className="relative z-10 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[10px] font-semibold text-white">
+                <div className="relative z-10 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--text)] text-[10px] font-semibold text-[var(--surface)]">
                   {index + 1}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-800">
+                  <div className="text-sm font-semibold text-[var(--text)]">
                     {String(ev.type ?? ev.eventType ?? "")}
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-400">
+                  <div className="mt-0.5 text-xs text-[var(--text-subtle)]">
                     {String(ev.actor ?? ev.actorId ?? "")}
                   </div>
                   {!!(ev.state ?? ev.status) && (

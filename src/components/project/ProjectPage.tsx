@@ -4,7 +4,9 @@ import { useProject, useProjectOverview, useProjectTimeline } from "@/lib/query/
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
+import { MarkdownBody } from "@/components/common/MarkdownBody";
 import type { Entity } from "@/lib/coordinator/types";
+import { timeAgo } from "@/lib/utils/format";
 
 export function ProjectPage({ projectId }: { projectId: string }) {
   const projectQuery = useProject(projectId);
@@ -26,6 +28,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
   const risk = String(project.risk ?? project.riskLevel ?? "low");
   const counts = (overview.counts as Entity | undefined) ?? {};
   const mechanisms: Entity[] = Array.isArray(project.mechanisms) ? (project.mechanisms as Entity[]) : [];
+  const knowledgeEntries: Entity[] = Array.isArray(overview.knowledgeEntries) ? (overview.knowledgeEntries as Entity[]) : [];
 
   return (
     <div className="mx-auto max-w-5xl px-8 py-6">
@@ -65,8 +68,31 @@ export function ProjectPage({ projectId }: { projectId: string }) {
           <StatCard label="目标" value={String(counts.objectives ?? 0)} />
           <StatCard label="运行" value={String(counts.scenarioRuns ?? 0)} />
           <StatCard label="开放任务" value={String(counts.openWorkOrders ?? 0)} />
-          <StatCard label="轨迹" value={String(counts.traces ?? 0)} />
+          <StatCard label="知识" value={String(counts.knowledgeEntries ?? knowledgeEntries.length)} />
         </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">知识库</h2>
+        {knowledgeEntries.length === 0 ? (
+          <EmptyState title="暂无知识条目" body="该项目还没有可展示的知识库更新。" />
+        ) : (
+          <div className="space-y-3">
+            {knowledgeEntries.slice(0, 12).map((entry, index) => (
+              <article key={String(entry.id ?? index)} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-950">{String(entry.title ?? entry.id ?? "知识条目")}</h3>
+                  {Array.isArray(entry.tags) ? (entry.tags as unknown[]).slice(0, 4).map((tag) => (
+                    <span key={String(tag)} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                      #{String(tag)}
+                    </span>
+                  )) : null}
+                </div>
+                <MarkdownBody value={String(entry.content ?? entry.summary ?? "").slice(0, 1200)} className="mt-2 text-sm" />
+              </article>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-8">
@@ -90,7 +116,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
                     <td className="px-4 py-3 text-slate-600">{String(item.phase ?? "-")}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">{String(item.title ?? item.id ?? "-")}</td>
                     <td className="px-4 py-3 text-slate-600">{String(item.status ?? "-")}</td>
-                    <td className="px-4 py-3 text-slate-500">{String(item.timestamp ?? "-")}</td>
+                    <td className="px-4 py-3 text-slate-500">{item.timestamp ? timeAgo(item.timestamp) : "-"}</td>
                   </tr>
                 ))}
               </tbody>

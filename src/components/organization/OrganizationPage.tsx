@@ -9,6 +9,7 @@ import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { NetworkFeed } from "@/components/feed/NetworkFeed";
 import { JsonViewer } from "@/components/common/JsonViewer";
 import type { Entity } from "@/lib/coordinator/types";
+import { formatDateTime } from "@/lib/utils/format";
 
 const TABS = ["feed", "handbook", "members"] as const;
 type OrganizationTab = (typeof TABS)[number];
@@ -50,8 +51,9 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
   const members = asArray(org.members);
   const authorities = asArray(org.authorities);
   const handbook = org.handbook && typeof org.handbook === "object" ? org.handbook : null;
-  const createdAt = String(org.createdAt ?? "—");
-  const updatedAt = String(org.updatedAt ?? "—");
+  const createdAt = org.createdAt ? formatDateTime(org.createdAt) : "—";
+  const updatedAt = org.updatedAt ? formatDateTime(org.updatedAt) : "—";
+  const organizationNames = { [orgId]: name };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
@@ -102,6 +104,7 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
             hasMore={hasMore}
             onLoadMore={loadMore}
             error={feedQuery.error}
+            organizationNames={organizationNames}
           />
         ) : null}
 

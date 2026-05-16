@@ -7,21 +7,7 @@ import { StatusBadge } from "@/components/common/Badge";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import type { Entity } from "@/lib/coordinator/types";
-
-function formatDateTime(iso: string): string {
-  if (!iso || iso === "—") return "—";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return (
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
-      `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-    );
-  } catch {
-    return iso;
-  }
-}
+import { formatDateTime } from "@/lib/utils/format";
 
 function Field({ label, value }: { label: string; value: string | number }) {
   return (
@@ -41,7 +27,7 @@ function OrganizationCard({ org }: { org: Entity }) {
   const memberCount = Number(org.memberCount ?? 0);
   const feedCount = org.feedCount != null ? Number(org.feedCount) : "—";
   const artifactCount = org.artifactCount != null ? Number(org.artifactCount) : "—";
-  const updatedAt = formatDateTime(String(org.updatedAt ?? "—"));
+  const updatedAt = org.updatedAt ? formatDateTime(org.updatedAt) : "—";
 
   return (
     <Link

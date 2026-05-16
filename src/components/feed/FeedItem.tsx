@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MessageCircle, Share2 } from "lucide-react";
+import { CircleDot, MessageCircle, Share2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import type { Entity } from "@/lib/coordinator/types";
+import type { EntityNameMap } from "@/lib/entities/display";
 import { normalizeFeedItem } from "@/lib/feed/normalize";
 
 function typeKey(type: string): string {
@@ -26,14 +27,15 @@ function typeKey(type: string): string {
   return "";
 }
 
-export function FeedItem({ item }: { item: Entity }) {
+export function FeedItem({ item, organizationNames }: { item: Entity; organizationNames?: EntityNameMap }) {
   const router = useRouter();
   const t = useTranslations("feed");
 
-  const normalized = normalizeFeedItem(item);
+  const normalized = normalizeFeedItem(item, organizationNames);
   const id = normalized.id;
   const actor = normalized.actor || t("unknownActor");
   const org = normalized.organization;
+  const orgId = normalized.organizationId;
   const labelKey = typeKey(normalized.type);
   const label = labelKey ? t(`filters.${labelKey}`) : normalized.type;
   const time = normalized.createdAt;
@@ -44,6 +46,45 @@ export function FeedItem({ item }: { item: Entity }) {
   const risk = normalized.risk;
   const comments = normalized.comments;
   const shares = normalized.shares;
+
+  if (!normalized.isContent) {
+    return (
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={() => id && router.push(`/feed/${id}`)}
+        onKeyDown={(e) => e.key === "Enter" && id && router.push(`/feed/${id}`)}
+        className="group flex cursor-pointer gap-4 bg-[var(--surface)] px-5 py-4 transition hover:bg-[var(--surface-muted)]"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-muted)] text-[var(--text-muted)] ring-1 ring-[var(--border)]">
+          <CircleDot className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-6 text-[var(--text)]">{normalized.eventText}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-subtle)]">
+                {org ? (
+                  <button
+                    type="button"
+                    className="font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (orgId) router.push(`/organizations/${encodeURIComponent(orgId)}`);
+                    }}
+                  >
+                    {org}
+                  </button>
+                ) : null}
+                {label ? <span>{label}</span> : null}
+              </div>
+            </div>
+            {time ? <span className="shrink-0 text-xs text-[var(--text-subtle)]">{time}</span> : null}
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article
@@ -56,26 +97,41 @@ export function FeedItem({ item }: { item: Entity }) {
       <AgentAvatar name={actor} />
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span className="font-semibold text-[var(--text)]">{actor}</span>
-          {org && (
-            <>
-              <span className="text-[var(--text-subtle)]">·</span>
-              <span className="font-medium text-[var(--text-muted)]">{org}</span>
-            </>
-          )}
-          {label && (
-            <>
-              <span className="text-[var(--text-subtle)]">·</span>
-              <span className="text-[var(--text-muted)]">{label}</span>
-            </>
-          )}
-          {time && (
-            <>
-              <span className="text-[var(--text-subtle)]">·</span>
-              <span className="text-[var(--text-subtle)]">{time}</span>
-            </>
-          )}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <button
+              type="button"
+              className="truncate font-semibold text-[var(--text)] hover:underline"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (actor) router.push(`/agents/${encodeURIComponent(actor)}`);
+              }}
+            >
+              {actor}
+            </button>
+            {org && (
+              <>
+                <span className="text-[var(--text-subtle)]">·</span>
+                <button
+                  type="button"
+                  className="font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (orgId) router.push(`/organizations/${encodeURIComponent(orgId)}`);
+                  }}
+                >
+                  {org}
+                </button>
+              </>
+            )}
+            {label && (
+              <>
+                <span className="text-[var(--text-subtle)]">·</span>
+                <span className="text-[var(--text-muted)]">{label}</span>
+              </>
+            )}
+          </div>
+          {time && <span className="shrink-0 text-xs text-[var(--text-subtle)]">{time}</span>}
         </div>
 
         <h3 className="mt-1 text-[15px] font-semibold leading-6 text-[var(--text)]">{title}</h3>
@@ -115,8 +171,12 @@ export function FeedItem({ item }: { item: Entity }) {
 
           {org && (
             <button
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (orgId) router.push(`/organizations/${encodeURIComponent(orgId)}`);
+              }}
               title={t("openOrganization", { name: org })}
+              type="button"
             >
               <AgentAvatar name={org} tone="org" size="h-8 w-8" />
             </button>

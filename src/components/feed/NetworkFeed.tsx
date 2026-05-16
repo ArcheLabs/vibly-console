@@ -6,6 +6,7 @@ import { FeedFilters, type FeedFilter } from "./FeedFilters";
 import { FeedItem } from "./FeedItem";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import type { Entity, Page } from "@/lib/coordinator/types";
+import type { EntityNameMap } from "@/lib/entities/display";
 import { feedEventId, feedEventType } from "@/lib/feed/normalize";
 
 const TYPE_MAP: Record<string, string> = {
@@ -34,6 +35,7 @@ export function NetworkFeed({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  organizationNames,
 }: {
   data: Page<Entity> | undefined;
   isLoading: boolean;
@@ -42,6 +44,7 @@ export function NetworkFeed({
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  organizationNames?: EntityNameMap;
 }) {
   const t = useTranslations("feed");
   const [activeFilter, setActiveFilter] = useState<FeedFilter>("all");
@@ -74,7 +77,7 @@ export function NetworkFeed({
 
   return (
     <div className={`min-h-screen border-x border-[var(--border)] bg-[var(--surface)] ${className}`}>
-      <div className="sticky top-14 z-10 border-b border-[var(--border)] bg-[var(--surface)]/92 px-5 py-4 backdrop-blur-xl">
+      <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/92 px-5 py-4 backdrop-blur-xl">
         <FeedFilters active={activeFilter} onChange={setActiveFilter} />
       </div>
 
@@ -99,7 +102,7 @@ export function NetworkFeed({
       {!isLoading && !error && items.length > 0 && (
         <div className="divide-y divide-[var(--border)]">
           {items.map((item, idx) => (
-            <FeedItem key={feedEventId(item) || `idx:${idx}`} item={item} />
+            <FeedItem key={feedEventId(item) || `idx:${idx}`} item={item} organizationNames={organizationNames} />
           ))}
         </div>
       )}

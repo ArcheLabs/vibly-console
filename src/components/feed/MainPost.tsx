@@ -1,52 +1,64 @@
 "use client";
 
 import { MessageCircle, Share2, Star } from "lucide-react";
+import { MarkdownBody } from "@/components/common/MarkdownBody";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import type { Entity } from "@/lib/coordinator/types";
+import type { EntityNameMap } from "@/lib/entities/display";
+import { actorNameFor, contentBodyFor, contentTitleFor, nestedPayload, organizationNameFor, record, text } from "@/lib/entities/display";
+import { timeAgo } from "@/lib/utils/format";
 
-export function MainPost({ event }: { event: Entity }) {
-  const actor = String(event.actor ?? event.actorId ?? "");
+export function MainPost({ event, organizationNames }: { event: Entity; organizationNames?: EntityNameMap }) {
+  const payload = record(event.payload);
+  const nested = nestedPayload(payload);
+  const actor = actorNameFor(event);
   const actorRole = String(event.actorRole ?? event.role ?? "");
-  const org = String(event.organization ?? event.org ?? event.projectId ?? "");
-  const time = String(event.time ?? event.createdAt ?? event.timestamp ?? "");
-  const title = String(event.title ?? event.type ?? event.id ?? "");
-  const body = String(event.body ?? event.summary ?? event.description ?? "");
-  const tags: string[] = Array.isArray(event.tags) ? (event.tags as string[]) : [];
+  const org = organizationNameFor(event, organizationNames);
+  const time = timeAgo(text(event.time, event.createdAt, event.timestamp, payload.createdAt, nested.createdAt));
+  const title = contentTitleFor(event);
+  const body = contentBodyFor(event);
+  const tags: string[] = Array.isArray(event.tags)
+    ? (event.tags as string[])
+    : Array.isArray(payload.tags)
+      ? (payload.tags as string[])
+      : Array.isArray(nested.tags)
+        ? (nested.tags as string[])
+        : [];
   const comments = Number(event.comments ?? 0);
   const shares = Number(event.shares ?? 0);
   const stars = Number(event.stars ?? 0);
 
   return (
-    <article className="border-b border-slate-100 px-6 py-6">
+    <article className="border-b border-[var(--border)] px-6 py-6">
       <div className="flex gap-4">
         <AgentAvatar name={actor} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="font-semibold text-slate-950">{actor}</span>
+            <span className="font-semibold text-[var(--text)]">{actor}</span>
             {actorRole && (
               <>
-                <span className="text-slate-400">·</span>
-                <span className="text-slate-500">{actorRole}</span>
+                <span className="text-[var(--text-subtle)]">·</span>
+                <span className="text-[var(--text-muted)]">{actorRole}</span>
               </>
             )}
             {org && (
               <>
-                <span className="text-slate-400">·</span>
+                <span className="text-[var(--text-subtle)]">·</span>
                 <AgentAvatar name={org} tone="org" size="h-6 w-6" />
-                <span className="font-medium text-slate-600">{org}</span>
+                <span className="font-medium text-[var(--text-muted)]">{org}</span>
               </>
             )}
             {time && (
               <>
-                <span className="text-slate-400">·</span>
-                <span className="text-slate-400">{time}</span>
+                <span className="text-[var(--text-subtle)]">·</span>
+                <span className="text-[var(--text-subtle)]">{time}</span>
               </>
             )}
           </div>
 
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text)]">{title}</h1>
           {body && (
-            <p className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-slate-700">{body}</p>
+            <MarkdownBody value={body} className="mt-4" />
           )}
 
           {tags.length > 0 && (
@@ -54,7 +66,7 @@ export function MainPost({ event }: { event: Entity }) {
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200"
+                  className="rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] ring-1 ring-[var(--border)]"
                 >
                   #{tag}
                 </span>
@@ -62,14 +74,14 @@ export function MainPost({ event }: { event: Entity }) {
             </div>
           )}
 
-          <div className="mt-5 flex items-center gap-8 text-sm text-slate-400">
-            <button className="inline-flex items-center gap-2 hover:text-slate-700">
+          <div className="mt-5 flex items-center gap-8 text-sm text-[var(--text-subtle)]">
+            <button className="inline-flex items-center gap-2 hover:text-[var(--text)]">
               <MessageCircle className="h-4 w-4" /> {comments}
             </button>
-            <button className="inline-flex items-center gap-2 hover:text-slate-700">
+            <button className="inline-flex items-center gap-2 hover:text-[var(--text)]">
               <Share2 className="h-4 w-4" /> {shares}
             </button>
-            <button className="inline-flex items-center gap-2 hover:text-slate-700">
+            <button className="inline-flex items-center gap-2 hover:text-[var(--text)]">
               <Star className="h-4 w-4" /> {stars}
             </button>
           </div>

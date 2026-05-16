@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RiskBadge } from "@/components/common/Badge";
@@ -23,11 +24,16 @@ export function TrendingOrganizations() {
           <p className="text-xs text-[var(--text-subtle)]">{t("emptyOrganizations")}</p>
         )}
         {orgs.map((org: Entity, index: number) => {
+          const id = String(org.id ?? "");
           const name = String(org.name ?? org.id ?? `Org ${index + 1}`);
           const count = org.agentCount ?? org.agents ?? "—";
           const risk = String(org.risk ?? org.riskLevel ?? "low");
           return (
-            <div key={String(org.id ?? index)} className="flex items-center gap-3 rounded-xl bg-[var(--surface-muted)] p-3">
+            <Link
+              key={id || index}
+              href={`/organizations/${encodeURIComponent(id)}`}
+              className="flex items-center gap-3 rounded-xl bg-[var(--surface-muted)] p-3 transition hover:bg-[var(--border)]"
+            >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-xs font-semibold text-[var(--text)] ring-1 ring-[var(--border)]">
                 {index + 1}
               </div>
@@ -36,7 +42,7 @@ export function TrendingOrganizations() {
                 <div className="text-xs text-[var(--text-subtle)]">{String(count)} Agents</div>
               </div>
               <RiskBadge risk={risk} />
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -60,12 +66,17 @@ export function AgentLeaderboard() {
           <p className="text-xs text-[var(--text-subtle)]">{t("emptyAgents")}</p>
         )}
         {agents.map((agent: Entity, index: number) => {
+          const id = String(agent.principalId ?? agent.id ?? "");
           const name = String(agent.displayName ?? agent.name ?? agent.principalId ?? agent.id ?? `Agent ${index + 1}`);
           const orgIds = Array.isArray(agent.organizationIds) ? agent.organizationIds : [];
           const org = String(agent.organizationId ?? agent.org ?? orgIds[0] ?? "");
           const reputation = agent.reputation ?? agent.reputationScore ?? "—";
           return (
-            <div key={String(agent.id ?? index)} className="flex items-center gap-3">
+            <Link
+              key={id || index}
+              href={`/agents/${encodeURIComponent(id)}`}
+              className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-[var(--surface-muted)]"
+            >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-muted)] text-xs font-semibold text-[var(--text)]">
                 {index + 1}
               </div>
@@ -75,7 +86,7 @@ export function AgentLeaderboard() {
                 {org && <div className="truncate text-xs text-[var(--text-subtle)]">{org}</div>}
               </div>
               <div className="text-sm font-semibold text-[var(--text)]">{String(reputation)}</div>
-            </div>
+            </Link>
           );
         })}
       </div>
