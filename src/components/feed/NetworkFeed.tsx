@@ -1,26 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FeedFilters, type FeedFilter } from "./FeedFilters";
 import { FeedItem } from "./FeedItem";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import type { Entity, Page } from "@/lib/coordinator/types";
+import { feedEventId, feedEventType } from "@/lib/feed/normalize";
 
 const TYPE_MAP: Record<string, string> = {
-  组织: "organization",
-  观察: "observation",
-  提案: "proposal",
-  任务: "task",
-  成果: "artifact",
-  投票: "voting",
-  奖励: "reward",
-  风险: "risk",
+  organization: "organization",
+  observation: "observation",
+  proposal: "proposal",
+  task: "task",
+  artifact: "artifact",
+  voting: "voting",
+  reward: "reward",
+  risk: "risk",
 };
 
 function matchesFilter(item: Entity, filter: FeedFilter): boolean {
-  if (filter === "全部") return true;
+  if (filter === "all") return true;
   const target = TYPE_MAP[filter] ?? "";
-  const type = String(item.eventType ?? item.type ?? "").toLowerCase();
+  const type = feedEventType(item).toLowerCase();
   return type.includes(target);
 }
 
@@ -28,49 +30,86 @@ export function NetworkFeed({
   data,
   isLoading,
   error,
+  className = "",
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: {
   data: Page<Entity> | undefined;
   isLoading: boolean;
   error: unknown;
+  className?: string;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
-  const [activeFilter, setActiveFilter] = useState<FeedFilter>("全部");
+  const t = useTranslations("feed");
+  const [activeFilter, setActiveFilter] = useState<FeedFilter>("all");
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const items = useMemo(() => {
     if (!data?.data) return [];
-    return data.data.filter((item) => matchesFilter(item, activeFilter));
+    const seen = new Set<string>();
+    return data.data.filter((item, index) => {
+      const key = feedEventId(item) || `idx:${index}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return matchesFilter(item, activeFilter);
+    });
   }, [data, activeFilter]);
 
+  useEffect(() => {
+    if (!onLoadMore || !hasMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
+      },
+      { rootMargin: "360px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore]);
+
   return (
-    <div className="col-span-8 min-h-screen border-x border-slate-100 bg-white">
-      <div className="sticky top-14 z-10 border-b border-slate-100 bg-white/90 px-5 py-4 backdrop-blur-xl">
+    <div className={`min-h-screen border-x border-[var(--border)] bg-[var(--surface)] ${className}`}>
+      <div className="sticky top-14 z-10 border-b border-[var(--border)] bg-[var(--surface)]/92 px-5 py-4 backdrop-blur-xl">
         <FeedFilters active={activeFilter} onChange={setActiveFilter} />
       </div>
 
       {isLoading && (
         <div className="p-6">
-          <LoadingState label="加载动态中..." />
+          <LoadingState label={t("loading")} />
         </div>
       )}
 
       {!isLoading && !!error && (
         <div className="p-6">
-          <ErrorState error={error} title="无法加载动态" />
+          <ErrorState error={error} title={t("errorTitle")} />
         </div>
       )}
 
       {!isLoading && !error && items.length === 0 && (
         <div className="p-6">
-          <EmptyState title="暂无动态" body="当前筛选条件下没有内容。" />
+          <EmptyState title={t("emptyTitle")} body={t("emptyBody")} />
         </div>
       )}
 
       {!isLoading && !error && items.length > 0 && (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[var(--border)]">
           {items.map((item, idx) => (
-            <FeedItem key={String(item.id ?? item.feedEventId ?? idx)} item={item} />
+            <FeedItem key={feedEventId(item) || `idx:${idx}`} item={item} />
           ))}
         </div>
       )}
+
+      <div ref={sentinelRef} className="h-8" />
+      {isLoadingMore ? (
+        <div className="px-6 pb-6">
+          <LoadingState label={t("loadingMore")} />
+        </div>
+      ) : null}
     </div>
   );
 }

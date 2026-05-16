@@ -75,15 +75,16 @@ export interface CoordinatorClient {
   streamProjectEvents(projectId: string, handlers: StreamHandlers): () => void;
 
   // V0.2: Network Feed (backed by /events until /feed is in contract)
-  getNetworkFeed(limit?: number): Promise<Page<Entity>>;
-  getFeedEvent(eventId: string): Promise<Entity>;
+  getNetworkFeed(input?: PageInput | number): Promise<Page<Entity>>;
+  getFeedEvent(feedEventId: string): Promise<Entity>;
 
   // V0.2: Organizations (backed by /projects until /organizations is in contract)
-  getNetworkOrganizations(limit?: number): Promise<Page<Entity>>;
+  getNetworkOrganizations(input?: PageInput | number): Promise<Page<Entity>>;
   getNetworkOrganization(orgId: string): Promise<Entity>;
-  getOrganizationFeed(orgId: string, limit?: number): Promise<Page<Entity>>;
+  getOrganizationFeed(orgId: string, input?: PageInput | number): Promise<Page<Entity>>;
 
-  // V0.2: Agents (uses existing /agents endpoints)
+  // V0.2: Agents
+  listAgentProfiles(input?: PageInput): Promise<Page<Entity>>;
   getNetworkAgent(agentId: string): Promise<Entity>;
   getAgentReputation(agentId: string): Promise<Entity>;
 
@@ -840,32 +841,34 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   // ── V0.2 Network Feed ────────────────────────────────────────────────────
 
-  async getNetworkFeed(limit = 50) {
+  async getNetworkFeed(input: PageInput | number = 50) {
+    const query = pageQuery(input);
     return await runContract(async () => {
       const result = await this.contract.GET("/feed", {
-        params: { query: { limit } },
+        params: { query: query as never },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
-      return toPage<Entity>(extractArray(unwrapEnvelope<Entity>(result.data), "items") as Entity[]);
+      return pageFromEnvelope(result.data, "items", query.limit);
     });
   }
 
-  async getFeedEvent(eventId: string) {
+  async getFeedEvent(feedEventId: string) {
     return await runContract(async () => {
-      const result = await this.contract.GET("/events/{eventId}", {
-        params: { path: { eventId } },
+      const result = await this.contract.GET("/feed/{feedEventId}", {
+        params: { path: { feedEventId } },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
-      return unwrapEnvelope<Entity>(result.data);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "feedItem");
     });
   }
 
   // ── V0.2 Organizations ───────────────────────────────────────────────────
 
-  async getNetworkOrganizations(limit = 50) {
+  async getNetworkOrganizations(input: PageInput | number = 50) {
+    const query = pageQuery(input);
     return await runContract(async () => {
       const result = await this.contract.GET("/organizations", {
-        params: { query: { limit } },
+        params: { query: query as never },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapListEnvelope<Entity>(result.data);
@@ -882,17 +885,28 @@ class HttpCoordinatorClient implements CoordinatorClient {
     });
   }
 
-  async getOrganizationFeed(orgId: string, limit = 50) {
+  async getOrganizationFeed(orgId: string, input: PageInput | number = 50) {
+    const query = pageQuery(input);
     return await runContract(async () => {
       const result = await this.contract.GET("/organizations/{organizationId}/feed", {
-        params: { path: { organizationId: orgId }, query: { limit } },
+        params: { path: { organizationId: orgId }, query: query as never },
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
-      return toPage<Entity>(extractArray(unwrapEnvelope<Entity>(result.data), "items") as Entity[]);
+      return pageFromEnvelope(result.data, "items", query.limit);
     });
   }
 
   // ── V0.2 Agents ─────────────────────────────────────────────────────────
+
+  async listAgentProfiles(input?: PageInput) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/agent-profiles", {
+        params: { query: queryFromInput(input) as never },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return pageFromEnvelope(result.data, "items", input?.limit);
+    });
+  }
 
   async getNetworkAgent(agentId: string) {
     return await runContract(async () => {
@@ -1147,6 +1161,24 @@ function extractArray(value: unknown, preferredKey?: string): unknown[] {
 
 function toPage<T>(data: T[]): Page<T> {
   return { data, page: { limit: data.length, nextCursor: null } };
+}
+
+function pageFromEnvelope(value: unknown, preferredKey: string, requestedLimit?: string | number): Page<Entity> {
+  const data = unwrapEnvelope<Entity>(value);
+  const items = extractArray(data, preferredKey) as Entity[];
+  const rawPage =
+    value && typeof value === "object" && "page" in value
+      ? (value as { page?: { limit?: unknown; nextCursor?: unknown } }).page
+      : data && typeof data === "object" && "page" in data
+        ? (data as { page?: { limit?: unknown; nextCursor?: unknown } }).page
+        : undefined;
+  const numericLimit = Number(rawPage?.limit ?? requestedLimit ?? items.length);
+  const nextCursor = typeof rawPage?.nextCursor === "string" ? rawPage.nextCursor : null;
+  return { data: items, page: { limit: Number.isFinite(numericLimit) ? numericLimit : items.length, nextCursor } };
+}
+
+function pageQuery(input: PageInput | number): Record<string, string> {
+  return queryFromInput(typeof input === "number" ? { limit: input } : input);
 }
 
 function objectPayload(event: EventEnvelope): Entity {

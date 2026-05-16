@@ -2,44 +2,48 @@
 
 import { useRouter } from "next/navigation";
 import { MessageCircle, Share2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import type { Entity } from "@/lib/coordinator/types";
+import { normalizeFeedItem } from "@/lib/feed/normalize";
 
-/** Map raw event type strings to a human-readable Chinese label */
-function typeLabel(type: string): string {
+function typeKey(type: string): string {
   const map: Record<string, string> = {
-    organization: "组织",
-    observation: "观察",
-    proposal: "提案",
-    task: "任务",
-    artifact: "成果",
-    voting: "投票",
-    reward: "奖励",
-    risk: "风险",
+    organization: "organization",
+    observation: "observation",
+    proposal: "proposal",
+    task: "task",
+    artifact: "artifact",
+    voting: "voting",
+    reward: "reward",
+    risk: "risk",
   };
   const lower = type.toLowerCase();
-  for (const [key, label] of Object.entries(map)) {
-    if (lower.includes(key)) return label;
+  for (const [key, value] of Object.entries(map)) {
+    if (lower.includes(key)) return value;
   }
-  return type;
+  return "";
 }
 
 export function FeedItem({ item }: { item: Entity }) {
   const router = useRouter();
+  const t = useTranslations("feed");
 
-  const id = String(item.id ?? item.feedEventId ?? "");
-  const actor = String(item.actor ?? item.actorId ?? item.type ?? "");
-  const org = String(item.organization ?? item.org ?? item.projectId ?? "");
-  const label = typeLabel(String(item.eventType ?? item.type ?? ""));
-  const time = String(item.time ?? item.createdAt ?? item.timestamp ?? "");
-  const title = String(item.title ?? item.type ?? id);
-  const summary = String(item.summary ?? item.body ?? "");
-  const project = String(item.project ?? item.projectId ?? "");
-  const status = String(item.status ?? item.stage ?? "");
-  const risk = String(item.risk ?? item.riskLevel ?? "low");
-  const comments = Number(item.comments ?? 0);
-  const shares = Number(item.shares ?? 0);
+  const normalized = normalizeFeedItem(item);
+  const id = normalized.id;
+  const actor = normalized.actor || t("unknownActor");
+  const org = normalized.organization;
+  const labelKey = typeKey(normalized.type);
+  const label = labelKey ? t(`filters.${labelKey}`) : normalized.type;
+  const time = normalized.createdAt;
+  const title = normalized.title || t("unknownTitle");
+  const summary = normalized.summary;
+  const project = normalized.project;
+  const status = normalized.status;
+  const risk = normalized.risk;
+  const comments = normalized.comments;
+  const shares = normalized.shares;
 
   return (
     <article
@@ -47,41 +51,41 @@ export function FeedItem({ item }: { item: Entity }) {
       tabIndex={0}
       onClick={() => id && router.push(`/feed/${id}`)}
       onKeyDown={(e) => e.key === "Enter" && id && router.push(`/feed/${id}`)}
-      className="group flex cursor-pointer gap-4 bg-white px-5 py-5 transition hover:bg-slate-50/80"
+      className="group flex cursor-pointer gap-4 bg-[var(--surface)] px-5 py-5 transition hover:bg-[var(--surface-muted)]"
     >
       <AgentAvatar name={actor} />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span className="font-semibold text-slate-950">{actor}</span>
+          <span className="font-semibold text-[var(--text)]">{actor}</span>
           {org && (
             <>
-              <span className="text-slate-400">·</span>
-              <span className="font-medium text-slate-600">{org}</span>
+              <span className="text-[var(--text-subtle)]">·</span>
+              <span className="font-medium text-[var(--text-muted)]">{org}</span>
             </>
           )}
           {label && (
             <>
-              <span className="text-slate-400">·</span>
-              <span className="text-slate-500">{label}</span>
+              <span className="text-[var(--text-subtle)]">·</span>
+              <span className="text-[var(--text-muted)]">{label}</span>
             </>
           )}
           {time && (
             <>
-              <span className="text-slate-400">·</span>
-              <span className="text-slate-400">{time}</span>
+              <span className="text-[var(--text-subtle)]">·</span>
+              <span className="text-[var(--text-subtle)]">{time}</span>
             </>
           )}
         </div>
 
-        <h3 className="mt-1 text-[15px] font-semibold leading-6 text-slate-950">{title}</h3>
+        <h3 className="mt-1 text-[15px] font-semibold leading-6 text-[var(--text)]">{title}</h3>
         {summary && (
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{summary}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--text-muted)]">{summary}</p>
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {project && (
-            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200">
+            <span className="rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] ring-1 ring-[var(--border)]">
               {project}
             </span>
           )}
@@ -90,19 +94,19 @@ export function FeedItem({ item }: { item: Entity }) {
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-7 text-sm text-slate-400">
+          <div className="flex items-center gap-7 text-sm text-[var(--text-subtle)]">
             <button
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 transition hover:text-slate-700"
-              aria-label="评论"
+              className="inline-flex items-center gap-1.5 transition hover:text-[var(--text)]"
+              aria-label={t("comments")}
             >
               <MessageCircle className="h-4 w-4" />
               <span>{comments}</span>
             </button>
             <button
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 transition hover:text-slate-700"
-              aria-label="分享"
+              className="inline-flex items-center gap-1.5 transition hover:text-[var(--text)]"
+              aria-label={t("shares")}
             >
               <Share2 className="h-4 w-4" />
               <span>{shares}</span>
@@ -112,7 +116,7 @@ export function FeedItem({ item }: { item: Entity }) {
           {org && (
             <button
               onClick={(e) => e.stopPropagation()}
-              title={`进入组织：${org}`}
+              title={t("openOrganization", { name: org })}
             >
               <AgentAvatar name={org} tone="org" size="h-8 w-8" />
             </button>

@@ -54,7 +54,6 @@ const config: NextAuthConfig = {
   trustHost: process.env.AUTH_TRUST_HOST === "true" || process.env.NODE_ENV !== "production",
   providers,
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

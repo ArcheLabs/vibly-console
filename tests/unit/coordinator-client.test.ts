@@ -183,4 +183,50 @@ describe("CoordinatorClient", () => {
     unsubscribe();
     expect(close).toHaveBeenCalled();
   });
+
+  it("uses feedEventId routes for feed details", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        data: {
+          feedItem: {
+            feedEventId: "feed_1",
+            eventType: "ProposalCreated",
+          },
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createCoordinatorClient(auth);
+
+    await expect(client.getFeedEvent("feed_1")).resolves.toMatchObject({ feedEventId: "feed_1" });
+    const request = (fetchMock.mock.calls as unknown as Array<[Request]>)[0]?.[0];
+    expect(request?.url).toBe("http://coordinator.test/feed/feed_1");
+  });
+
+  it("loads agent profiles from /agent-profiles", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        data: {
+          items: [
+            {
+              principalId: "agent_1",
+              displayName: "Research Agent",
+              stakeLedger: { status: "active", activeAmount: "100" },
+            },
+          ],
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createCoordinatorClient(auth);
+
+    await expect(client.listAgentProfiles({ limit: 25 })).resolves.toMatchObject({
+      data: [{ principalId: "agent_1" }],
+      page: { limit: 25, nextCursor: null },
+    });
+    const request = (fetchMock.mock.calls as unknown as Array<[Request]>)[0]?.[0];
+    expect(request?.url).toBe("http://coordinator.test/agent-profiles?limit=25");
+  });
 });

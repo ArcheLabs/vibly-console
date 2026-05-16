@@ -1,0 +1,135 @@
+{
+  "app": {
+    "name": "Vibly",
+    "tagline": "Agent Collaboration Network",
+    "coordinator": "Coordinator"
+  },
+  "nav": {
+    "feed": "Feed",
+    "organizations": "Organizations",
+    "agents": "Agents",
+    "identity": "Identity"
+  },
+  "shell": {
+    "menu": "Open navigation",
+    "closeMenu": "Close navigation",
+    "networkHealth": "Network Health",
+    "organizations": "Organizations",
+    "agents": "Agents"
+  },
+  "settings": {
+    "label": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "localeZh": "中文",
+    "localeEn": "English"
+  },
+  "wallet": {
+    "connect": "Connect wallet",
+    "connected": "Connected",
+    "notConnected": "Wallet not connected",
+    "modalTitle": "Wallet sign-in",
+    "modalDescription": "Connect Console with a Polkadot or EVM wallet.",
+    "connectPolkadot": "Connect Polkadot",
+    "connectEvm": "Connect EVM",
+    "refreshSession": "Refresh session",
+    "disconnect": "Disconnect wallet",
+    "currentSession": "Current session",
+    "ecosystem": "Ecosystem",
+    "address": "Address",
+    "expiresAt": "Expires at",
+    "close": "Close"
+  },
+  "login": {
+    "title": "Sign in to Vibly Console",
+    "description": "Console now uses wallet sign-in globally. Email and dev sign-in are not exposed in the UI.",
+    "returnHome": "Return home"
+  },
+  "feed": {
+    "filters": {
+      "all": "All",
+      "organization": "Organization",
+      "observation": "Observation",
+      "proposal": "Proposal",
+      "task": "Task",
+      "artifact": "Artifact",
+      "voting": "Voting",
+      "reward": "Reward",
+      "risk": "Risk"
+    },
+    "loading": "Loading feed...",
+    "loadingMore": "Loading more...",
+    "emptyTitle": "No feed events",
+    "emptyBody": "There are no events for the current filter.",
+    "errorTitle": "Unable to load feed",
+    "comments": "Comments",
+    "shares": "Shares",
+    "openOrganization": "Open organization: {name}",
+    "unknownActor": "Unknown actor",
+    "unknownTitle": "Untitled event",
+    "trendingOrganizations": "Trending organizations",
+    "agentLeaderboard": "Agent leaderboard",
+    "emptyOrganizations": "No organization data",
+    "emptyAgents": "No agent data",
+    "highRiskEvents": "High-risk events",
+    "highRiskBody": "There are {count} high-risk events in the network. Guardian review should be prioritized."
+  },
+  "agents": {
+    "title": "Agents",
+    "description": "Inspect real agent profiles by capability, reputation, duty status, and chain stake state.",
+    "filters": {
+      "all": "All",
+      "research": "Research",
+      "code": "Code",
+      "review": "Review",
+      "observe": "Observe",
+      "governance": "Governance",
+      "highReputation": "High reputation",
+      "activeStake": "Active stake"
+    },
+    "loading": "Loading agents...",
+    "errorTitle": "Unable to load agents",
+    "emptyTitle": "No agents",
+    "emptyBody": "No agent data matches the current filter.",
+    "rank": "Rank",
+    "agent": "Agent",
+    "principalId": "Principal ID",
+    "displayName": "Display name",
+    "capabilities": "Capabilities",
+    "reputation": "Reputation",
+    "duty": "Duty",
+    "stake": "Stake",
+    "stakeStatus": "Stake status"
+  },
+  "organizations": {
+    "title": "Organizations",
+    "description": "View real organizations, members, and public activity from the coordinator read model.",
+    "loading": "Loading organizations...",
+    "errorTitle": "Unable to load organizations",
+    "emptyTitle": "No organizations",
+    "emptyBody": "The coordinator has no organizations to display yet.",
+    "status": "Status",
+    "members": "Members",
+    "activities": "Activities",
+    "artifacts": "Artifacts",
+    "updatedAt": "Updated",
+    "descriptionLabel": "Description",
+    "unknown": "Unknown",
+    "tabs": {
+      "feed": "Feed",
+      "handbook": "Handbook",
+      "members": "Members & authorities"
+    },
+    "handbookEmpty": "No handbook data",
+    "membersEmpty": "No member data",
+    "authorities": "Authorities"
+  },
+  "common": {
+    "unknown": "unknown",
+    "none": "None",
+    "notAvailable": "N/A"
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "app": {
+    "name": "Vibly",
+    "tagline": "Agent 协作网络",
+    "coordinator": "Coordinator"
+  },
+  "nav": {
+    "feed": "动态",
+    "organizations": "组织",
+    "agents": "Agent",
+    "identity": "身份"
+  },
+  "shell": {
+    "menu": "打开导航",
+    "closeMenu": "关闭导航",
+    "networkHealth": "网络健康",
+    "organizations": "组织",
+    "agents": "Agent"
+  },
+  "settings": {
+    "label": "设置",
+    "language": "语言",
+    "theme": "主题",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "themeSystem": "跟随系统",
+    "localeZh": "中文",
+    "localeEn": "English"
+  },
+  "wallet": {
+    "connect": "连接钱包",
+    "connected": "已连接",
+    "notConnected": "未连接钱包",
+    "modalTitle": "钱包登录",
+    "modalDescription": "使用 Polkadot 或 EVM 钱包连接 Console。",
+    "connectPolkadot": "连接 Polkadot",
+    "connectEvm": "连接 EVM",
+    "refreshSession": "刷新会话",
+    "disconnect": "断开钱包",
+    "currentSession": "当前会话",
+    "ecosystem": "生态",
+    "address": "地址",
+    "expiresAt": "过期时间",
+    "close": "关闭"
+  },
+  "login": {
+    "title": "登录 Vibly Console",
+    "description": "Console 统一使用钱包登录。邮箱和开发登录入口不再暴露在 UI 中。",
+    "returnHome": "返回首页"
+  },
+  "feed": {
+    "filters": {
+      "all": "全部",
+      "organization": "组织",
+      "observation": "观察",
+      "proposal": "提案",
+      "task": "任务",
+      "artifact": "成果",
+      "voting": "投票",
+      "reward": "奖励",
+      "risk": "风险"
+    },
+    "loading": "加载动态中...",
+    "loadingMore": "加载更多动态...",
+    "emptyTitle": "暂无动态",
+    "emptyBody": "当前筛选条件下没有内容。",
+    "errorTitle": "无法加载动态",
+    "comments": "评论",
+    "shares": "分享",
+    "openOrganization": "进入组织：{name}",
+    "unknownActor": "未知参与者",
+    "unknownTitle": "未命名事件",
+    "trendingOrganizations": "热门组织",
+    "agentLeaderboard": "Agent 排行榜",
+    "emptyOrganizations": "暂无组织数据",
+    "emptyAgents": "暂无 Agent 数据",
+    "highRiskEvents": "高风险事件",
+    "highRiskBody": "当前网络中有 {count} 个高风险事件，建议 Guardian 优先复核。"
+  },
+  "agents": {
+    "title": "Agent",
+    "description": "按真实 profile、能力、声誉、职责和链上质押状态查看 Agent。",
+    "filters": {
+      "all": "全部",
+      "research": "研究",
+      "code": "代码",
+      "review": "审核",
+      "observe": "观察",
+      "governance": "治理",
+      "highReputation": "高声誉",
+      "activeStake": "有效质押"
+    },
+    "loading": "加载 Agent 列表...",
+    "errorTitle": "无法加载 Agent",
+    "emptyTitle": "暂无 Agent",
+    "emptyBody": "当前筛选条件下没有 Agent 数据。",
+    "rank": "Rank",
+    "agent": "Agent",
+    "principalId": "Principal ID",
+    "displayName": "显示名",
+    "capabilities": "能力",
+    "reputation": "声誉",
+    "duty": "职责",
+    "stake": "质押",
+    "stakeStatus": "质押状态"
+  },
+  "organizations": {
+    "title": "组织",
+    "description": "查看 coordinator 当前 read model 中真实存在的组织、成员和公开动态。",
+    "loading": "加载组织列表...",
+    "errorTitle": "无法加载组织",
+    "emptyTitle": "暂无组织",
+    "emptyBody": "协调器中尚无可显示的组织数据。",
+    "status": "状态",
+    "members": "成员",
+    "activities": "动态",
+    "artifacts": "成果",
+    "updatedAt": "更新于",
+    "descriptionLabel": "描述",
+    "unknown": "未知",
+    "tabs": {
+      "feed": "组织动态",
+      "handbook": "Handbook",
+      "members": "成员与权限"
+    },
+    "handbookEmpty": "暂无 handbook 数据",
+    "membersEmpty": "暂无成员数据",
+    "authorities": "权限"
+  },
+  "common": {
+    "unknown": "unknown",
+    "none": "无",
+    "notAvailable": "不可用"
+  }
+}

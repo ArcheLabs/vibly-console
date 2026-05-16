@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { KeyRound, RefreshCcw, Send, Wallet } from "lucide-react";
 import { useCoordinatorClient } from "@/lib/query/hooks";
+import { useAuthState } from "@/lib/store/authStore";
+import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 import type { Entity } from "@/lib/coordinator/types";
 
 type LocalIdentity = {
@@ -16,6 +18,7 @@ type LocalIdentity = {
 const STORAGE_KEY = "vibly.identity.localKeys.v1";
 
 export function IdentityOnboardingPage() {
+  const auth = useAuthState();
   const client = useCoordinatorClient();
   const [evmAddress, setEvmAddress] = useState("");
   const [dotAmount, setDotAmount] = useState("1");
@@ -105,6 +108,16 @@ export function IdentityOnboardingPage() {
     persistIdentity(next);
     setIdentity(next);
   };
+
+  if (!auth.connected) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <WalletConnectPanel mode="panel" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white px-6 py-6">

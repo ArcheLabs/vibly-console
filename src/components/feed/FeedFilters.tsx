@@ -1,4 +1,6 @@
-export const FEED_FILTERS = ["全部", "组织", "观察", "提案", "任务", "成果", "投票", "奖励", "风险"] as const;
+import { useTranslations } from "next-intl";
+
+export const FEED_FILTERS = ["all", "organization", "observation", "proposal", "task", "artifact", "voting", "reward", "risk"] as const;
 export type FeedFilter = (typeof FEED_FILTERS)[number];
 
 export function FeedFilters({
@@ -8,6 +10,7 @@ export function FeedFilters({
   active: FeedFilter;
   onChange: (f: FeedFilter) => void;
 }) {
+  const t = useTranslations("feed.filters");
   return (
     <div className="flex flex-wrap gap-2">
       {FEED_FILTERS.map((filter) => (
@@ -16,11 +19,11 @@ export function FeedFilters({
           onClick={() => onChange(filter)}
           className={`rounded-full px-4 py-2 text-sm font-medium transition ${
             active === filter
-              ? "bg-slate-950 text-white"
-              : "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+              ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
+              : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)]"
           }`}
         >
-          {filter}
+          {t(filter)}
         </button>
       ))}
     </div>

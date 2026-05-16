@@ -16,8 +16,9 @@ export function useCoordinatorClient() {
 export function useNetworkFeed(limit = 50) {
   const client = useCoordinatorClient();
   return useQuery({
-    queryKey: queryKeys.networkFeed,
-    queryFn: () => client.getNetworkFeed(limit),
+    queryKey: queryKeys.networkFeed(limit),
+    queryFn: () => client.getNetworkFeed({ limit }),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -35,8 +36,8 @@ export function useFeedDetail(eventId: string) {
 export function useNetworkOrganizations(limit = 50) {
   const client = useCoordinatorClient();
   return useQuery({
-    queryKey: queryKeys.networkOrganizations,
-    queryFn: () => client.getNetworkOrganizations(limit),
+    queryKey: queryKeys.networkOrganizations(limit),
+    queryFn: () => client.getNetworkOrganizations({ limit }),
   });
 }
 
@@ -79,9 +80,10 @@ export function useProjectTimeline(projectId: string) {
 export function useOrganizationFeed(orgId: string, limit = 50) {
   const client = useCoordinatorClient();
   return useQuery({
-    queryKey: queryKeys.organizationFeed(orgId),
-    queryFn: () => client.getOrganizationFeed(orgId, limit),
+    queryKey: queryKeys.organizationFeed(orgId, limit),
+    queryFn: () => client.getOrganizationFeed(orgId, { limit }),
     enabled: !!orgId,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -90,8 +92,8 @@ export function useOrganizationFeed(orgId: string, limit = 50) {
 export function useNetworkAgents(limit = 50) {
   const client = useCoordinatorClient();
   return useQuery({
-    queryKey: queryKeys.networkAgents,
-    queryFn: () => client.listAgents({ limit }),
+    queryKey: queryKeys.networkAgents(limit),
+    queryFn: () => client.listAgentProfiles({ limit }),
   });
 }
 
@@ -186,7 +188,7 @@ export function useSubmitActionIntent() {
   return useMutation({
     mutationFn: (body: Record<string, unknown>) => client.submitActionIntent(body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.networkFeed });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.networkFeed() });
     },
   });
 }

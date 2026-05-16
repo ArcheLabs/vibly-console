@@ -1,110 +1,154 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
-import { Bot, Building2, KeyRound, Network, Rss, Unplug } from "lucide-react";
-import { clearAuthState, useAuthState } from "@/lib/store/authStore";
-import { useNetworkOrganizations, useNetworkAgents } from "@/lib/query/hooks";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { Bot, Building2, KeyRound, Menu, Network, Rss, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useAuthState } from "@/lib/store/authStore";
+import { useNetworkAgents, useNetworkOrganizations } from "@/lib/query/hooks";
 import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
-import { clearWalletSessionToken } from "@/lib/wallet/sessionStore";
+import { SettingsMenu } from "@/components/layout/SettingsMenu";
 
 const navItems = [
-  { href: "/", label: "动态", icon: Rss },
-  { href: "/organizations", label: "组织", icon: Building2 },
-  { href: "/agents", label: "Agent", icon: Bot },
-  { href: "/onboarding", label: "身份", icon: KeyRound },
-];
+  { href: "/", key: "feed", icon: Rss },
+  { href: "/organizations", key: "organizations", icon: Building2 },
+  { href: "/agents", key: "agents", icon: Bot },
+  { href: "/onboarding", key: "identity", icon: KeyRound },
+] as const;
 
-function NetworkHealthPanel() {
-  const orgsQuery = useNetworkOrganizations(1);
-  const agentsQuery = useNetworkAgents(1);
-  const orgCount = orgsQuery.data?.page?.limit ?? "—";
-  const agentCount = agentsQuery.data?.page?.limit ?? "—";
+function NetworkHealthPanel({ compact = false }: { compact?: boolean }) {
+  const t = useTranslations("shell");
+  const orgsQuery = useNetworkOrganizations(20);
+  const agentsQuery = useNetworkAgents(20);
+  const orgCount = orgsQuery.data?.data.length ?? "—";
+  const agentCount = agentsQuery.data?.data.length ?? "—";
 
   return (
-    <div className="absolute bottom-5 left-3 right-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+    <div className={`${compact ? "" : "absolute bottom-5 left-3 right-3"} rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-4`}>
+      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
         <Network className="h-4 w-4" />
-        Network Health
+        {t("networkHealth")}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
-          <div className="text-slate-400">组织</div>
-          <div className="mt-1 text-lg font-semibold">{orgCount}</div>
+        <div className="rounded-xl bg-[var(--surface)] p-3 ring-1 ring-[var(--border)]">
+          <div className="text-[var(--text-muted)]">{t("organizations")}</div>
+          <div className="mt-1 text-lg font-semibold text-[var(--text)]">{orgCount}</div>
         </div>
-        <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
-          <div className="text-slate-400">Agent</div>
-          <div className="mt-1 text-lg font-semibold">{agentCount}</div>
+        <div className="rounded-xl bg-[var(--surface)] p-3 ring-1 ring-[var(--border)]">
+          <div className="text-[var(--text-muted)]">{t("agents")}</div>
+          <div className="mt-1 text-lg font-semibold text-[var(--text)]">{agentCount}</div>
         </div>
       </div>
     </div>
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const auth = useAuthState();
-  const router = useRouter();
+function Brand() {
+  const app = useTranslations("app");
+  return (
+    <div className="flex h-20 items-center gap-3 px-5">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm">
+        <Network className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-lg font-semibold tracking-tight text-[var(--text)]">{app("name")}</div>
+        <div className="truncate text-xs text-[var(--text-muted)]">{app("tagline")}</div>
+      </div>
+    </div>
+  );
+}
+
+function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950">
-      <aside className="fixed left-0 top-0 z-30 h-screen w-72 border-r border-slate-200 bg-white/90 backdrop-blur-xl">
-        <div className="flex h-20 items-center gap-3 px-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-950 shadow-lg shadow-slate-200">
-            <Network className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <div className="text-lg font-semibold tracking-tight">Vibly</div>
-            <div className="text-xs text-slate-500">Agent Collaboration Network</div>
-          </div>
-        </div>
+    <nav className="space-y-1 px-3">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const active =
+          item.href === "/"
+            ? pathname === "/"
+            : pathname === item.href || pathname.startsWith(item.href + "/");
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+              active
+                ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm"
+                : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="font-medium">{t(item.key)}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
-        <nav className="space-y-1 px-3">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${
-                  active
-                    ? "bg-slate-950 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const auth = useAuthState();
+  const t = useTranslations("shell");
+  const app = useTranslations("app");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-        {auth.connected && <NetworkHealthPanel />}
+  return (
+    <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
+      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-xl lg:block">
+        <Brand />
+        <Navigation />
+        {auth.connected ? <NetworkHealthPanel /> : null}
       </aside>
 
-      <div className="ml-72 min-h-screen">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-6 py-3 backdrop-blur-xl">
-          <span className="text-xs text-slate-400">{auth.coordinatorUrl}</span>
-          <div className="flex items-center gap-2">
-            <WalletConnectPanel />
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label={t("closeMenu")}
+            className="absolute inset-0 cursor-default bg-black/45"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="relative h-full w-[min(22rem,88vw)] border-r border-[var(--border)] bg-[var(--surface)] shadow-2xl">
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-              onClick={async () => {
-                clearWalletSessionToken();
-                clearAuthState();
-                await signOut({ callbackUrl: "/login" });
-                router.push("/login");
-              }}
+              onClick={() => setMobileOpen(false)}
+              aria-label={t("closeMenu")}
+              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)]"
             >
-              <Unplug className="h-3.5 w-3.5" />
-              Sign out
+              <X className="h-4 w-4" />
             </button>
+            <Brand />
+            <Navigation onNavigate={() => setMobileOpen(false)} />
+            <div className="mt-6 px-3">
+              <NetworkHealthPanel compact />
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      <div className="min-h-screen lg:ml-72">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/92 px-3 backdrop-blur-xl sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              aria-label={t("menu")}
+              onClick={() => setMobileOpen(true)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] shadow-sm hover:bg-[var(--surface-muted)] hover:text-[var(--text)] lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="hidden truncate text-xs text-[var(--text-muted)] sm:inline">
+              {app("coordinator")}: {auth.coordinatorUrl}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <SettingsMenu />
+            <WalletConnectPanel />
           </div>
         </header>
         <main>{children}</main>

@@ -18,19 +18,16 @@ export default auth((req) => {
   const { nextUrl } = req;
   const { pathname } = nextUrl;
 
-  const isPrivatePage = pathname.startsWith("/requests") || pathname.startsWith("/onboarding");
+  const isPrivatePage = pathname.startsWith("/requests");
   if (!isPrivatePage) return;
 
   if (req.auth) return;
 
-  const loginUrl = new URL("/login", nextUrl);
-  loginUrl.searchParams.set("callbackUrl", `${pathname}${nextUrl.search}`);
-  return Response.redirect(loginUrl);
+  return Response.redirect(new URL("/", nextUrl));
 });
 
 export const config = {
   matcher: [
     "/requests/:path*",
-    "/onboarding/:path*",
   ],
 };

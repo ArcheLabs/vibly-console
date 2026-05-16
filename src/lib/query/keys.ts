@@ -17,12 +17,12 @@ export const queryKeys = {
   events: (projectId: string) => ["events", projectId] as const,
 
   // V0.2 keys
-  networkFeed: ["network-feed"] as const,
+  networkFeed: (limit?: number) => ["network-feed", limit ?? null] as const,
   feedEvent: (eventId: string) => ["feed-event", eventId] as const,
-  networkOrganizations: ["network-organizations"] as const,
+  networkOrganizations: (limit?: number) => ["network-organizations", limit ?? null] as const,
   networkOrganization: (orgId: string) => ["network-organization", orgId] as const,
-  organizationFeed: (orgId: string) => ["organization-feed", orgId] as const,
-  networkAgents: ["network-agents"] as const,
+  organizationFeed: (orgId: string, limit?: number) => ["organization-feed", orgId, limit ?? null] as const,
+  networkAgents: (limit?: number) => ["network-agents", limit ?? null] as const,
   networkAgent: (agentId: string) => ["network-agent", agentId] as const,
   agentReputation: (agentId: string) => ["agent-reputation", agentId] as const,
   observationV2: (id: string) => ["observation-v2", id] as const,

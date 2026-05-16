@@ -1,12 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { web3Accounts, web3Enable, web3FromAddress } from "@polkadot/extension-dapp";
-import { stringToHex } from "@polkadot/util";
 import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
 import { useCoordinatorClient } from "@/lib/query/hooks";
 import type { Entity } from "@/lib/coordinator/types";
-import { useAuthState, writeAuthState } from "@/lib/store/authStore";
+import { clearAuthState, useAuthState, writeAuthState } from "@/lib/store/authStore";
 import {
   clearWalletSessionToken,
   setWalletSessionToken,
@@ -64,6 +62,7 @@ export function useWalletAuth() {
 
   const connectPolkadot = useCallback(async () => {
     setError(null);
+    const { web3Accounts, web3Enable } = await import("@polkadot/extension-dapp");
     const extensions = await web3Enable("Vibly Console");
     if (!extensions.length) throw new Error("未检测到 Polkadot 钱包扩展。");
     const accounts = await web3Accounts();
@@ -82,10 +81,12 @@ export function useWalletAuth() {
     const next = readSession(await client.getWalletSession());
     setSession(next);
     if (next) {
+      setWalletSessionToken(next.token, next.expiresAt);
       markConnected();
       return next;
     }
     clearWalletSessionToken();
+    clearAuthState();
     return null;
   }, [client, markConnected, walletToken]);
 
@@ -111,8 +112,9 @@ export function useWalletAuth() {
       const token = typeof walletSession.token === "string" ? walletSession.token : null;
       if (!token) throw new Error("Coordinator 未返回 wallet session token。");
 
-      setWalletSessionToken(token);
-      setSession(readSession(walletSession));
+      const next = readSession(walletSession);
+      setWalletSessionToken(token, next?.expiresAt);
+      setSession(next);
       markConnected();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "EVM 钱包登录失败");
@@ -132,6 +134,10 @@ export function useWalletAuth() {
       const message = typeof challenge.message === "string" ? challenge.message : "";
       if (!challengeId || !message) throw new Error("Coordinator 返回的 challenge 不完整。");
 
+      const [{ web3FromAddress }, { stringToHex }] = await Promise.all([
+        import("@polkadot/extension-dapp"),
+        import("@polkadot/util"),
+      ]);
       const injector = await web3FromAddress(address);
       if (!injector.signer?.signRaw) throw new Error("当前 Polkadot 钱包不支持 signRaw。");
 
@@ -150,8 +156,9 @@ export function useWalletAuth() {
       const token = typeof walletSession.token === "string" ? walletSession.token : null;
       if (!token) throw new Error("Coordinator 未返回 wallet session token。");
 
-      setWalletSessionToken(token);
-      setSession(readSession(walletSession));
+      const next = readSession(walletSession);
+      setWalletSessionToken(token, next?.expiresAt);
+      setSession(next);
       markConnected();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Polkadot 钱包登录失败");
@@ -167,6 +174,7 @@ export function useWalletAuth() {
     try {
       if (walletToken) await client.deleteWalletSession();
       clearWalletSessionToken();
+      clearAuthState();
       setSession(null);
       if (evmAddress) await disconnectAsync();
     } catch (cause) {
