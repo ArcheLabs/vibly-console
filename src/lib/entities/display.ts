@@ -50,6 +50,68 @@ export function organizationNameFor(item: Entity, names?: EntityNameMap): string
   );
 }
 
+function sectionFromFindings(value: unknown): string {
+  if (!Array.isArray(value)) return "";
+  const lines = value
+    .map((entry) => {
+      const record = entry && typeof entry === "object" && !Array.isArray(entry) ? (entry as Entity) : {};
+      const title = text(record.title, record.name);
+      const description = text(record.description, record.detail, record.content, record.body);
+      if (title && description) return `- ${title}: ${description}`;
+      if (title) return `- ${title}`;
+      if (description) return `- ${description}`;
+      return "";
+    })
+    .filter(Boolean);
+  return lines.join("\n");
+}
+
+function sectionFromActions(value: unknown): string {
+  if (!Array.isArray(value)) return "";
+  const lines = value
+    .map((entry) => {
+      const record = entry && typeof entry === "object" && !Array.isArray(entry) ? (entry as Entity) : {};
+      const actionType = text(record.type);
+      const title = text(record.title, record.name);
+      const description = text(record.description, record.detail, record.content, record.body);
+      const head = [actionType, title].filter(Boolean).join(" · ");
+      if (head && description) return `- ${head}: ${description}`;
+      if (head) return `- ${head}`;
+      if (description) return `- ${description}`;
+      return "";
+    })
+    .filter(Boolean);
+  return lines.join("\n");
+}
+
+function sectionFromRisk(value: unknown): string {
+  if (!Array.isArray(value)) return "";
+  const lines = value
+    .map((entry) => {
+      if (typeof entry === "string") return entry.trim();
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+        const record = entry as Entity;
+        return text(record.title, record.reason, record.description, record.detail);
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .map((line) => `- ${line}`);
+  return lines.join("\n");
+}
+
+function observationBodyFromStructured(payload: Entity, nested: Entity, item: Entity): string {
+  const findings = sectionFromFindings(item.findings ?? payload.findings ?? nested.findings);
+  const risks = sectionFromRisk(item.risks ?? payload.risks ?? nested.risks);
+  const suggestedActions = sectionFromActions(item.suggestedActions ?? payload.suggestedActions ?? nested.suggestedActions);
+  const sections = [
+    findings ? `Findings\n${findings}` : "",
+    risks ? `Risks\n${risks}` : "",
+    suggestedActions ? `Suggested Actions\n${suggestedActions}` : "",
+  ].filter(Boolean);
+  return sections.join("\n\n");
+}
+
 export function contentBodyFor(item: Entity): string {
   const payload = record(item.payload);
   const nested = nestedPayload(payload);
@@ -69,6 +131,7 @@ export function contentBodyFor(item: Entity): string {
     payload.summary,
     nested.summary,
     item.description,
+    observationBodyFromStructured(payload, nested, item),
   );
 }
 
