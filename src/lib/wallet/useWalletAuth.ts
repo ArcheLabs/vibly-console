@@ -32,6 +32,22 @@ function readSession(entity: Entity | null): WalletSessionState | null {
   };
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("Wallet session refresh timed out")), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (cause) => {
+        window.clearTimeout(timer);
+        reject(cause);
+      },
+    );
+  });
+}
+
 export function useWalletAuth() {
   const client = useCoordinatorClient();
   const auth = useAuthState();
@@ -39,6 +55,7 @@ export function useWalletAuth() {
   const [polkadotAddress, setPolkadotAddress] = useState<string | null>(null);
   const [session, setSession] = useState<WalletSessionState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const { address: evmAddress } = useAccount();
@@ -47,6 +64,7 @@ export function useWalletAuth() {
   const { signMessageAsync, isPending: signingEvm } = useSignMessage();
 
   const markConnected = useCallback(() => {
+    if (auth.connected) return;
     writeAuthState({ ...auth, connected: true });
   }, [auth]);
 
@@ -78,15 +96,20 @@ export function useWalletAuth() {
       setSession(null);
       return null;
     }
-    const next = readSession(await client.getWalletSession());
-    setSession(next);
-    if (next) {
-      setWalletSessionToken(next.token, next.expiresAt);
-      markConnected();
-      return next;
+    try {
+      const next = readSession(await withTimeout(client.getWalletSession(), 8000));
+      setSession(next);
+      if (next) {
+        setWalletSessionToken(next.token, next.expiresAt);
+        markConnected();
+        return next;
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "钱包会话恢复失败");
     }
     clearWalletSessionToken();
     clearAuthState();
+    setSession(null);
     return null;
   }, [client, markConnected, walletToken]);
 
@@ -168,6 +191,29 @@ export function useWalletAuth() {
     }
   }, [client, connectPolkadot, markConnected, polkadotAddress]);
 
+  const signWalletMessage = useCallback(async (message: string) => {
+    setError(null);
+    if (session?.ecosystem === "evm" || (!session && evmAddress)) {
+      const normalizedAddress = evmAddress ?? (session?.ecosystem === "evm" ? session.address : undefined);
+      if (!normalizedAddress) throw new Error("未获取到 EVM 地址。");
+      return signMessageAsync({ message });
+    }
+
+    const address = polkadotAddress ?? (session?.ecosystem === "polkadot" ? session.address : undefined) ?? (await connectPolkadot());
+    const [{ web3FromAddress }, { stringToHex }] = await Promise.all([
+      import("@polkadot/extension-dapp"),
+      import("@polkadot/util"),
+    ]);
+    const injector = await web3FromAddress(address);
+    if (!injector.signer?.signRaw) throw new Error("当前 Polkadot 钱包不支持 signRaw。");
+    const signed = await injector.signer.signRaw({
+      address,
+      data: stringToHex(message),
+      type: "bytes",
+    });
+    return signed.signature;
+  }, [connectPolkadot, evmAddress, polkadotAddress, session, signMessageAsync]);
+
   const logoutWallet = useCallback(async () => {
     setBusy(true);
     setError(null);
@@ -186,7 +232,13 @@ export function useWalletAuth() {
   }, [client, disconnectAsync, evmAddress, walletToken]);
 
   useEffect(() => {
-    void refreshSession();
+    let mounted = true;
+    void refreshSession().finally(() => {
+      if (mounted) setInitializing(false);
+    });
+    return () => {
+      mounted = false;
+    };
   }, [refreshSession]);
 
   return useMemo(
@@ -194,6 +246,7 @@ export function useWalletAuth() {
       evmAddress,
       polkadotAddress,
       session,
+      initializing,
       busy: busy || connectingEvm || signingEvm,
       error,
       connectEvm,
@@ -201,6 +254,7 @@ export function useWalletAuth() {
       loginWithEvm,
       loginWithPolkadot,
       refreshSession,
+      signWalletMessage,
       logoutWallet,
     }),
     [
@@ -210,11 +264,13 @@ export function useWalletAuth() {
       connectingEvm,
       error,
       evmAddress,
+      initializing,
       loginWithEvm,
       loginWithPolkadot,
       logoutWallet,
       polkadotAddress,
       refreshSession,
+      signWalletMessage,
       session,
       signingEvm,
     ],

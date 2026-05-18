@@ -115,6 +115,14 @@ export function useAgentReputation(agentId: string) {
   });
 }
 
+export function usePersonalCenter() {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.personalCenter,
+    queryFn: () => client.getPersonalCenter(),
+  });
+}
+
 // ── V0.2 Domain objects ─────────────────────────────────────────────────
 
 export function useObservationV2(id: string) {

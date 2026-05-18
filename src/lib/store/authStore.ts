@@ -15,6 +15,8 @@ import type { AuthState } from "../coordinator/types";
  */
 const AUTH_KEY = "vibly-console.auth";
 const listeners = new Set<() => void>();
+let cachedRaw: string | null | undefined;
+let cachedState: AuthState | null = null;
 
 export const defaultAuthState: AuthState = {
   coordinatorUrl: appConfig.defaultCoordinatorUrl,
@@ -29,15 +31,24 @@ function emit() {
 export function readAuthState(): AuthState {
   if (typeof window === "undefined") return defaultAuthState;
   const raw = window.localStorage.getItem(AUTH_KEY);
-  if (!raw) return defaultAuthState;
+  if (!raw) {
+    cachedRaw = null;
+    cachedState = defaultAuthState;
+    return defaultAuthState;
+  }
+  if (raw === cachedRaw && cachedState) return cachedState;
   try {
     const parsed = JSON.parse(raw) as Partial<AuthState>;
-    return {
+    cachedRaw = raw;
+    cachedState = {
       coordinatorUrl: parsed.coordinatorUrl || defaultAuthState.coordinatorUrl,
       mode: parsed.mode === "direct" ? "direct" : "proxy",
       connected: Boolean(parsed.connected),
     };
+    return cachedState;
   } catch {
+    cachedRaw = null;
+    cachedState = defaultAuthState;
     return defaultAuthState;
   }
 }
@@ -51,13 +62,18 @@ export function writeAuthState(next: AuthState): void {
     mode: next.mode,
     connected: next.connected,
   };
-  window.localStorage.setItem(AUTH_KEY, JSON.stringify(sanitized));
+  const raw = JSON.stringify(sanitized);
+  cachedRaw = raw;
+  cachedState = sanitized;
+  window.localStorage.setItem(AUTH_KEY, raw);
   emit();
 }
 
 export function clearAuthState(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_KEY);
+  cachedRaw = null;
+  cachedState = defaultAuthState;
   emit();
 }
 

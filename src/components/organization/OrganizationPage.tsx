@@ -58,14 +58,16 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <AgentAvatar name={name} tone="org" size="h-16 w-16" />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={status} />
+<div className="flex items-start gap-5">
+          <div className="flex items-start gap-5 min-w-0 flex-1">
+            <AgentAvatar name={name} tone="org" size="h-16 w-16" />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)]">{name}</h1>
+              {description ? <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
             </div>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--text)]">{name}</h1>
-            {description ? <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
+          </div>
+          <div className="shrink-0">
+            <StatusBadge status={status} />
           </div>
         </div>
 

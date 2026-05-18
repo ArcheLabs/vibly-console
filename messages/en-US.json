@@ -9,6 +9,7 @@
     "organizations": "Organizations",
     "agents": "Agents",
     "identity": "Me",
+    "personalCenter": "Personal Center",
     "loginWallet": "Connect Wallet"
   },
   "shell": {
@@ -77,6 +78,30 @@
     "emptyAgents": "No agent data",
     "highRiskEvents": "High-risk events",
     "highRiskBody": "There are {count} high-risk events in the network. Guardian review should be prioritized."
+  },
+  "events": {
+    "memberJoined": "{actor} joined organization {org}",
+    "artifactMerged": "{actor} merged an artifact into the knowledge base",
+    "knowledgeCreated": "Knowledge entry created: {title}",
+    "knowledgeUpdated": "Knowledge entry updated: {title}",
+    "rewardApproved": "{actor}'s reward request was approved",
+    "rewardCreated": "{actor} submitted a reward request",
+    "settlementConfirmed": "Reward settlement confirmed",
+    "settlementSubmitted": "Reward settlement submitted",
+    "settlementBatchCreated": "Settlement batch created",
+    "organizationCreated": "Organization created: {org}",
+    "agentRegistered": "{actor} registered as an Agent",
+    "reviewRoundCreated": "Review round created",
+    "reviewRoundCompleted": "Review round completed",
+    "reviewRequested": "Review requested",
+    "reviewerSelected": "Reviewer selected",
+    "taskClaimed": "{actor} claimed task: {title}",
+    "taskAccepted": "Task accepted: {title}",
+    "taskPlanCreated": "Task plan created",
+    "proposalCreationRequested": "Proposal creation requested",
+    "discussionParticipantSelected": "Discussion participant selected",
+    "fallback": "{type}: {title}",
+    "event": "Event"
   },
   "agents": {
     "title": "Agents",
@@ -193,5 +218,91 @@
     "noVotes": "No vote data",
     "noEvents": "No event records",
     "reliability": "Reliability"
+  },
+  "personalCenter": {
+    "title": "Personal Center",
+    "subtitle": "Root keys stay in the wallet. Agents use authorized session keys for work, duty, and bounded staking operations.",
+    "notConnectedSubtitle": "Connect the root wallet to manage identity, agent session keys, staking receipts, and duty status.",
+    "syncState": "Sync state",
+    "recordTx": "Record wallet tx",
+    "addAgent": "Add Agent",
+    "walletConnected": "Root wallet connected",
+    "metrics": {
+      "identity": "Identity",
+      "myAgents": "My Agents",
+      "sessionKeys": "Session Keys",
+      "stake": "Stake"
+    },
+    "balance": {
+      "title": "VIB Balance",
+      "subtitle": "Stake ledgers synced by Coordinator indexers.",
+      "activeStake": "Active Stake",
+      "activeStakeHint": "active ledgers",
+      "pendingUnbond": "Pending Unbond",
+      "pendingUnbondHint": "unbonding ledgers",
+      "releaseBlocks": "Release Blocks",
+      "releaseBlocksHint": "blocked release positions",
+      "boundAgents": "Bound Agents",
+      "boundAgentsHint": "authorized session-key agents"
+    },
+    "identity": {
+      "title": "Root Identity",
+      "subtitle": "Console stores no root private key.",
+      "rootWallet": "Root Wallet",
+      "identityId": "Identity ID",
+      "ecosystem": "Ecosystem",
+      "recovery": "Recovery"
+    },
+    "agents": {
+      "title": "My Agents",
+      "subtitle": "Agents bound to this identity through authorized session keys.",
+      "colAgent": "Agent",
+      "colSessionKey": "Session Key",
+      "colCapabilities": "Capabilities",
+      "colDuty": "Duty",
+      "colStake": "Stake",
+      "colAction": "Action",
+      "revoke": "Revoke",
+      "empty": "No authorized agents yet. Import an agent descriptor to add one.",
+      "add": "Add"
+    },
+    "alerts": {
+      "title": "Security Alerts",
+      "subtitle": "Identity and agent issues."
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "addAgent": "Add Agent",
+      "recordStake": "Record Stake Tx"
+    },
+    "authScope": {
+      "title": "Authorization Scope",
+      "subtitle": "Default capabilities for newly enrolled agents.",
+      "allowed": "Allowed",
+      "stakeLimit": "Stake Limit",
+      "expiration": "Expiration"
+    },
+    "events": {
+      "title": "Recent Security Events",
+      "subtitle": "Audit trail for root wallet and session-key actions.",
+      "empty": "No security events recorded yet."
+    },
+    "addAgentDialog": {
+      "title": "Add Agent",
+      "descriptorLabel": "Agent descriptor JSON",
+      "createChallenge": "Create challenge",
+      "signatureMessage": "Agent signature message",
+      "sessionSigLabel": "Session key signature from agent",
+      "authorize": "Authorize with root wallet",
+      "challengeFirst": "Create a challenge first.",
+      "invalidDescriptor": "Invalid descriptor",
+      "authFailed": "Authorization failed"
+    },
+    "receiptDialog": {
+      "title": "Record Wallet Stake Transaction",
+      "record": "Record receipt",
+      "failed": "Request failed"
+    },
+    "close": "Close"
   }
 }

@@ -87,6 +87,11 @@ export interface CoordinatorClient {
   listAgentProfiles(input?: PageInput): Promise<Page<Entity>>;
   getNetworkAgent(agentId: string): Promise<Entity>;
   getAgentReputation(agentId: string): Promise<Entity>;
+  getPersonalCenter(): Promise<Entity>;
+  createAgentEnrollmentChallenge(body: Record<string, unknown>): Promise<Entity>;
+  authorizeAgentEnrollment(body: Record<string, unknown>): Promise<Entity>;
+  revokeAgentSessionKey(id: string, body?: Record<string, unknown>): Promise<Entity>;
+  recordAgentStakeReceipt(body: Record<string, unknown>): Promise<Entity>;
 
   // V0.2: Domain objects
   getObservationV2(observationId: string): Promise<Entity>;
@@ -921,6 +926,49 @@ class HttpCoordinatorClient implements CoordinatorClient {
   async getAgentReputation(agentId: string) {
     const evidence = await this.listReputationEvidence(agentId);
     return { agentId, evidence: evidence.data } as Entity;
+  }
+
+  async getPersonalCenter() {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/personal-center");
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "personalCenter");
+    });
+  }
+
+  async createAgentEnrollmentChallenge(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/agent-enrollments/challenges", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "challenge");
+    });
+  }
+
+  async authorizeAgentEnrollment(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/agent-enrollments/authorizations", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "authorization");
+    });
+  }
+
+  async revokeAgentSessionKey(id: string, body: Record<string, unknown> = {}) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/agent-enrollments/{id}/revoke", {
+        params: { path: { id } },
+        body: body as never,
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "authorization");
+    });
+  }
+
+  async recordAgentStakeReceipt(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/agent-stakes/receipts", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "receipt");
+    });
   }
 
   // ── V0.2 Domain objects ─────────────────────────────────────────────────

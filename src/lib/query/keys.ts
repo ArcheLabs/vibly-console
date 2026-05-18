@@ -25,6 +25,7 @@ export const queryKeys = {
   networkAgents: (limit?: number) => ["network-agents", limit ?? null] as const,
   networkAgent: (agentId: string) => ["network-agent", agentId] as const,
   agentReputation: (agentId: string) => ["agent-reputation", agentId] as const,
+  personalCenter: ["personal-center"] as const,
   observationV2: (id: string) => ["observation-v2", id] as const,
   proposalV2: (id: string) => ["proposal-v2", id] as const,
   votingRoundV2: (id: string) => ["voting-round-v2", id] as const,

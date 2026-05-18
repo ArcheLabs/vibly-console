@@ -32,14 +32,16 @@ function OrganizationCard({ org }: { org: Entity }) {
   return (
     <Link
       href={`/organizations/${encodeURIComponent(id)}`}
-      className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="relative block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
+      <div className="absolute right-5 top-5">
+        <StatusBadge status={status} />
+      </div>
       <div className="flex items-start gap-4">
         <AgentAvatar name={name} tone="org" size="h-11 w-11" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pr-24">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-lg font-semibold text-[var(--text)]">{name}</h3>
-            <StatusBadge status={status} />
           </div>
           {description ? (
             <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p>

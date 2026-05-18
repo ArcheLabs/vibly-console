@@ -9,6 +9,7 @@
     "organizations": "组织",
     "agents": "Agent",
     "identity": "我的",
+    "personalCenter": "个人中心",
     "loginWallet": "登录钱包"
   },
   "shell": {
@@ -77,6 +78,30 @@
     "emptyAgents": "暂无 Agent 数据",
     "highRiskEvents": "高风险事件",
     "highRiskBody": "当前网络中有 {count} 个高风险事件，建议 Guardian 优先复核。"
+  },
+  "events": {
+    "memberJoined": "{actor} 加入组织 {org}",
+    "artifactMerged": "{actor} 将成果合并到知识库",
+    "knowledgeCreated": "知识库新增条目：{title}",
+    "knowledgeUpdated": "知识库更新条目：{title}",
+    "rewardApproved": "{actor} 的奖励申请已通过",
+    "rewardCreated": "{actor} 提交奖励申请",
+    "settlementConfirmed": "奖励结算已确认",
+    "settlementSubmitted": "奖励结算已提交",
+    "settlementBatchCreated": "创建奖励结算批次",
+    "organizationCreated": "创建组织 {org}",
+    "agentRegistered": "{actor} 注册为 Agent",
+    "reviewRoundCreated": "创建审核轮次",
+    "reviewRoundCompleted": "审核轮次已完成",
+    "reviewRequested": "请求审核",
+    "reviewerSelected": "已选择审核者",
+    "taskClaimed": "{actor} 领取任务：{title}",
+    "taskAccepted": "任务已接受：{title}",
+    "taskPlanCreated": "创建任务计划",
+    "proposalCreationRequested": "请求创建提案",
+    "discussionParticipantSelected": "已选择讨论参与者",
+    "fallback": "{type}: {title}",
+    "event": "事件"
   },
   "agents": {
     "title": "Agent",
@@ -193,5 +218,91 @@
     "noVotes": "暂无投票数据",
     "noEvents": "暂无事件记录",
     "reliability": "可信度"
+  },
+  "personalCenter": {
+    "title": "个人中心",
+    "subtitle": "根密钥保留在钱包中。代理使用授权会话密钥执行工作、值班和有限质押操作。",
+    "notConnectedSubtitle": "请连接根钱包，以管理身份、代理会话密钥、质押记录和值班状态。",
+    "syncState": "同步状态",
+    "recordTx": "记录钱包交易",
+    "addAgent": "添加代理",
+    "walletConnected": "根钱包已连接",
+    "metrics": {
+      "identity": "身份",
+      "myAgents": "我的代理",
+      "sessionKeys": "会话密钥",
+      "stake": "质押"
+    },
+    "balance": {
+      "title": "VIB 余额",
+      "subtitle": "质押账本由 Coordinator 索引器同步。",
+      "activeStake": "活跃质押",
+      "activeStakeHint": "活跃账本数",
+      "pendingUnbond": "待解绑",
+      "pendingUnbondHint": "解绑账本数",
+      "releaseBlocks": "释放锁定",
+      "releaseBlocksHint": "已锁定释放头寸",
+      "boundAgents": "绑定代理",
+      "boundAgentsHint": "已授权会话密钥代理"
+    },
+    "identity": {
+      "title": "根身份",
+      "subtitle": "控制台不存储根私钥。",
+      "rootWallet": "根钱包",
+      "identityId": "身份 ID",
+      "ecosystem": "生态系统",
+      "recovery": "恢复"
+    },
+    "agents": {
+      "title": "我的代理",
+      "subtitle": "通过授权会话密钥绑定到此身份的代理。",
+      "colAgent": "代理",
+      "colSessionKey": "会话密钥",
+      "colCapabilities": "能力",
+      "colDuty": "值班",
+      "colStake": "质押",
+      "colAction": "操作",
+      "revoke": "撤销",
+      "empty": "暂无已授权代理。请导入代理描述符以添加。",
+      "add": "添加"
+    },
+    "alerts": {
+      "title": "安全提醒",
+      "subtitle": "身份和代理问题。"
+    },
+    "quickActions": {
+      "title": "快速操作",
+      "addAgent": "添加代理",
+      "recordStake": "记录质押交易"
+    },
+    "authScope": {
+      "title": "授权范围",
+      "subtitle": "新注册代理的默认能力。",
+      "allowed": "允许",
+      "stakeLimit": "质押上限",
+      "expiration": "过期"
+    },
+    "events": {
+      "title": "最近安全事件",
+      "subtitle": "根钱包和会话密钥操作的审计日志。",
+      "empty": "暂无安全事件记录。"
+    },
+    "addAgentDialog": {
+      "title": "添加代理",
+      "descriptorLabel": "代理描述符 JSON",
+      "createChallenge": "创建挑战",
+      "signatureMessage": "代理签名消息",
+      "sessionSigLabel": "代理提交的会话密钥签名",
+      "authorize": "用根钱包授权",
+      "challengeFirst": "请先创建挑战",
+      "invalidDescriptor": "无效描述符",
+      "authFailed": "授权失败"
+    },
+    "receiptDialog": {
+      "title": "记录钱包质押交易",
+      "record": "记录收据",
+      "failed": "请求失败"
+    },
+    "close": "关闭"
   }
 }

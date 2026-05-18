@@ -5,7 +5,6 @@ import { useMutation } from "@tanstack/react-query";
 import { KeyRound, RefreshCcw, Send, Wallet } from "lucide-react";
 import { useCoordinatorClient } from "@/lib/query/hooks";
 import { useAuthState } from "@/lib/store/authStore";
-import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 import type { Entity } from "@/lib/coordinator/types";
 
 type LocalIdentity = {
@@ -109,29 +108,26 @@ export function IdentityOnboardingPage() {
     setIdentity(next);
   };
 
-  if (!auth.connected) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <WalletConnectPanel mode="panel" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-white px-6 py-6">
-      <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-6">
+    <div className="min-h-screen bg-[var(--background)] px-6 py-6 text-[var(--text)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="space-y-6">
-          <div className="border-b border-slate-200 pb-5">
-            <h1 className="text-2xl font-semibold tracking-normal">Identity onboarding</h1>
-            <div className="mt-2 text-sm text-slate-500">EVM entry, local Vibly keys, airdrop claim, root rotation, and DOT to VIB order flow.</div>
+          <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-semibold tracking-normal text-[var(--text)]">Personal Center</h1>
+                <StatusPill tone={auth.connected ? "good" : "default"}>
+                  {auth.connected ? "Root wallet connected" : "Public mode"}
+                </StatusPill>
+              </div>
+              <div className="mt-2 text-sm text-[var(--text-muted)]">Manage root identity, VIB balance, agent session keys, staking, and duty status.</div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Panel title="Wallet">
               <div className="space-y-3">
-                <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm text-white" onClick={connectWallet}>
+                <button className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm text-[var(--accent-foreground)]" onClick={connectWallet}>
                   <Wallet className="h-4 w-4" />
                   Connect EVM
                 </button>
@@ -143,7 +139,7 @@ export function IdentityOnboardingPage() {
               <div className="space-y-3">
                 <KeyValue label="Root" value={identity.rootAddress} />
                 <KeyValue label="AgentRegistrar" value={identity.agentRegistrarAddress} />
-                <button className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm" onClick={resetLocalIdentity}>
+                <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)]" onClick={resetLocalIdentity}>
                   <RefreshCcw className="h-4 w-4" />
                   Regenerate
                 </button>
@@ -153,7 +149,7 @@ export function IdentityOnboardingPage() {
 
           <Panel title="Airdrop claim">
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm text-white disabled:opacity-50" disabled={!evmAddress || claimMutation.isPending} onClick={() => claimMutation.mutate()}>
+              <button className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm text-[var(--accent-foreground)] disabled:opacity-50" disabled={!evmAddress || claimMutation.isPending} onClick={() => claimMutation.mutate()}>
                 <KeyRound className="h-4 w-4" />
                 Claim
               </button>
@@ -163,7 +159,7 @@ export function IdentityOnboardingPage() {
 
           <Panel title="Root rotation">
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm disabled:opacity-50" disabled={!evmAddress || rotationMutation.isPending} onClick={() => rotationMutation.mutate()}>
+              <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] disabled:opacity-50" disabled={!evmAddress || rotationMutation.isPending} onClick={() => rotationMutation.mutate()}>
                 <RefreshCcw className="h-4 w-4" />
                 Rotate root
               </button>
@@ -175,10 +171,10 @@ export function IdentityOnboardingPage() {
             <div className="grid grid-cols-[180px_auto] items-end gap-3">
               <Field label="DOT amount" value={dotAmount} onChange={setDotAmount} />
               <div className="flex gap-2">
-                <button className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm" onClick={() => quoteMutation.mutate()}>
+                <button className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)]" onClick={() => quoteMutation.mutate()}>
                   Quote
                 </button>
-                <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm text-white" onClick={() => orderMutation.mutate()}>
+                <button className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm text-[var(--accent-foreground)]" onClick={() => orderMutation.mutate()}>
                   <Send className="h-4 w-4" />
                   Create order
                 </button>
@@ -196,15 +192,15 @@ export function IdentityOnboardingPage() {
           </Panel>
         </section>
 
-        <aside className="space-y-4 border-l border-slate-200 pl-6">
+        <aside className="space-y-4 border-l border-[var(--border)] pl-6">
           <Panel title="Backup">
-            <div className="space-y-3 text-sm text-slate-600">
+            <div className="space-y-3 text-sm text-[var(--text-muted)]">
               <p>Root and AgentRegistrar private keys stay in browser local storage and are not sent to Coordinator.</p>
               <JsonBlock value={publicIdentity} />
             </div>
           </Panel>
           <Panel title="Latest order">
-            {order ? <JsonBlock value={order} /> : <div className="text-sm text-slate-500">No order yet</div>}
+            {order ? <JsonBlock value={order} /> : <div className="text-sm text-[var(--text-muted)]">No order yet</div>}
           </Panel>
         </aside>
       </div>
@@ -214,8 +210,8 @@ export function IdentityOnboardingPage() {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-normal text-slate-500">{title}</h2>
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 shadow-sm">
+      <h2 className="mb-3 text-sm font-normal uppercase tracking-normal text-[var(--text-subtle)]">{title}</h2>
       {children}
     </section>
   );
@@ -224,8 +220,8 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange(value: string): void; placeholder?: string }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block text-slate-500">{label}</span>
-      <input className="w-full rounded-md border border-slate-200 px-3 py-2 font-mono text-sm" value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <span className="mb-1 block text-[var(--text-muted)]">{label}</span>
+      <input className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 font-mono text-sm text-[var(--text)]" value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
@@ -233,20 +229,27 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
 function KeyValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="break-all font-mono text-xs text-slate-900">{value || "—"}</div>
+      <div className="text-xs text-[var(--text-subtle)]">{label}</div>
+      <div className="break-all font-mono text-xs text-[var(--text)]">{value || "—"}</div>
     </div>
   );
 }
 
 function Status({ error, entity }: { error: unknown; entity: Entity | null }) {
-  if (error) return <span className="text-sm text-red-600">{error instanceof Error ? error.message : "Request failed"}</span>;
-  if (entity) return <span className="text-sm text-emerald-700">{String(entity.status ?? "submitted")}</span>;
-  return <span className="text-sm text-slate-500">Idle</span>;
+  if (error) return <span className="text-sm text-[var(--danger)]">{error instanceof Error ? error.message : "Request failed"}</span>;
+  if (entity) return <span className="text-sm text-[var(--success)]">{String(entity.status ?? "submitted")}</span>;
+  return <span className="text-sm text-[var(--text-muted)]">Idle</span>;
 }
 
 function JsonBlock({ value }: { value: unknown }) {
-  return <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">{JSON.stringify(value, null, 2)}</pre>;
+  return <pre className="mt-3 max-h-64 overflow-auto rounded-xl bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">{JSON.stringify(value, null, 2)}</pre>;
+}
+
+function StatusPill({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "good" }) {
+  const toneClass = tone === "good"
+    ? "border-[var(--accent)]/30 bg-[var(--accent)]/10 text-[var(--accent)]"
+    : "border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-muted)]";
+  return <span className={`rounded-full border px-2.5 py-1 text-xs font-normal ${toneClass}`}>{children}</span>;
 }
 
 function loadIdentity(): LocalIdentity | null {

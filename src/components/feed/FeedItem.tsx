@@ -27,9 +27,35 @@ function typeKey(type: string): string {
   return "";
 }
 
+function eventMessageKey(type: string): string {
+  const lower = type.toLowerCase();
+  if (lower.includes("member") || lower.includes("joined")) return "memberJoined";
+  if (lower.includes("artifactmerged")) return "artifactMerged";
+  if (lower.includes("knowledgeentrycreated")) return "knowledgeCreated";
+  if (lower.includes("knowledgeentryupdated")) return "knowledgeUpdated";
+  if (lower.includes("rewardintentapproved")) return "rewardApproved";
+  if (lower.includes("rewardintentcreated")) return "rewardCreated";
+  if (lower.includes("settlementconfirmed")) return "settlementConfirmed";
+  if (lower.includes("settlementsubmitted")) return "settlementSubmitted";
+  if (lower.includes("settlementbatchcreated")) return "settlementBatchCreated";
+  if (lower.includes("organizationcreated")) return "organizationCreated";
+  if (lower.includes("agentregistered")) return "agentRegistered";
+  if (lower.includes("reviewroundcreated")) return "reviewRoundCreated";
+  if (lower.includes("reviewroundcompleted")) return "reviewRoundCompleted";
+  if (lower.includes("reviewrequested")) return "reviewRequested";
+  if (lower.includes("reviewerselected")) return "reviewerSelected";
+  if (lower.includes("taskclaimed")) return "taskClaimed";
+  if (lower.includes("taskaccepted")) return "taskAccepted";
+  if (lower.includes("taskplancreated")) return "taskPlanCreated";
+  if (lower.includes("proposalcreationrequested")) return "proposalCreationRequested";
+  if (lower.includes("discussionparticipantselected")) return "discussionParticipantSelected";
+  return "fallback";
+}
+
 export function FeedItem({ item, organizationNames }: { item: Entity; organizationNames?: EntityNameMap }) {
   const router = useRouter();
   const t = useTranslations("feed");
+  const eventT = useTranslations("events");
 
   const normalized = normalizeFeedItem(item, organizationNames);
   const id = normalized.id;
@@ -46,6 +72,12 @@ export function FeedItem({ item, organizationNames }: { item: Entity; organizati
   const risk = normalized.risk;
   const comments = normalized.comments;
   const shares = normalized.shares;
+  const eventText = eventT(eventMessageKey(normalized.type), {
+    actor,
+    org,
+    title,
+    type: normalized.type || eventT("event"),
+  });
 
   if (!normalized.isContent) {
     return (
@@ -62,7 +94,7 @@ export function FeedItem({ item, organizationNames }: { item: Entity; organizati
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium leading-6 text-[var(--text)]">{normalized.eventText}</p>
+              <p className="text-sm font-normal leading-6 text-[var(--text)]">{eventText}</p>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-subtle)]">
                 {org ? (
                   <button
