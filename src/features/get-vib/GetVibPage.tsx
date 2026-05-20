@@ -12,6 +12,7 @@ import {
   useGetVibQuote,
   useGetVibRecords,
   useGetVibSummary,
+  useRecordGetVibClaim,
 } from "@/lib/query/hooks";
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import type { Entity } from "@/lib/coordinator/types";
@@ -39,7 +40,11 @@ export function GetVibPage() {
   const recordsQuery = useGetVibRecords(accountId);
   const curveQuery = useGetVibCurve();
   const orderMutation = useCreateGetVibOrder();
+  const claimRecordMutation = useRecordGetVibClaim();
   const [copied, setCopied] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   const config = configQuery.data ?? {};
   const quote = quoteQuery.data ?? {};
@@ -62,6 +67,31 @@ export function GetVibPage() {
   function createOrder() {
     if (!accountId) return;
     orderMutation.mutate({ dotAmount, accountId });
+  }
+
+  async function claimVib() {
+    if (!accountId || !proof) return;
+    setClaiming(true);
+    setClaimError(null);
+    setClaimTxHash(null);
+    try {
+      const txHash = await submitVibClaim(accountId, proof);
+      setClaimTxHash(txHash);
+      await claimRecordMutation.mutateAsync({
+        accountId,
+        identityId: text(proof.identityId) || undefined,
+        rootVersion: Number(proof.rootVersion),
+        cumulativeAmount: text(proof.cumulativeAmount),
+        claimedDelta: text(summary.claimableAmount) || text(proof.cumulativeAmount),
+        txHash,
+        status: "confirmed",
+      });
+      await Promise.all([summaryQuery.refetch(), recordsQuery.refetch()]);
+    } catch (cause) {
+      setClaimError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setClaiming(false);
+    }
   }
 
   if (loading) {
@@ -154,11 +184,15 @@ export function GetVibPage() {
             </div>
             <button
               type="button"
-              disabled
-              className="mt-4 w-full rounded-full border border-[var(--border)] px-4 py-3 text-sm text-[var(--text-muted)] opacity-80"
+              onClick={claimVib}
+              disabled={!accountId || !proof || claiming || Number(summary.claimableAmount ?? 0) <= 0}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-4 py-3 text-sm text-[var(--accent-foreground)] disabled:border disabled:border-[var(--border)] disabled:bg-transparent disabled:text-[var(--text-muted)] disabled:opacity-80"
             >
-              {t("chainPending")}
+              {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {claiming ? t("claiming") : t("claimVib")}
             </button>
+            {claimTxHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTxHash}</p> : null}
+            {claimError ? <p className="mt-3 text-xs text-[var(--danger)]">{claimError}</p> : null}
           </Panel>
         </section>
 
@@ -300,4 +334,56 @@ function short(value: string): string {
 function formatTime(value: string): string {
   if (!value) return "";
   return value.replace("T", " ").replace(/\.\d{3}Z$/, "");
+}
+
+async function submitVibClaim(accountId: string, proof: Entity): Promise<string> {
+  const [{ ApiPromise, WsProvider }, { web3FromAddress }] = await Promise.all([
+    import("@polkadot/api"),
+    import("@polkadot/extension-dapp"),
+  ]);
+  const rpcUrl = process.env.NEXT_PUBLIC_VIBLY_RPC_URL ?? process.env.NEXT_PUBLIC_SUBSTRATE_RPC_URL ?? "ws://127.0.0.1:9944";
+  const api = await ApiPromise.create({ provider: new WsProvider(rpcUrl) });
+  try {
+    const injector = await web3FromAddress(accountId);
+    if (!injector.signer) throw new Error("Current wallet does not expose a Polkadot signer.");
+    const tx = api.tx.vibClaim.claim(
+      utf8Bytes(text(proof.networkId)),
+      Number(proof.rootVersion),
+      utf8Bytes(text(proof.identityId)),
+      decimalToBaseUnits(text(proof.cumulativeAmount)),
+      arrayOfEntities(proof.proof).map((item) => ({
+        position: text(item.position) === "left" ? "Left" : "Right",
+        hash: text(item.hash),
+      })),
+    );
+    return await new Promise<string>((resolve, reject) => {
+      let unsub: (() => void) | undefined;
+      tx.signAndSend(accountId, { signer: injector.signer }, (result) => {
+        if (result.dispatchError) {
+          reject(new Error(result.dispatchError.toString()));
+          unsub?.();
+          return;
+        }
+        if (result.status.isInBlock || result.status.isFinalized) {
+          resolve(tx.hash.toHex());
+          unsub?.();
+        }
+      }).then((fn) => {
+        unsub = fn;
+      }).catch(reject);
+    });
+  } finally {
+    await api.disconnect();
+  }
+}
+
+function utf8Bytes(value: string): Uint8Array {
+  return new TextEncoder().encode(value);
+}
+
+function decimalToBaseUnits(value: string): string {
+  const [wholeRaw, fractionRaw = ""] = value.split(".");
+  const whole = wholeRaw || "0";
+  const fraction = `${fractionRaw}${"0".repeat(12)}`.slice(0, 12);
+  return String(BigInt(whole) * 1_000_000_000_000n + BigInt(fraction));
 }

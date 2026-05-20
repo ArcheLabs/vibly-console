@@ -330,6 +330,9 @@
     "proofReady": "Merkle proof ready",
     "proofPending": "No published proof yet",
     "chainPending": "Chain claim submission is enabled after the VIB claim pallet is deployed in this network profile.",
+    "claimVib": "Claim VIB",
+    "claiming": "Claiming...",
+    "claimSubmitted": "Claim submitted",
     "emptyRecords": "No Get VIB records yet.",
     "loading": "Loading Get VIB...",
     "error": "Unable to load Get VIB data"

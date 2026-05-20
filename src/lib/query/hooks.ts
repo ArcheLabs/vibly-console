@@ -191,6 +191,21 @@ export function useCreateGetVibOrder() {
   });
 }
 
+export function useRecordGetVibClaim() {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => client.recordGetVibClaim(body),
+    onSuccess: (_claim, body) => {
+      const accountId = typeof body.accountId === "string" ? body.accountId : "";
+      if (accountId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.getVibSummary(accountId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.getVibRecords(accountId) });
+      }
+    },
+  });
+}
+
 // ── V0.2 Domain objects ─────────────────────────────────────────────────
 
 export function useObservationV2(id: string) {

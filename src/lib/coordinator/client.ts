@@ -127,6 +127,7 @@ export interface CoordinatorClient {
   getGetVibProof(accountId: string): Promise<Entity>;
   getGetVibRecords(accountId: string): Promise<Entity>;
   getGetVibCurve(): Promise<Entity>;
+  recordGetVibClaim(body: Record<string, unknown>): Promise<Entity>;
 }
 
 export interface StreamHandlers {
@@ -1260,6 +1261,14 @@ class HttpCoordinatorClient implements CoordinatorClient {
       const result = await this.contract.GET("/get-vib/curve");
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "curve");
+    });
+  }
+
+  async recordGetVibClaim(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/admin/get-vib/claims", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "claim");
     });
   }
 

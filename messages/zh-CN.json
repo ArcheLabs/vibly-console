@@ -330,6 +330,9 @@
     "proofReady": "Merkle 证明已就绪",
     "proofPending": "尚未发布可领取证明",
     "chainPending": "当前网络 profile 部署 VIB claim pallet 后，将启用链上领取提交。",
+    "claimVib": "领取 VIB",
+    "claiming": "领取中...",
+    "claimSubmitted": "领取交易已提交",
     "emptyRecords": "暂无 Get VIB 记录。",
     "loading": "加载 Get VIB...",
     "error": "无法加载 Get VIB 数据"
