@@ -34,4 +34,10 @@ export const queryKeys = {
   artifactV2: (id: string) => ["artifact-v2", id] as const,
   discussionV2: (id: string) => ["discussion-v2", id] as const,
   guardianRequests: ["guardian-requests"] as const,
+  getVibConfig: ["get-vib", "config"] as const,
+  getVibQuote: (amount: string) => ["get-vib", "quote", amount] as const,
+  getVibSummary: (accountId: string) => ["get-vib", "summary", accountId] as const,
+  getVibProof: (accountId: string) => ["get-vib", "proof", accountId] as const,
+  getVibRecords: (accountId: string) => ["get-vib", "records", accountId] as const,
+  getVibCurve: ["get-vib", "curve"] as const,
 };

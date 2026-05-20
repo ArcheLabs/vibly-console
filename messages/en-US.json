@@ -8,6 +8,7 @@
     "feed": "Feed",
     "organizations": "Organizations",
     "agents": "Agents",
+    "getVib": "Get VIB",
     "identity": "Me",
     "personalCenter": "Personal Center",
     "loginWallet": "Connect Wallet"
@@ -304,5 +305,33 @@
       "failed": "Request failed"
     },
     "close": "Close"
+  },
+  "getVib": {
+    "title": "Get VIB",
+    "description": "Quote DOT deposits, track confirmed allocations, and prepare Merkle claims on the active Vibly network.",
+    "network": "Network",
+    "purchase": "Purchase",
+    "claim": "Claim",
+    "records": "Records",
+    "curve": "Curve",
+    "allocation": "Allocation",
+    "depositAddress": "Deposit address",
+    "dotAmount": "DOT amount",
+    "estimatedVib": "Estimated VIB",
+    "createOrder": "Create deposit order",
+    "copy": "Copy",
+    "copied": "Copied",
+    "walletRequired": "Connect a wallet to create orders and view your allocation.",
+    "finalityNotice": "Final allocation is based on finalized Relay Chain deposits and the confirmed Coordinator allocation ledger.",
+    "purchased": "Purchased allocation",
+    "claimable": "Claimable",
+    "claimed": "Claimed",
+    "latestRoot": "Latest root",
+    "proofReady": "Merkle proof ready",
+    "proofPending": "No published proof yet",
+    "chainPending": "Chain claim submission is enabled after the VIB claim pallet is deployed in this network profile.",
+    "emptyRecords": "No Get VIB records yet.",
+    "loading": "Loading Get VIB...",
+    "error": "Unable to load Get VIB data"
   }
 }

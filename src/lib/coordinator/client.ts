@@ -119,6 +119,14 @@ export interface CoordinatorClient {
   quoteDotVib(body: Record<string, unknown>): Promise<Entity>;
   createDotVibOrder(body: Record<string, unknown>): Promise<Entity>;
   getDotVibOrder(orderId: string): Promise<Entity>;
+  getGetVibConfig(): Promise<Entity>;
+  quoteGetVib(amount: string): Promise<Entity>;
+  createGetVibOrder(body: Record<string, unknown>): Promise<Entity>;
+  getGetVibOrder(orderId: string): Promise<Entity>;
+  getGetVibSummary(accountId: string): Promise<Entity>;
+  getGetVibProof(accountId: string): Promise<Entity>;
+  getGetVibRecords(accountId: string): Promise<Entity>;
+  getGetVibCurve(): Promise<Entity>;
 }
 
 export interface StreamHandlers {
@@ -1178,6 +1186,80 @@ class HttpCoordinatorClient implements CoordinatorClient {
       });
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "order");
+    });
+  }
+
+  async getGetVibConfig() {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/config");
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "config");
+    });
+  }
+
+  async quoteGetVib(amount: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/quote", {
+        params: { query: { amount } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "quote");
+    });
+  }
+
+  async createGetVibOrder(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const result = await this.contract.POST("/get-vib/orders", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "order");
+    });
+  }
+
+  async getGetVibOrder(orderId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/orders/{orderId}", {
+        params: { path: { orderId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "order");
+    });
+  }
+
+  async getGetVibSummary(accountId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/account/{accountId}/summary", {
+        params: { path: { accountId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "summary");
+    });
+  }
+
+  async getGetVibProof(accountId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/account/{accountId}/proof", {
+        params: { path: { accountId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "proof");
+    });
+  }
+
+  async getGetVibRecords(accountId: string) {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/account/{accountId}/records", {
+        params: { path: { accountId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "records");
+    });
+  }
+
+  async getGetVibCurve() {
+    return await runContract(async () => {
+      const result = await this.contract.GET("/get-vib/curve");
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "curve");
     });
   }
 

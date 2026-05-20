@@ -123,6 +123,74 @@ export function usePersonalCenter() {
   });
 }
 
+// ── Get VIB ──────────────────────────────────────────────────────────────
+
+export function useGetVibConfig() {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.getVibConfig,
+    queryFn: () => client.getGetVibConfig(),
+  });
+}
+
+export function useGetVibQuote(amount: string) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.getVibQuote(amount),
+    queryFn: () => client.quoteGetVib(amount),
+    enabled: Number(amount) > 0,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useGetVibSummary(accountId?: string | null) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.getVibSummary(accountId ?? ""),
+    queryFn: () => client.getGetVibSummary(accountId ?? ""),
+    enabled: Boolean(accountId),
+  });
+}
+
+export function useGetVibProof(accountId?: string | null) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.getVibProof(accountId ?? ""),
+    queryFn: () => client.getGetVibProof(accountId ?? ""),
+    enabled: Boolean(accountId),
+    retry: false,
+  });
+}
+
+export function useGetVibRecords(accountId?: string | null) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.getVibRecords(accountId ?? ""),
+    queryFn: () => client.getGetVibRecords(accountId ?? ""),
+    enabled: Boolean(accountId),
+  });
+}
+
+export function useGetVibCurve() {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.getVibCurve,
+    queryFn: () => client.getGetVibCurve(),
+  });
+}
+
+export function useCreateGetVibOrder() {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => client.createGetVibOrder(body),
+    onSuccess: (_order, body) => {
+      const accountId = typeof body.accountId === "string" ? body.accountId : "";
+      if (accountId) void queryClient.invalidateQueries({ queryKey: queryKeys.getVibRecords(accountId) });
+    },
+  });
+}
+
 // ── V0.2 Domain objects ─────────────────────────────────────────────────
 
 export function useObservationV2(id: string) {
