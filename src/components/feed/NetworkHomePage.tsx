@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { Rss } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useNetworkFeed, useNetworkOrganizations } from "@/lib/query/hooks";
 import type { Entity } from "@/lib/coordinator/types";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { NetworkFeed } from "./NetworkFeed";
 import { TrendingOrganizations, AgentLeaderboard, RiskSummary } from "./NetworkWidgets";
 
 export function NetworkHomePage() {
+  const t = useTranslations("feed");
   const [limit, setLimit] = useState(50);
   const { data, isLoading, isFetching, error } = useNetworkFeed(limit);
   const orgsQuery = useNetworkOrganizations(100);
@@ -28,7 +32,11 @@ export function NetworkHomePage() {
   }, [hasMore, isFetching]);
 
   return (
-    <div className="grid grid-cols-12 gap-0 bg-[var(--surface)]">
+    <div>
+      <div className="border-b border-[var(--border)] px-4 py-6 sm:px-8">
+        <PageHeader icon={Rss} title={t("pageTitle")} description={t("pageDescription")} />
+      </div>
+      <div className="grid grid-cols-12 gap-0 bg-[var(--surface)]">
       <NetworkFeed
         className="col-span-12 lg:col-span-8"
         data={data}
@@ -47,6 +55,7 @@ export function NetworkHomePage() {
           <RiskSummary />
         </div>
       </aside>
+    </div>
     </div>
   );
 }

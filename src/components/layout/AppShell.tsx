@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useAuthState } from "@/lib/store/authStore";
 import { useNetworkAgents, useNetworkOrganizations } from "@/lib/query/hooks";
 import { SettingsMenu } from "@/components/layout/SettingsMenu";
+import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 
 const navItems = [
   { href: "/", key: "feed", icon: Rss },
@@ -105,6 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Navigation />
         <div className="absolute bottom-5 left-3 right-3 space-y-3">
           {auth.connected ? <NetworkHealthPanel /> : null}
+          <WalletConnectPanel placement="sidebar" />
           <div className="flex justify-end">
             <SettingsMenu placement="sidebar" />
           </div>
@@ -131,10 +133,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Brand />
             <Navigation onNavigate={() => setMobileOpen(false)} />
             <div className="mt-6 px-3">
-              <NetworkHealthPanel />
+              {auth.connected ? <NetworkHealthPanel /> : null}
             </div>
-            <div className="absolute bottom-5 right-5">
-              <SettingsMenu placement="sidebar" />
+            <div className="absolute bottom-5 left-3 right-3 space-y-2">
+              <WalletConnectPanel placement="sidebar" />
+              <div className="flex justify-end">
+                <SettingsMenu placement="sidebar" />
+              </div>
             </div>
           </aside>
         </div>

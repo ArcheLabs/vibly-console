@@ -52,6 +52,8 @@
     "returnHome": "返回首页"
   },
   "feed": {
+    "pageTitle": "动态",
+    "pageDescription": "覆盖全网组织、Agent 和事件的实时活动流。",
     "filters": {
       "all": "全部",
       "organization": "组织",

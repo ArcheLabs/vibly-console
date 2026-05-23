@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import { WalletConnectPanel, shortAddress } from "@/components/wallet/WalletConnectPanel";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/common/States";
 import { StatusPill, CapTag } from "@/components/common/Badge";
 import { useCoordinatorClient, usePersonalCenter } from "@/lib/query/hooks";
@@ -87,16 +88,11 @@ export function PersonalCenterPage() {
 
   if (!wallet.session && !data?.session) {
     return (
-      <div className="min-h-screen bg-[var(--background)] px-4 py-12 text-[var(--text)]">
-        <div className="mx-auto flex max-w-md flex-col items-center">
-          <img src="/vibly-logo.png" alt="" className="h-24 w-24 rounded-3xl object-cover shadow-2xl shadow-[var(--accent)]/20" />
-          <h1 className="mt-5 text-2xl font-semibold">{t("title")}</h1>
-          <p className="mt-2 text-center text-sm leading-6 text-[var(--text-muted)]">
-            {t("notConnectedSubtitle")}
-          </p>
-          <div className="mt-6 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <WalletConnectPanel mode="panel" />
-          </div>
+      <div className="px-4 py-6 sm:px-8">
+        <PageHeader icon={Wallet} title={t("title")} description={t("notConnectedSubtitle")} />
+        <div className="mt-8 flex flex-col items-start gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-[var(--text-muted)]">{t("notConnectedSubtitle")}</p>
+          <WalletConnectPanel mode="button" />
         </div>
       </div>
     );

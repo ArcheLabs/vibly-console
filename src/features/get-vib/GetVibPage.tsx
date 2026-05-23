@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Check, Clipboard, Coins, Loader2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 import {
   useCreateGetVibOrder,
   useGetVibConfig,
@@ -96,31 +98,28 @@ export function GetVibPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen px-6 py-10 md:px-10">
+      <div className="px-4 py-6 sm:px-8">
         <div className="flex min-h-[50vh] items-center justify-center text-[var(--text-muted)]">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           {t("loading")}
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 md:px-10">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-3 py-1 text-sm text-[var(--accent)]">
-              <Coins className="h-4 w-4" />
-              {t("title")}
+    <div className="px-4 py-6 sm:px-8">
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          icon={Coins}
+          title={t("title")}
+          description={t("description")}
+          right={
+            <div className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--text-muted)]">
+              {t("network")}: <span className="text-[var(--text)]">{text(config.networkId) || "unknown"}</span>
             </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[var(--text)] md:text-4xl">{t("title")}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{t("description")}</p>
-          </div>
-          <div className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--text-muted)]">
-            {t("network")}: <span className="text-[var(--text)]">{text(config.networkId) || "unknown"}</span>
-          </div>
-        </header>
+          }
+        />
 
         {error ? (
           <div className="rounded-2xl border border-[var(--danger)]/20 bg-[var(--danger-surface)] px-4 py-3 text-sm text-[var(--danger)]">
@@ -167,7 +166,7 @@ export function GetVibPage() {
                 {t("createOrder")}
               </button>
             </div>
-            {!accountId ? <p className="mt-4 text-sm text-[var(--warning)]">{t("walletRequired")}</p> : null}
+            {!accountId ? <div className="mt-4"><WalletConnectPanel mode="button" /></div> : null}
             <p className="mt-4 text-sm leading-6 text-[var(--text-muted)]">{t("finalityNotice")}</p>
           </Panel>
 
@@ -243,7 +242,7 @@ export function GetVibPage() {
           </Panel>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 

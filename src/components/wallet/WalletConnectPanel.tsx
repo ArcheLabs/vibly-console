@@ -11,7 +11,13 @@ export function shortAddress(value: string | null | undefined) {
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
-export function WalletConnectPanel({ mode = "button" }: { mode?: "button" | "panel" }) {
+export function WalletConnectPanel({
+  mode = "button",
+  placement = "default",
+}: {
+  mode?: "button" | "panel";
+  placement?: "default" | "sidebar";
+}) {
   const t = useTranslations("wallet");
   const [open, setOpen] = useState(false);
   const wallet = useWalletAuth();
@@ -23,16 +29,30 @@ export function WalletConnectPanel({ mode = "button" }: { mode?: "button" | "pan
     return <WalletPanelContent onClose={null} />;
   }
 
+  const triggerClass =
+    placement === "sidebar"
+      ? wallet.session
+        ? "flex w-full items-center gap-3 rounded-xl bg-[var(--surface-muted)] px-4 py-2.5 text-sm font-medium text-[var(--sidebar-text)] ring-1 ring-[var(--sidebar-border)] transition hover:bg-[var(--sidebar-surface-muted)]"
+        : "flex w-full items-center gap-3 rounded-xl bg-[var(--accent)]/10 px-4 py-3 text-sm font-medium text-[var(--accent)] ring-1 ring-[var(--accent)]/20 transition hover:bg-[var(--accent)]/20"
+      : "inline-flex h-10 max-w-[220px] items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-medium text-[var(--text)] shadow-sm transition hover:bg-[var(--surface-muted)]";
+
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 max-w-[220px] items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-medium text-[var(--text)] shadow-sm transition hover:bg-[var(--surface-muted)]"
+        className={triggerClass}
         aria-label={t("modalTitle")}
       >
-        <Wallet className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-        <span className="truncate">{label}</span>
+        <Wallet
+          className={`h-4 w-4 shrink-0 ${
+            wallet.session ? "text-[var(--accent)]" : placement === "sidebar" ? "" : "text-[var(--accent)]"
+          }`}
+        />
+        <span className="flex-1 truncate text-left">{label}</span>
+        {placement === "sidebar" && wallet.session ? (
+          <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-[var(--success)]" aria-hidden="true" />
+        ) : null}
       </button>
 
       {open ? (
