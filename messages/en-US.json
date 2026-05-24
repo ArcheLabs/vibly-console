@@ -155,7 +155,22 @@
     },
     "handbookEmpty": "No handbook data",
     "membersEmpty": "No member data",
-    "authorities": "Authorities"
+    "authorities": "Authorities",
+    "create": {
+      "button": "Create organization",
+      "title": "Create organization",
+      "subtitle": "This operation requires the current wallet to be a chain Guardian.",
+      "name": "Organization name",
+      "namePlaceholder": "Example: Goldbach Research Guild",
+      "description": "Organization description",
+      "descriptionPlaceholder": "Describe the mission, collaboration scope, or testnet purpose.",
+      "submit": "Create",
+      "submitting": "Creating...",
+      "cancel": "Cancel",
+      "close": "Close",
+      "submitError": "Unable to create the organization. Please try again.",
+      "missingId": "Coordinator did not return the new organization ID."
+    }
   },
   "guardianActions": {
     "title": "Human / Guardian Actions",

@@ -155,7 +155,22 @@
     },
     "handbookEmpty": "暂无 handbook 数据",
     "membersEmpty": "暂无成员数据",
-    "authorities": "权限"
+    "authorities": "权限",
+    "create": {
+      "button": "创建组织",
+      "title": "创建组织",
+      "subtitle": "该操作需要当前钱包具备链上 Guardian 权限。",
+      "name": "组织名称",
+      "namePlaceholder": "例如：Goldbach Research Guild",
+      "description": "组织描述",
+      "descriptionPlaceholder": "说明组织目标、协作范围或测试网用途。",
+      "submit": "创建",
+      "submitting": "创建中...",
+      "cancel": "取消",
+      "close": "关闭",
+      "submitError": "创建组织失败，请稍后重试。",
+      "missingId": "Coordinator 未返回新组织 ID。"
+    }
   },
   "guardianActions": {
     "title": "人类 / Guardian 动作",

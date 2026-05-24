@@ -18,6 +18,7 @@ export interface CoordinatorCredentials {
 
 export interface ResolveCoordinatorCredentialOptions {
   allowAnonymous?: boolean;
+  allowServerTokenWithoutSession?: boolean;
 }
 
 export class CoordinatorSessionError extends Error {
@@ -71,6 +72,6 @@ export async function resolveCoordinatorCredentials(
   }
   return {
     baseUrl: resolveCoordinatorBaseUrl(),
-    token: session ? (readEnv("COORDINATOR_API_TOKEN") ?? null) : null,
+    token: session || options.allowServerTokenWithoutSession ? (readEnv("COORDINATOR_API_TOKEN") ?? null) : null,
   };
 }

@@ -131,6 +131,15 @@ export function usePersonalCenter() {
   });
 }
 
+export function useGuardianDecision(accountId?: string | null) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: queryKeys.guardianDecision(accountId ?? ""),
+    queryFn: () => client.getGuardianDecision(accountId ?? ""),
+    enabled: Boolean(accountId),
+  });
+}
+
 // ── Get VIB ──────────────────────────────────────────────────────────────
 
 export function useGetVibConfig() {
@@ -287,7 +296,8 @@ export function useSubmitActionIntent() {
   return useMutation({
     mutationFn: (body: Record<string, unknown>) => client.submitActionIntent(body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.networkFeed() });
+      void queryClient.invalidateQueries({ queryKey: ["network-feed"] });
+      void queryClient.invalidateQueries({ queryKey: ["network-organizations"] });
     },
   });
 }

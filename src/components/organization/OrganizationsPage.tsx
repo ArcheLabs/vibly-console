@@ -1,13 +1,18 @@
 "use client";
 
+import type { FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useNetworkOrganizations } from "@/lib/query/hooks";
+import { Plus, X } from "lucide-react";
+import { useGuardianDecision, useNetworkOrganizations, useSubmitActionIntent } from "@/lib/query/hooks";
 import { StatusBadge } from "@/components/common/Badge";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import type { Entity } from "@/lib/coordinator/types";
 import { formatDateTime } from "@/lib/utils/format";
+import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 
 function Field({ label, value }: { label: string; value: string | number }) {
   return (
@@ -64,21 +69,158 @@ function OrganizationCard({ org }: { org: Entity }) {
   );
 }
 
+function readCreatedOrganizationId(result: Entity): string {
+  const aggregateRef = result.aggregateRef;
+  if (aggregateRef && typeof aggregateRef === "object") {
+    const id = (aggregateRef as Record<string, unknown>).id;
+    if (typeof id === "string" && id.length > 0) return id;
+  }
+  return "";
+}
+
+function CreateOrganizationDialog({
+  principalId,
+  onClose,
+  onCreated,
+}: {
+  principalId: string;
+  onClose: () => void;
+  onCreated: (organizationId: string) => void;
+}) {
+  const t = useTranslations("organizations.create");
+  const submitActionIntent = useSubmitActionIntent();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const busy = submitActionIntent.isPending;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName || busy) return;
+    setError(null);
+
+    try {
+      const result = await submitActionIntent.mutateAsync({
+        type: "CreateOrganization",
+        principalId,
+        payload: {
+          name: trimmedName,
+          description: description.trim() || undefined,
+        },
+        idempotencyKey: `console:create-organization:${principalId}:${Date.now()}`,
+      });
+      const organizationId = readCreatedOrganizationId(result);
+      if (!organizationId) throw new Error(t("missingId"));
+      onCreated(organizationId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("submitError"));
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6">
+      <button type="button" className="absolute inset-0 cursor-default" aria-label={t("close")} onClick={onClose} />
+      <form
+        onSubmit={handleSubmit}
+        className="relative w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--text)]">{t("title")}</h3>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{t("subtitle")}</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            aria-label={t("close")}
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="text-xs text-[var(--text-muted)]">{t("name")}</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+            placeholder={t("namePlaceholder")}
+            autoFocus
+          />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-xs text-[var(--text-muted)]">{t("description")}</span>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            className="mt-2 min-h-28 w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+            placeholder={t("descriptionPlaceholder")}
+          />
+        </label>
+
+        {error ? (
+          <div className="mt-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-500">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            onClick={onClose}
+          >
+            {t("cancel")}
+          </button>
+          <button
+            type="submit"
+            disabled={busy || !name.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus className="h-4 w-4" />
+            {busy ? t("submitting") : t("submit")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function OrganizationsPage() {
   const t = useTranslations("organizations");
+  const router = useRouter();
   const { data, isLoading, error } = useNetworkOrganizations(50);
+  const wallet = useWalletAuth();
+  const guardian = useGuardianDecision(wallet.session?.address ?? null);
+  const [createOpen, setCreateOpen] = useState(false);
   const orgs = data?.data ?? [];
+  const canCreate = Boolean(wallet.session && guardian.data?.isGuardian === true && guardian.data?.stale !== true);
 
   return (
     <div className="px-4 py-6 sm:px-8">
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)] text-[var(--text)] shadow-sm ring-1 ring-[var(--border)]">
-          <AgentAvatar name="Org" tone="org" size="h-9 w-9" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)] text-[var(--text)] shadow-sm ring-1 ring-[var(--border)]">
+            <AgentAvatar name="Org" tone="org" size="h-9 w-9" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-[var(--text)]">{t("title")}</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{t("description")}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text)]">{t("title")}</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{t("description")}</p>
-        </div>
+        {canCreate ? (
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-foreground)] shadow-sm"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            {t("create.button")}
+          </button>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -102,6 +244,16 @@ export function OrganizationsPage() {
             <OrganizationCard key={String(org.id ?? idx)} org={org} />
           ))}
         </div>
+      ) : null}
+      {createOpen && wallet.session ? (
+        <CreateOrganizationDialog
+          principalId={wallet.session.address}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(organizationId) => {
+            setCreateOpen(false);
+            router.push(`/organizations/${encodeURIComponent(organizationId)}`);
+          }}
+        />
       ) : null}
     </div>
   );

@@ -88,6 +88,7 @@ export interface CoordinatorClient {
   getNetworkAgent(agentId: string): Promise<Entity>;
   getAgentReputation(agentId: string): Promise<Entity>;
   getPersonalCenter(): Promise<Entity>;
+  getGuardianDecision(accountId: string): Promise<Entity>;
   createAgentEnrollmentChallenge(body: Record<string, unknown>): Promise<Entity>;
   authorizeAgentEnrollment(body: Record<string, unknown>): Promise<Entity>;
   revokeAgentSessionKey(id: string, body?: Record<string, unknown>): Promise<Entity>;
@@ -942,6 +943,18 @@ class HttpCoordinatorClient implements CoordinatorClient {
       const result = await this.contract.GET("/personal-center");
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "personalCenter");
+    });
+  }
+
+  async getGuardianDecision(accountId: string) {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: { accountId: string } } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/authority/guardian/me", { params: { query: { accountId } } });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "decision");
     });
   }
 
