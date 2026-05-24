@@ -1,15 +1,21 @@
 "use client";
 
-import { useArtifactV2 } from "@/lib/query/hooks";
+import { useMemo } from "react";
+import { useArtifactV2, useProjects } from "@/lib/query/hooks";
 import { LoadingState, ErrorState } from "@/components/common/States";
 import { MainPost } from "@/components/feed/MainPost";
 import { ObjectSummary } from "@/components/feed/ObjectSummary";
 import { ContextPanel } from "@/components/coordination/ContextPanel";
 import { GuardianActionsPanel } from "@/components/authority/GuardianActionsPanel";
 import type { Entity } from "@/lib/coordinator/types";
+import { entityNameMap } from "@/lib/entities/display";
 
 export function ArtifactDetailPage({ artifactId }: { artifactId: string }) {
   const { data, isLoading, error } = useArtifactV2(artifactId);
+  const projectsQuery = useProjects(200);
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
 
   if (isLoading) return <div className="p-8"><LoadingState label="加载成果中..." /></div>;
   if (error || !data) {
@@ -34,7 +40,7 @@ export function ArtifactDetailPage({ artifactId }: { artifactId: string }) {
         <ObjectSummary event={event} />
       </section>
       <section className="col-span-4">
-        <ContextPanel event={event} timeline={[]} chain={[]}>
+        <ContextPanel event={event} timeline={[]} chain={[]} projectNames={projectNames}>
           <GuardianActionsPanel targetRef={targetRef} />
         </ContextPanel>
       </section>

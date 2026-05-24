@@ -2,13 +2,14 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useNetworkOrganization, useOrganizationFeed } from "@/lib/query/hooks";
+import { useNetworkOrganization, useOrganizationFeed, useProjects } from "@/lib/query/hooks";
 import { StatusBadge, RoleBadge } from "@/components/common/Badge";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { NetworkFeed } from "@/components/feed/NetworkFeed";
 import { JsonViewer } from "@/components/common/JsonViewer";
 import type { Entity } from "@/lib/coordinator/types";
+import { entityNameMap } from "@/lib/entities/display";
 import { formatDateTime } from "@/lib/utils/format";
 
 const TABS = ["feed", "handbook", "members"] as const;
@@ -33,6 +34,7 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
   const [feedLimit, setFeedLimit] = useState(50);
   const { data: org, isLoading, error } = useNetworkOrganization(orgId);
   const feedQuery = useOrganizationFeed(orgId, feedLimit);
+  const projectsQuery = useProjects(200);
   const hasMore = useMemo(() => {
     const count = feedQuery.data?.data.length ?? 0;
     return count >= feedLimit && feedLimit < 200;
@@ -41,6 +43,9 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
     if (feedQuery.isFetching || !hasMore) return;
     setFeedLimit((value) => Math.min(value + 50, 200));
   }, [feedQuery.isFetching, hasMore]);
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
 
   if (isLoading) return <div className="p-8"><LoadingState label={t("loading")} /></div>;
   if (error || !org) return <div className="p-8"><ErrorState error={error ?? new Error("Not found")} title={t("errorTitle")} /></div>;
@@ -107,6 +112,7 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
             onLoadMore={loadMore}
             error={feedQuery.error}
             organizationNames={organizationNames}
+            projectNames={projectNames}
           />
         ) : null}
 

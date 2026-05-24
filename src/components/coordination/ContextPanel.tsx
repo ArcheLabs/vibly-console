@@ -4,7 +4,7 @@ import { RiskBadge, StatusBadge } from "@/components/common/Badge";
 import { CausalChain } from "@/components/coordination/CausalChain";
 import type { Entity } from "@/lib/coordinator/types";
 import type { EntityNameMap } from "@/lib/entities/display";
-import { eventTypeFor, organizationNameFor, text } from "@/lib/entities/display";
+import { eventTypeFor, organizationNameFor, projectNameFor, text } from "@/lib/entities/display";
 
 function ContextRow({ label, value }: { label: string; value: string }) {
   return (
@@ -43,6 +43,7 @@ export function ContextPanel({
   chain,
   reviewSummary,
   organizationNames,
+  projectNames,
   children,
 }: {
   event: Entity;
@@ -51,11 +52,12 @@ export function ContextPanel({
   chain: { group: string; items: Entity[] }[];
   reviewSummary?: Entity;
   organizationNames?: EntityNameMap;
+  projectNames?: EntityNameMap;
   children?: React.ReactNode;
 }) {
   const t = useTranslations("contextPanel");
   const org = organizationNameFor(event, organizationNames);
-  const project = text(event.project, event.projectName, event.projectId);
+  const project = projectNameFor(event, projectNames);
   const objectType = text(event.objectType, eventTypeFor(event));
   const stage = String(event.stage ?? event.status ?? "");
   const visibility = String(event.visibility ?? "public");

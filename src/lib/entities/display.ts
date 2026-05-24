@@ -31,6 +31,15 @@ export function displayNameFromId(id: string, names?: EntityNameMap): string {
   return names?.[id] ?? id;
 }
 
+export function entityNameMap(items: Entity[]): EntityNameMap {
+  const entries = items.flatMap((item) => {
+    const id = text(item.id);
+    const name = text(item.name, item.displayName, item.title);
+    return id && name ? [[id, name] as const] : [];
+  });
+  return Object.fromEntries(entries);
+}
+
 export function organizationIdFor(item: Entity): string {
   const payload = record(item.payload);
   const nested = nestedPayload(payload);
@@ -48,6 +57,33 @@ export function organizationNameFor(item: Entity, names?: EntityNameMap): string
     nested.organizationName,
     id ? displayNameFromId(id, names) : "",
   );
+}
+
+export function projectIdFor(item: Entity): string {
+  const payload = record(item.payload);
+  const nested = nestedPayload(payload);
+  return text(item.projectId, payload.projectId, nested.projectId);
+}
+
+export function projectNameFor(item: Entity, names?: EntityNameMap): string {
+  const payload = record(item.payload);
+  const nested = nestedPayload(payload);
+  const id = projectIdFor(item);
+  const explicitName = text(
+    item.projectName,
+    payload.projectName,
+    nested.projectName,
+    item.projectTitle,
+    payload.projectTitle,
+    nested.projectTitle,
+  );
+  if (explicitName) return explicitName;
+
+  const projectField = text(item.project, payload.project, nested.project);
+  const mappedName = id ? names?.[id] : undefined;
+  if (mappedName) return mappedName;
+  if (projectField && projectField !== id) return projectField;
+  return id ? displayNameFromId(id, names) : projectField;
 }
 
 function sectionFromFindings(value: unknown): string {

@@ -15,6 +15,30 @@ function jsonError(status: number, code: string, message: string): NextResponse 
   return NextResponse.json({ ok: false, error: { code, message } }, { status });
 }
 
+function upstreamUnavailable(target: URL, cause: unknown): NextResponse {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return jsonError(
+    502,
+    "COORDINATOR_UPSTREAM_UNAVAILABLE",
+    `Unable to reach Coordinator at ${target.origin}: ${message}`,
+  );
+}
+
+async function fetchCoordinator(target: URL, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(target, init);
+  } catch (cause) {
+    if (target.hostname !== "localhost") throw cause;
+    const fallback = new URL(target);
+    fallback.hostname = "127.0.0.1";
+    try {
+      return await fetch(fallback, init);
+    } catch {
+      throw cause;
+    }
+  }
+}
+
 async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -57,11 +81,16 @@ async function proxy(
   const isBodyless = request.method === "GET" || request.method === "HEAD";
   const body = isBodyless ? undefined : await request.text();
 
-  const upstream = await fetch(target, {
-    method: request.method,
-    headers,
-    body,
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetchCoordinator(target, {
+      method: request.method,
+      headers,
+      body,
+    });
+  } catch (cause) {
+    return upstreamUnavailable(target, cause);
+  }
 
   const upstreamContentType = upstream.headers.get("content-type") ?? "application/json";
   const isStream = upstreamContentType.startsWith("text/event-stream");

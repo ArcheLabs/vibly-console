@@ -13,6 +13,7 @@ import {
   record,
   subjectRefFor,
   text,
+  projectNameFor,
 } from "@/lib/entities/display";
 import { timeAgo } from "@/lib/utils/format";
 
@@ -24,7 +25,7 @@ export function feedEventType(item: Entity): string {
   return eventTypeFor(item);
 }
 
-export function normalizeFeedItem(item: Entity, organizationNames?: EntityNameMap) {
+export function normalizeFeedItem(item: Entity, organizationNames?: EntityNameMap, projectNames?: EntityNameMap) {
   const payload = record(item.payload);
   const subject = record(item.subject);
   const nested = nestedPayload(payload);
@@ -38,7 +39,7 @@ export function normalizeFeedItem(item: Entity, organizationNames?: EntityNameMa
     actor: actorNameFor(item),
     organization: organizationNameFor(item, organizationNames),
     organizationId,
-    project: text(item.project, item.projectId, payload.projectId, nested.projectId),
+    project: projectNameFor(item, projectNames),
     title: text(contentTitleFor(item), subject.title, subject.name, subject.id, type, id),
     summary: contentBodyFor(item),
     eventText: eventSentenceFor(item, organizationNames),

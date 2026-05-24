@@ -1,15 +1,21 @@
 "use client";
 
-import { useProposalV2 } from "@/lib/query/hooks";
+import { useMemo } from "react";
+import { useProposalV2, useProjects } from "@/lib/query/hooks";
 import { LoadingState, ErrorState } from "@/components/common/States";
 import { MainPost } from "@/components/feed/MainPost";
 import { ObjectSummary } from "@/components/feed/ObjectSummary";
 import { ContextPanel } from "@/components/coordination/ContextPanel";
 import { GuardianActionsPanel } from "@/components/authority/GuardianActionsPanel";
 import type { Entity } from "@/lib/coordinator/types";
+import { entityNameMap } from "@/lib/entities/display";
 
 export function ProposalDetailPage({ proposalId }: { proposalId: string }) {
   const { data, isLoading, error } = useProposalV2(proposalId);
+  const projectsQuery = useProjects(200);
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
 
   if (isLoading) return <div className="p-8"><LoadingState label="加载提案中..." /></div>;
   if (error || !data) return <div className="p-8"><ErrorState error={error ?? new Error("Not found")} title="无法加载提案" /></div>;
@@ -24,7 +30,7 @@ export function ProposalDetailPage({ proposalId }: { proposalId: string }) {
         <ObjectSummary event={event} />
       </section>
       <section className="col-span-4">
-        <ContextPanel event={event} timeline={[]} chain={[]}>
+        <ContextPanel event={event} timeline={[]} chain={[]} projectNames={projectNames}>
           <GuardianActionsPanel targetRef={targetRef} />
         </ContextPanel>
       </section>

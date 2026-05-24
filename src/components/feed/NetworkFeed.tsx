@@ -36,6 +36,7 @@ export function NetworkFeed({
   isLoadingMore = false,
   onLoadMore,
   organizationNames,
+  projectNames,
 }: {
   data: Page<Entity> | undefined;
   isLoading: boolean;
@@ -45,6 +46,7 @@ export function NetworkFeed({
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
   organizationNames?: EntityNameMap;
+  projectNames?: EntityNameMap;
 }) {
   const t = useTranslations("feed");
   const [activeFilter, setActiveFilter] = useState<FeedFilter>("all");
@@ -102,7 +104,7 @@ export function NetworkFeed({
       {!isLoading && !error && items.length > 0 && (
         <div className="divide-y divide-[var(--border)]">
           {items.map((item, idx) => (
-            <FeedItem key={feedEventId(item) || `idx:${idx}`} item={item} organizationNames={organizationNames} />
+            <FeedItem key={feedEventId(item) || `idx:${idx}`} item={item} organizationNames={organizationNames} projectNames={projectNames} />
           ))}
         </div>
       )}

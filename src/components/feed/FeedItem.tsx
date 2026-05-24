@@ -52,12 +52,12 @@ function eventMessageKey(type: string): string {
   return "fallback";
 }
 
-export function FeedItem({ item, organizationNames }: { item: Entity; organizationNames?: EntityNameMap }) {
+export function FeedItem({ item, organizationNames, projectNames }: { item: Entity; organizationNames?: EntityNameMap; projectNames?: EntityNameMap }) {
   const router = useRouter();
   const t = useTranslations("feed");
   const eventT = useTranslations("events");
 
-  const normalized = normalizeFeedItem(item, organizationNames);
+  const normalized = normalizeFeedItem(item, organizationNames, projectNames);
   const id = normalized.id;
   const actor = normalized.actor || t("unknownActor");
   const org = normalized.organization;

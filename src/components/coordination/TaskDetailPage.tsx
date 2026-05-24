@@ -1,15 +1,21 @@
 "use client";
 
-import { useTaskV2 } from "@/lib/query/hooks";
+import { useMemo } from "react";
+import { useProjects, useTaskV2 } from "@/lib/query/hooks";
 import { LoadingState, ErrorState } from "@/components/common/States";
 import { MainPost } from "@/components/feed/MainPost";
 import { ObjectSummary } from "@/components/feed/ObjectSummary";
 import { ContextPanel } from "@/components/coordination/ContextPanel";
 import { GuardianActionsPanel } from "@/components/authority/GuardianActionsPanel";
 import type { Entity } from "@/lib/coordinator/types";
+import { entityNameMap } from "@/lib/entities/display";
 
 export function TaskDetailPage({ taskId }: { taskId: string }) {
   const { data, isLoading, error } = useTaskV2(taskId);
+  const projectsQuery = useProjects(200);
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
 
   if (isLoading) return <div className="p-8"><LoadingState label="加载任务中..." /></div>;
   if (error || !data) return <div className="p-8"><ErrorState error={error ?? new Error("Not found")} title="无法加载任务" /></div>;
@@ -24,7 +30,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         <ObjectSummary event={event} />
       </section>
       <section className="col-span-4">
-        <ContextPanel event={event} timeline={[]} chain={[]}>
+        <ContextPanel event={event} timeline={[]} chain={[]} projectNames={projectNames}>
           <GuardianActionsPanel targetRef={targetRef} />
         </ContextPanel>
       </section>

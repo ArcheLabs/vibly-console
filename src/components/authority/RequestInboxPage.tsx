@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ShieldAlert, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useCoordinatorClient } from "@/lib/query/hooks";
+import { useCoordinatorClient, useProjects } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { StatusBadge, RiskBadge } from "@/components/common/Badge";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import type { Entity } from "@/lib/coordinator/types";
+import { entityNameMap, displayNameFromId } from "@/lib/entities/display";
 import { timeAgo } from "@/lib/utils/format";
 
 const FILTERS = ["全部", "待处理", "高风险", "已完成"] as const;
@@ -25,7 +26,7 @@ function matchesFilter(req: Entity, filter: Filter): boolean {
   return true;
 }
 
-function RequestCard({ req }: { req: Entity }) {
+function RequestCard({ req, projectNames }: { req: Entity; projectNames?: Record<string, string> }) {
   const title = String(req.title ?? req.type ?? req.requestType ?? req.consoleKind ?? "请求");
   const actor = String(req.guardianId ?? req.requestedBy ?? req.actorId ?? req.actor ?? "");
   const time = req.createdAt || req.timestamp ? timeAgo(req.createdAt ?? req.timestamp) : "";
@@ -34,6 +35,7 @@ function RequestCard({ req }: { req: Entity }) {
   const reason = String(req.reason ?? req.description ?? "");
   const targetRef = String(req.objectRef ?? req.id ?? "");
   const projectId = String(req.projectId ?? "");
+  const projectName = projectId ? displayNameFromId(projectId, projectNames) : "";
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -66,7 +68,7 @@ function RequestCard({ req }: { req: Entity }) {
                 href={`/projects/${projectId}`}
                 className="rounded-full bg-sky-50 px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-100"
               >
-                {projectId} →
+                {projectName} →
               </Link>
             )}
           </div>
@@ -80,10 +82,14 @@ function RequestCard({ req }: { req: Entity }) {
 export function RequestInboxPage() {
   const [filter, setFilter] = useState<Filter>("全部");
   const client = useCoordinatorClient();
+  const projectsQuery = useProjects(200);
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.guardianRequests,
     queryFn: () => client.listGuardianRequests(undefined, { limit: 100 }),
   });
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
 
   const items: Entity[] = (data?.data ?? []).filter((r) => matchesFilter(r as Entity, filter)) as Entity[];
 
@@ -120,7 +126,7 @@ export function RequestInboxPage() {
 
       <div className="space-y-4">
         {items.map((req, idx) => (
-          <RequestCard key={String((req as Entity).id ?? idx)} req={req} />
+          <RequestCard key={String((req as Entity).id ?? idx)} req={req} projectNames={projectNames} />
         ))}
       </div>
     </div>

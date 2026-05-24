@@ -50,6 +50,14 @@ export function useNetworkOrganization(orgId: string) {
   });
 }
 
+export function useProjects(limit = 200) {
+  const client = useCoordinatorClient();
+  return useQuery({
+    queryKey: [...queryKeys.projects, limit] as const,
+    queryFn: () => client.listProjects({ limit }),
+  });
+}
+
 export function useProject(projectId: string) {
   const client = useCoordinatorClient();
   return useQuery({

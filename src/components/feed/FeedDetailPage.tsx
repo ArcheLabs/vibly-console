@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useFeedDetail, useNetworkFeed, useNetworkOrganizations } from "@/lib/query/hooks";
+import { useFeedDetail, useNetworkFeed, useNetworkOrganizations, useProjects } from "@/lib/query/hooks";
 import { LoadingState, ErrorState } from "@/components/common/States";
 import { FeedDetailBreadcrumb } from "./FeedDetailBreadcrumb";
 import { MainPost } from "./MainPost";
@@ -10,7 +10,7 @@ import { InteractionTabs } from "./InteractionTabs";
 import { ContextPanel } from "@/components/coordination/ContextPanel";
 import { GuardianActionsPanel } from "@/components/authority/GuardianActionsPanel";
 import type { Entity } from "@/lib/coordinator/types";
-import { actorNameFor, contentBodyFor, eventTypeFor, record, subjectRefFor, text } from "@/lib/entities/display";
+import { actorNameFor, contentBodyFor, entityNameMap, eventTypeFor, record, subjectRefFor, text } from "@/lib/entities/display";
 
 function extractTimeline(event: Entity): Entity[] {
   if (Array.isArray(event.timeline)) return event.timeline as Entity[];
@@ -158,14 +158,13 @@ export function FeedDetailPage({ eventId }: { eventId: string }) {
   const { data: event, isLoading, error } = useFeedDetail(eventId);
   const feedQuery = useNetworkFeed(200);
   const orgsQuery = useNetworkOrganizations(100);
+  const projectsQuery = useProjects(200);
   const organizationNames = useMemo(() => {
-    const entries = (orgsQuery.data?.data ?? []).flatMap((org: Entity) => {
-      const id = String(org.id ?? "");
-      const name = String(org.name ?? org.displayName ?? "");
-      return id && name ? [[id, name] as const] : [];
-    });
-    return Object.fromEntries(entries);
+    return entityNameMap((orgsQuery.data?.data ?? []) as Entity[]);
   }, [orgsQuery.data]);
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
   const relatedEvents = useMemo(() => {
     if (!event) return [];
     const refs = relationRefs(event);
@@ -205,7 +204,7 @@ export function FeedDetailPage({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <FeedDetailBreadcrumb event={event} organizationNames={organizationNames} />
+      <FeedDetailBreadcrumb event={event} organizationNames={organizationNames} projectNames={projectNames} />
       <div className="mx-auto grid max-w-7xl grid-cols-12 gap-6 px-6 py-6">
         <section className="col-span-12 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm lg:col-span-8">
           <MainPost event={event} organizationNames={organizationNames} />
@@ -226,6 +225,7 @@ export function FeedDetailPage({ eventId }: { eventId: string }) {
             chain={chain}
             reviewSummary={reviewSummary}
             organizationNames={organizationNames}
+            projectNames={projectNames}
           >
             <GuardianActionsPanel targetRef={targetRef} />
           </ContextPanel>

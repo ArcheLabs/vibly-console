@@ -3,8 +3,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { Rss } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useNetworkFeed, useNetworkOrganizations } from "@/lib/query/hooks";
+import { useNetworkFeed, useNetworkOrganizations, useProjects } from "@/lib/query/hooks";
 import type { Entity } from "@/lib/coordinator/types";
+import { entityNameMap } from "@/lib/entities/display";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NetworkFeed } from "./NetworkFeed";
 import { TrendingOrganizations, AgentLeaderboard, RiskSummary } from "./NetworkWidgets";
@@ -14,14 +15,13 @@ export function NetworkHomePage() {
   const [limit, setLimit] = useState(50);
   const { data, isLoading, isFetching, error } = useNetworkFeed(limit);
   const orgsQuery = useNetworkOrganizations(100);
+  const projectsQuery = useProjects(200);
   const organizationNames = useMemo(() => {
-    const entries = (orgsQuery.data?.data ?? []).flatMap((org: Entity) => {
-      const id = String(org.id ?? "");
-      const name = String(org.name ?? org.displayName ?? "");
-      return id && name ? [[id, name] as const] : [];
-    });
-    return Object.fromEntries(entries);
+    return entityNameMap((orgsQuery.data?.data ?? []) as Entity[]);
   }, [orgsQuery.data]);
+  const projectNames = useMemo(() => {
+    return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
+  }, [projectsQuery.data]);
   const hasMore = useMemo(() => {
     const count = data?.data.length ?? 0;
     return count >= limit && limit < 200;
@@ -46,6 +46,7 @@ export function NetworkHomePage() {
         onLoadMore={loadMore}
         error={error}
         organizationNames={organizationNames}
+        projectNames={projectNames}
       />
 
       <aside className="hidden bg-[var(--background)] px-5 py-6 lg:col-span-4 lg:block">

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import type { Entity } from "@/lib/coordinator/types";
 import type { EntityNameMap } from "@/lib/entities/display";
-import { eventTypeFor, organizationIdFor, organizationNameFor, text } from "@/lib/entities/display";
+import { eventTypeFor, organizationIdFor, organizationNameFor, projectNameFor, text } from "@/lib/entities/display";
 
-export function FeedDetailBreadcrumb({ event, organizationNames }: { event: Entity; organizationNames?: EntityNameMap }) {
+export function FeedDetailBreadcrumb({ event, organizationNames, projectNames }: { event: Entity; organizationNames?: EntityNameMap; projectNames?: EntityNameMap }) {
   const orgId = organizationIdFor(event);
   const org = organizationNameFor(event, organizationNames);
-  const project = text(event.project, event.projectName, event.projectId);
+  const project = projectNameFor(event, projectNames);
   const objectType = text(event.objectType, eventTypeFor(event), "Event");
 
   return (
