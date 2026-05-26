@@ -52,6 +52,10 @@ Default addresses: Console `http://localhost:3000` · Coordinator `http://localh
 | `NEXT_PUBLIC_APP_NAME` | Display name (default `Vibly Console`) |
 | `NEXT_PUBLIC_COORDINATOR_URL` | Coordinator URL for UI display only |
 | `NEXT_PUBLIC_ENABLE_DEV_TOOLS` | Set `true` to show developer tooling |
+| `NEXT_PUBLIC_VIBLY_NETWORK_ID` | Default Console network profile id |
+| `NEXT_PUBLIC_VIBLY_NETWORK_NAME` | Default Console network display name |
+| `NEXT_PUBLIC_VIBLY_RPC_URL` | Default Vibly Chain RPC used by browser claim flow |
+| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | Optional JSON array of selectable network profiles (`id`, `label`, `stage`, `viblyRpcUrl`) |
 
 ### Development only
 

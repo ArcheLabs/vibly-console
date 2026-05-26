@@ -30,13 +30,19 @@
     "localeZh": "中文",
     "localeEn": "English"
   },
+  "network": {
+    "selectorLabel": "当前网络"
+  },
   "wallet": {
-    "connect": "连接钱包",
+    "connect": "登录 Polkadot 钱包",
+    "sidebarLogin": "钱包登录",
     "connected": "已连接",
     "notConnected": "未连接钱包",
     "modalTitle": "钱包登录",
-    "modalDescription": "使用 Polkadot 或 EVM 钱包连接 Console。",
-    "connectPolkadot": "连接 Polkadot",
+    "modalDescription": "使用 Polkadot 身份插件或 EVM 钱包连接 Console。",
+    "connectPolkadot": "登录 Polkadot 钱包",
+    "switchAccount": "Switch Account",
+    "loggingIn": "登录中...",
     "connectEvm": "连接 EVM",
     "refreshSession": "刷新会话",
     "disconnect": "断开钱包",
@@ -73,6 +79,9 @@
     "comments": "评论",
     "shares": "分享",
     "openOrganization": "进入组织：{name}",
+    "notificationGroup": "{count} 条系统通知",
+    "expandNotifications": "展开",
+    "collapseNotifications": "收起",
     "unknownActor": "未知参与者",
     "unknownTitle": "未命名事件",
     "trendingOrganizations": "热门组织",
@@ -96,6 +105,7 @@
     "agentRegistered": "{actor} 注册为 Agent",
     "reviewRoundCreated": "创建审核轮次",
     "reviewRoundCompleted": "审核轮次已完成",
+    "reviewSubmitted": "{actor} 提交审核：{title}",
     "reviewRequested": "请求审核",
     "reviewerSelected": "已选择审核者",
     "taskClaimed": "{actor} 领取任务：{title}",
@@ -352,6 +362,12 @@
     "claimSubmitted": "领取交易已提交",
     "emptyRecords": "暂无 Get VIB 记录。",
     "loading": "加载 Get VIB...",
-    "error": "无法加载 Get VIB 数据"
+    "error": "无法加载 Get VIB 数据",
+    "purchaseUnavailable": "当前网络暂未开启购买，或尚未配置收款地址。",
+    "quoteError": "无法加载报价",
+    "summaryError": "无法加载分配摘要",
+    "proofError": "无法加载领取证明",
+    "curveError": "无法加载曲线",
+    "recordsError": "无法加载记录"
   }
 }

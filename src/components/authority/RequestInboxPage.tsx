@@ -6,6 +6,7 @@ import { ShieldAlert, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCoordinatorClient, useProjects } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
+import { useActiveNetworkProfile } from "@/lib/network/profiles";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { StatusBadge, RiskBadge } from "@/components/common/Badge";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
@@ -82,9 +83,10 @@ function RequestCard({ req, projectNames }: { req: Entity; projectNames?: Record
 export function RequestInboxPage() {
   const [filter, setFilter] = useState<Filter>("全部");
   const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
   const projectsQuery = useProjects(200);
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.guardianRequests,
+    queryKey: queryKeys.guardianRequests(network.id),
     queryFn: () => client.listGuardianRequests(undefined, { limit: 100 }),
   });
   const projectNames = useMemo(() => {

@@ -21,12 +21,14 @@ import {
   Zap,
 } from "lucide-react";
 import { WalletConnectPanel, shortAddress } from "@/components/wallet/WalletConnectPanel";
+import { AddressAvatar } from "@/components/domain/AddressAvatar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/common/States";
 import { StatusPill, CapTag } from "@/components/common/Badge";
 import { useCoordinatorClient, usePersonalCenter } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
+import { useActiveNetworkProfile } from "@/lib/network/profiles";
 import type { Entity } from "@/lib/coordinator/types";
 
 const defaultDescriptor = {
@@ -61,6 +63,7 @@ function cx(...classes: Array<string | false | null | undefined>) {
 export function PersonalCenterPage() {
   const t = useTranslations("personalCenter");
   const wallet = useWalletAuth();
+  const network = useActiveNetworkProfile();
   const client = useCoordinatorClient();
   const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = usePersonalCenter();
@@ -73,13 +76,15 @@ export function PersonalCenterPage() {
   const stakeTotals = asRecord(data?.stakeTotals);
   const identity = asRecord(data?.identity);
   const session = asRecord(data?.session ?? wallet.session);
+  const rootAddress = String(session.address ?? wallet.session?.address ?? "");
+  const identityLabel = String(identity.displayName ?? identity.name ?? identity.identityId ?? rootAddress ?? "wallet session");
   const activeAgents = agents.filter((agent) => String(agent.dutyStatus ?? "active") === "active").length;
   const sessionKeys = agents.flatMap((agent) => asArray(agent.sessionKeys).map((key) => ({ key, agent })));
   const expiringKeys = sessionKeys.filter((item) => isExpiringSoon(String(item.key.expiresAt ?? ""))).length;
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => client.revokeAgentSessionKey(keyId, { reason: "Revoked from personal center" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) }),
   });
 
   if (wallet.initializing) {
@@ -106,12 +111,15 @@ export function PersonalCenterPage() {
       <main className="px-4 py-6 sm:px-8">
         <header className="mb-7 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex items-center gap-4">
-            <img src="/vibly-logo.png" alt="" className="h-16 w-16 rounded-2xl object-cover shadow-lg shadow-[var(--accent)]/20 ring-1 ring-[var(--accent)]/30" />
+            <AddressAvatar address={rootAddress} label={identityLabel} size="h-16 w-16" />
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)]">{t("title")}</h1>
                 <StatusPill tone="good">{t("walletConnected")}</StatusPill>
               </div>
+              {rootAddress ? (
+                <p className="mt-1 font-mono text-xs text-[var(--text-subtle)]">{shortAddress(rootAddress)}</p>
+              ) : null}
               <p className="mt-1 max-w-3xl text-sm text-[var(--text-muted)]">
                 {t("subtitle")}
               </p>
@@ -149,7 +157,13 @@ export function PersonalCenterPage() {
 
           <Panel title={t("identity.title")} subtitle={t("identity.subtitle")}>
             <div className="space-y-3">
-              <KeyValue label={t("identity.rootWallet")} value={String(session.address ?? "unknown")} />
+              <div className="flex items-center gap-3 rounded-xl bg-[var(--surface-muted)] p-4">
+                <AddressAvatar address={rootAddress} label={identityLabel} size="h-12 w-12" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-normal uppercase tracking-wide text-[var(--text-subtle)]">{t("identity.rootWallet")}</div>
+                  <div className="mt-1 truncate font-mono text-sm text-[var(--text)]">{rootAddress || "unknown"}</div>
+                </div>
+              </div>
               <KeyValue label={t("identity.identityId")} value={String(identity.identityId ?? "not linked")} />
               <div className="grid grid-cols-2 gap-3">
                 <InfoTile label={t("identity.ecosystem")} value={String(session.ecosystem ?? "wallet")} />
@@ -349,6 +363,7 @@ function AddAgentDialog({ onClose }: { onClose(): void }) {
   const t = useTranslations("personalCenter");
   const client = useCoordinatorClient();
   const wallet = useWalletAuth();
+  const network = useActiveNetworkProfile();
   const queryClient = useQueryClient();
   const [raw, setRaw] = useState(JSON.stringify(defaultDescriptor, null, 2));
   const [challenge, setChallenge] = useState<Entity | null>(null);
@@ -378,7 +393,7 @@ function AddAgentDialog({ onClose }: { onClose(): void }) {
       });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
       onClose();
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : t("addAgentDialog.authFailed")),
@@ -414,6 +429,7 @@ function AddAgentDialog({ onClose }: { onClose(): void }) {
 function StakeReceiptDialog({ onClose, agents }: { onClose(): void; agents: Entity[] }) {
   const t = useTranslations("personalCenter");
   const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
   const queryClient = useQueryClient();
   const first = agents[0] ?? {};
   const [form, setForm] = useState({
@@ -421,14 +437,14 @@ function StakeReceiptDialog({ onClose, agents }: { onClose(): void; agents: Enti
     principalId: String(first.principalId ?? ""),
     identityId: String(first.identityId ?? ""),
     chainAgentId: String(first.chainAgentId ?? ""),
-    chainId: String(first.chainId ?? "vibly-testnet"),
+    chainId: String(first.chainId ?? network.id),
     txHash: "",
     amount: "",
   });
   const mutation = useMutation({
     mutationFn: () => client.recordAgentStakeReceipt(form),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
       onClose();
     },
   });

@@ -8,12 +8,14 @@ import { JsonViewer } from "@/components/common/JsonViewer";
 import { ErrorState, LoadingState } from "@/components/common/States";
 import { useCoordinatorClient } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
+import { useActiveNetworkProfile } from "@/lib/network/profiles";
 import { asArray, asRecord, compactId } from "@/lib/utils/format";
 
 export function TraceDetailPage({ projectId, traceId }: { projectId: string; traceId: string }) {
   const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
   const trace = useQuery({
-    queryKey: queryKeys.trace(traceId),
+    queryKey: queryKeys.trace(network.id, traceId),
     queryFn: () => client.getTrace(traceId),
   });
   const verify = useMutation({ mutationFn: () => client.verifyTrace(traceId) });

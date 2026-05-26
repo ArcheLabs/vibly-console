@@ -88,9 +88,11 @@ async function proxy(
     request.method === "POST" &&
     (routePath === "/wallet/challenges" || routePath === "/wallet/sessions");
   const walletSession = request.headers.get("x-wallet-session");
+  const allowWalletSessionDelete =
+    request.method === "DELETE" && routePath === "/wallet/session" && Boolean(walletSession);
   const allowWalletActionIntent =
     request.method === "POST" && routePath === "/action-intents" && Boolean(walletSession);
-  const allowAnonymous = allowAnonymousRead || allowAnonymousWalletAuth || allowWalletActionIntent;
+  const allowAnonymous = allowAnonymousRead || allowAnonymousWalletAuth || allowWalletSessionDelete || allowWalletActionIntent;
 
   let credentials;
   let walletPrincipalId: string | null = null;
@@ -126,6 +128,8 @@ async function proxy(
   const accept = request.headers.get("accept");
   if (accept) headers["Accept"] = accept;
   if (walletSession) headers["x-wallet-session"] = walletSession;
+  const networkId = request.headers.get("x-vibly-network-id");
+  if (networkId) headers["X-Vibly-Network-Id"] = networkId;
   if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
 
   const isBodyless = request.method === "GET" || request.method === "HEAD";

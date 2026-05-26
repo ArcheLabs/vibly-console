@@ -9,6 +9,7 @@ import { useAuthState } from "@/lib/store/authStore";
 import { useNetworkAgents, useNetworkOrganizations } from "@/lib/query/hooks";
 import { SettingsMenu } from "@/components/layout/SettingsMenu";
 import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
+import { NetworkSelector } from "@/components/layout/NetworkSelector";
 
 const navItems = [
   { href: "/", key: "feed", icon: Rss },
@@ -48,15 +49,19 @@ function NetworkHealthPanel() {
 function Brand() {
   const app = useTranslations("app");
   return (
-    <Link href="/" className="flex h-20 items-center gap-3 px-5 hover:opacity-80 transition-opacity">
-      <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-[var(--sidebar-surface-muted)] shadow-sm ring-1 ring-[var(--accent)]/30">
+    <div className="flex h-20 items-center gap-3 px-5">
+      <Link href="/" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--sidebar-surface-muted)] shadow-sm ring-1 ring-[var(--accent)]/30 transition-opacity hover:opacity-80" aria-label={app("name")}>
         <img src="/vibly-logo.png" alt="" className="h-full w-full object-cover" />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <Link href="/" className="block truncate text-sm font-semibold tracking-tight text-[var(--sidebar-text)] transition-opacity hover:opacity-80">
+          {app("name")}
+        </Link>
+        <div className="mt-1">
+          <NetworkSelector />
+        </div>
       </div>
-      <div className="min-w-0">
-        <div className="text-lg font-semibold tracking-tight text-[var(--sidebar-text)]">{app("name")}</div>
-        <div className="truncate text-xs text-[var(--sidebar-text-muted)]">{app("tagline")}</div>
-      </div>
-    </Link>
+    </div>
   );
 }
 

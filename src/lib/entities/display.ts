@@ -242,6 +242,7 @@ export function isContentEvent(item: Entity): boolean {
     "rewardintent",
     "settlement",
     "reviewround",
+    "reviewsubmitted",
     "reviewrequested",
     "reviewerselected",
     "taskclaimed",
@@ -257,7 +258,6 @@ export function isContentEvent(item: Entity): boolean {
   const contentEventFragments = [
     "observationsubmitted",
     "proposalsubmitted",
-    "reviewsubmitted",
     "discussioncontribution",
     "knowledgeentrycreated",
     "knowledgeentryupdated",

@@ -42,6 +42,7 @@ function eventMessageKey(type: string): string {
   if (lower.includes("agentregistered")) return "agentRegistered";
   if (lower.includes("reviewroundcreated")) return "reviewRoundCreated";
   if (lower.includes("reviewroundcompleted")) return "reviewRoundCompleted";
+  if (lower.includes("reviewsubmitted")) return "reviewSubmitted";
   if (lower.includes("reviewrequested")) return "reviewRequested";
   if (lower.includes("reviewerselected")) return "reviewerSelected";
   if (lower.includes("taskclaimed")) return "taskClaimed";

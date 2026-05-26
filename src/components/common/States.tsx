@@ -10,6 +10,15 @@ export function LoadingState({ label = "Loading" }: { label?: string }) {
   );
 }
 
+export function InlineLoading({ label = "Loading" }: { label?: string }) {
+  return (
+    <span className="inline-flex items-center justify-center gap-2">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      <span>{label}</span>
+    </span>
+  );
+}
+
 export function EmptyState({ title, body }: { title: string; body?: string }) {
   return (
     <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-6">

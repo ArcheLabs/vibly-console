@@ -18,6 +18,8 @@ import {
 } from "@/lib/query/hooks";
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import type { Entity } from "@/lib/coordinator/types";
+import { useActiveNetworkProfile } from "@/lib/network/profiles";
+import { errorMessage } from "@/lib/coordinator/errors";
 
 type RecordKind = "deposit" | "allocation" | "claim";
 
@@ -33,10 +35,14 @@ interface TimelineRecord {
 export function GetVibPage() {
   const t = useTranslations("getVib");
   const wallet = useWalletAuth();
+  const activeNetwork = useActiveNetworkProfile();
   const accountId = wallet.session?.address ?? wallet.polkadotAddress ?? wallet.evmAddress ?? null;
   const [dotAmount, setDotAmount] = useState("1");
   const configQuery = useGetVibConfig();
-  const quoteQuery = useGetVibQuote(dotAmount);
+  const config = configQuery.data ?? {};
+  const configDepositAddress = text(config.depositAddress);
+  const purchaseEnabled = config.purchaseEnabled !== false && Boolean(configDepositAddress);
+  const quoteQuery = useGetVibQuote(dotAmount, purchaseEnabled);
   const summaryQuery = useGetVibSummary(accountId);
   const proofQuery = useGetVibProof(accountId);
   const recordsQuery = useGetVibRecords(accountId);
@@ -48,7 +54,6 @@ export function GetVibPage() {
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
 
-  const config = configQuery.data ?? {};
   const quote = quoteQuery.data ?? {};
   const summary = summaryQuery.data ?? {};
   const proof = proofQuery.data ?? null;
@@ -56,8 +61,9 @@ export function GetVibPage() {
   const curve = curvePoints(curveQuery.data);
 
   const depositAddress = text(quote.depositAddress) || text(config.depositAddress);
+  const networkId = normalizeNetworkId(config.networkId) || activeNetwork.id;
   const loading = configQuery.isLoading || wallet.initializing;
-  const error = configQuery.error ?? quoteQuery.error ?? summaryQuery.error ?? recordsQuery.error;
+  const pageError = configQuery.error;
 
   async function copyDepositAddress() {
     if (!depositAddress) return;
@@ -68,7 +74,7 @@ export function GetVibPage() {
 
   function createOrder() {
     if (!accountId) return;
-    orderMutation.mutate({ dotAmount, accountId });
+    orderMutation.mutate({ dotAmount, accountId, networkId });
   }
 
   async function claimVib() {
@@ -77,9 +83,10 @@ export function GetVibPage() {
     setClaimError(null);
     setClaimTxHash(null);
     try {
-      const txHash = await submitVibClaim(accountId, proof);
+      const txHash = await submitVibClaim(accountId, proof, activeNetwork.viblyRpcUrl);
       setClaimTxHash(txHash);
       await claimRecordMutation.mutateAsync({
+        networkId,
         accountId,
         identityId: text(proof.identityId) || undefined,
         rootVersion: Number(proof.rootVersion),
@@ -114,16 +121,11 @@ export function GetVibPage() {
           icon={Coins}
           title={t("title")}
           description={t("description")}
-          right={
-            <div className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--text-muted)]">
-              {t("network")}: <span className="text-[var(--text)]">{text(config.networkId) || "unknown"}</span>
-            </div>
-          }
         />
 
-        {error ? (
+        {pageError ? (
           <div className="rounded-2xl border border-[var(--danger)]/20 bg-[var(--danger-surface)] px-4 py-3 text-sm text-[var(--danger)]">
-            {t("error")}
+            {errorMessage(pageError) || t("error")}
           </div>
         ) : null}
 
@@ -132,6 +134,7 @@ export function GetVibPage() {
           <Metric label={t("claimable")} value={text(summary.claimableAmount) || "0"} unit="VIB" />
           <Metric label={t("claimed")} value={text(summary.claimedAmount) || "0"} unit="VIB" />
         </section>
+        {summaryQuery.error ? <InlineError title={t("summaryError")} error={summaryQuery.error} /> : null}
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <Panel title={t("purchase")} icon={Wallet}>
@@ -146,6 +149,8 @@ export function GetVibPage() {
               <Info label={t("estimatedVib")} value={`${text(quote.vibAmount) || "0"} VIB`} />
               <Info label={t("depositAddress")} value={short(depositAddress)} />
             </div>
+            {!purchaseEnabled ? <InlineNotice>{t("purchaseUnavailable")}</InlineNotice> : null}
+            {quoteQuery.error ? <InlineError title={t("quoteError")} error={quoteQuery.error} /> : null}
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
@@ -159,7 +164,7 @@ export function GetVibPage() {
               <button
                 type="button"
                 onClick={createOrder}
-                disabled={!accountId || orderMutation.isPending || !Number(dotAmount)}
+                disabled={!purchaseEnabled || !accountId || orderMutation.isPending || !Number(dotAmount)}
                 className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-foreground)] disabled:opacity-50"
               >
                 {orderMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
@@ -191,12 +196,14 @@ export function GetVibPage() {
               {claiming ? t("claiming") : t("claimVib")}
             </button>
             {claimTxHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTxHash}</p> : null}
+            {proofQuery.error ? <InlineError title={t("proofError")} error={proofQuery.error} /> : null}
             {claimError ? <p className="mt-3 text-xs text-[var(--danger)]">{claimError}</p> : null}
           </Panel>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <Panel title={t("curve")} icon={Coins}>
+            {curveQuery.error ? <InlineError title={t("curveError")} error={curveQuery.error} /> : null}
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={curve}>
@@ -217,11 +224,12 @@ export function GetVibPage() {
           </Panel>
 
           <Panel title={t("records")} icon={Clipboard}>
-            {records.length === 0 ? (
+            {recordsQuery.error ? <InlineError title={t("recordsError")} error={recordsQuery.error} /> : null}
+            {!recordsQuery.error && records.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">
                 {t("emptyRecords")}
               </div>
-            ) : (
+            ) : !recordsQuery.error ? (
               <div className="space-y-3">
                 {records.map((record) => (
                   <div key={`${record.kind}:${record.id}`} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
@@ -238,7 +246,7 @@ export function GetVibPage() {
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </Panel>
         </section>
       </div>
@@ -275,6 +283,23 @@ function Info({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl bg-[var(--surface-muted)] p-4">
       <div className="text-xs text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 truncate text-sm text-[var(--text)]">{value}</div>
+    </div>
+  );
+}
+
+function InlineNotice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-[var(--warning)]/25 bg-[var(--warning-surface)] px-4 py-3 text-sm text-[var(--warning)]">
+      {children}
+    </div>
+  );
+}
+
+function InlineError({ title, error }: { title: string; error: unknown }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-[var(--danger)]/20 bg-[var(--danger-surface)] px-4 py-3 text-sm text-[var(--danger)]">
+      <div>{title}</div>
+      <div className="mt-1 text-xs opacity-90">{errorMessage(error)}</div>
     </div>
   );
 }
@@ -325,6 +350,11 @@ function text(value: unknown): string {
   return "";
 }
 
+function normalizeNetworkId(value: unknown): string {
+  const raw = text(value).trim();
+  return raw && raw.toLowerCase() !== "unknown" ? raw : "";
+}
+
 function short(value: string): string {
   if (!value) return "—";
   return value.length > 22 ? `${value.slice(0, 10)}...${value.slice(-8)}` : value;
@@ -335,12 +365,12 @@ function formatTime(value: string): string {
   return value.replace("T", " ").replace(/\.\d{3}Z$/, "");
 }
 
-async function submitVibClaim(accountId: string, proof: Entity): Promise<string> {
+async function submitVibClaim(accountId: string, proof: Entity, rpcUrlOverride?: string): Promise<string> {
   const [{ ApiPromise, WsProvider }, { web3FromAddress }] = await Promise.all([
     import("@polkadot/api"),
     import("@polkadot/extension-dapp"),
   ]);
-  const rpcUrl = process.env.NEXT_PUBLIC_VIBLY_RPC_URL ?? process.env.NEXT_PUBLIC_SUBSTRATE_RPC_URL ?? "ws://127.0.0.1:9944";
+  const rpcUrl = rpcUrlOverride ?? process.env.NEXT_PUBLIC_VIBLY_RPC_URL ?? process.env.NEXT_PUBLIC_SUBSTRATE_RPC_URL ?? "ws://127.0.0.1:9944";
   const api = await ApiPromise.create({ provider: new WsProvider(rpcUrl) });
   try {
     const injector = await web3FromAddress(accountId);

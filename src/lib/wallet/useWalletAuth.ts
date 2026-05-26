@@ -18,6 +18,11 @@ interface WalletSessionState {
   expiresAt?: string;
 }
 
+function isUserRejected(cause: unknown): boolean {
+  const message = cause instanceof Error ? cause.message : String(cause ?? "");
+  return /rejected by user|user rejected|cancelled|canceled|denied/i.test(message);
+}
+
 function readSession(entity: Entity | null): WalletSessionState | null {
   if (!entity) return null;
   const token = typeof entity.token === "string" ? entity.token : null;
@@ -140,6 +145,10 @@ export function useWalletAuth() {
       setSession(next);
       markConnected();
     } catch (cause) {
+      if (isUserRejected(cause)) {
+        setError(null);
+        return;
+      }
       setError(cause instanceof Error ? cause.message : "EVM 钱包登录失败");
       throw cause;
     } finally {
@@ -151,7 +160,7 @@ export function useWalletAuth() {
     setBusy(true);
     setError(null);
     try {
-      const address = polkadotAddress ?? (await connectPolkadot());
+      const address = await connectPolkadot();
       const challenge = await client.createWalletChallenge({ ecosystem: "polkadot", address });
       const challengeId = typeof challenge.id === "string" ? challenge.id : "";
       const message = typeof challenge.message === "string" ? challenge.message : "";
@@ -182,14 +191,19 @@ export function useWalletAuth() {
       const next = readSession(walletSession);
       setWalletSessionToken(token, next?.expiresAt);
       setSession(next);
+      setPolkadotAddress(address);
       markConnected();
     } catch (cause) {
+      if (isUserRejected(cause)) {
+        setError(null);
+        return;
+      }
       setError(cause instanceof Error ? cause.message : "Polkadot 钱包登录失败");
       throw cause;
     } finally {
       setBusy(false);
     }
-  }, [client, connectPolkadot, markConnected, polkadotAddress]);
+  }, [client, connectPolkadot, markConnected]);
 
   const signWalletMessage = useCallback(async (message: string) => {
     setError(null);
@@ -199,7 +213,7 @@ export function useWalletAuth() {
       return signMessageAsync({ message });
     }
 
-    const address = polkadotAddress ?? (session?.ecosystem === "polkadot" ? session.address : undefined) ?? (await connectPolkadot());
+    const address = session?.ecosystem === "polkadot" ? session.address : polkadotAddress ?? (await connectPolkadot());
     const [{ web3FromAddress }, { stringToHex }] = await Promise.all([
       import("@polkadot/extension-dapp"),
       import("@polkadot/util"),
@@ -217,16 +231,24 @@ export function useWalletAuth() {
   const logoutWallet = useCallback(async () => {
     setBusy(true);
     setError(null);
+    let revokeError: unknown = null;
     try {
       if (walletToken) await client.deleteWalletSession();
+    } catch (cause) {
+      revokeError = cause;
+    } finally {
       clearWalletSessionToken();
       clearAuthState();
       setSession(null);
-      if (evmAddress) await disconnectAsync();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "钱包会话注销失败");
-      throw cause;
-    } finally {
+      setPolkadotAddress(null);
+      if (evmAddress) {
+        try {
+          await disconnectAsync();
+        } catch (cause) {
+          revokeError ??= cause;
+        }
+      }
+      if (revokeError) setError(revokeError instanceof Error ? revokeError.message : "钱包会话注销失败");
       setBusy(false);
     }
   }, [client, disconnectAsync, evmAddress, walletToken]);

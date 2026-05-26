@@ -30,13 +30,19 @@
     "localeZh": "中文",
     "localeEn": "English"
   },
+  "network": {
+    "selectorLabel": "Active network"
+  },
   "wallet": {
-    "connect": "Connect wallet",
+    "connect": "Log in with Polkadot wallet",
+    "sidebarLogin": "Wallet Login",
     "connected": "Connected",
     "notConnected": "Wallet not connected",
     "modalTitle": "Wallet sign-in",
-    "modalDescription": "Connect Console with a Polkadot or EVM wallet.",
-    "connectPolkadot": "Connect Polkadot",
+    "modalDescription": "Connect Console with the Polkadot identity extension or an EVM wallet.",
+    "connectPolkadot": "Log in with Polkadot wallet",
+    "switchAccount": "Switch Account",
+    "loggingIn": "Logging in...",
     "connectEvm": "Connect EVM",
     "refreshSession": "Refresh session",
     "disconnect": "Disconnect wallet",
@@ -73,6 +79,9 @@
     "comments": "Comments",
     "shares": "Shares",
     "openOrganization": "Open organization: {name}",
+    "notificationGroup": "{count} system notifications",
+    "expandNotifications": "Expand",
+    "collapseNotifications": "Collapse",
     "unknownActor": "Unknown actor",
     "unknownTitle": "Untitled event",
     "trendingOrganizations": "Trending organizations",
@@ -96,6 +105,7 @@
     "agentRegistered": "{actor} registered as an Agent",
     "reviewRoundCreated": "Review round created",
     "reviewRoundCompleted": "Review round completed",
+    "reviewSubmitted": "{actor} submitted a review: {title}",
     "reviewRequested": "Review requested",
     "reviewerSelected": "Reviewer selected",
     "taskClaimed": "{actor} claimed task: {title}",
@@ -352,6 +362,12 @@
     "claimSubmitted": "Claim submitted",
     "emptyRecords": "No Get VIB records yet.",
     "loading": "Loading Get VIB...",
-    "error": "Unable to load Get VIB data"
+    "error": "Unable to load Get VIB data",
+    "purchaseUnavailable": "Purchasing is not enabled for the active network, or no deposit address is configured.",
+    "quoteError": "Unable to load quote",
+    "summaryError": "Unable to load allocation summary",
+    "proofError": "Unable to load claim proof",
+    "curveError": "Unable to load curve",
+    "recordsError": "Unable to load records"
   }
 }
