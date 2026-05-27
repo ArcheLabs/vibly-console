@@ -8,8 +8,13 @@ export interface NetworkProfile {
   label: string;
   stage?: "local" | "testnet" | "mainnet" | string;
   coordinatorUrl?: string;
+  coordinatorEndpoint?: string;
+  polkadotRpcUrl?: string;
+  polkadotEndpoint?: string;
   viblyRpcUrl?: string;
+  viblyChainEndpoint?: string;
   viblyGenesisHash?: string;
+  relayTokenSymbol?: string;
 }
 
 const STORAGE_KEY = "vibly-console.network-profile";
@@ -25,8 +30,13 @@ function normalizeProfile(value: unknown): NetworkProfile | null {
     label: typeof record.label === "string" && record.label.trim() ? record.label.trim() : id,
     stage: typeof record.stage === "string" ? record.stage : undefined,
     coordinatorUrl: typeof record.coordinatorUrl === "string" ? record.coordinatorUrl : undefined,
+    coordinatorEndpoint: typeof record.coordinatorEndpoint === "string" ? record.coordinatorEndpoint : undefined,
+    polkadotRpcUrl: typeof record.polkadotRpcUrl === "string" ? record.polkadotRpcUrl : typeof record.polkadotEndpoint === "string" ? record.polkadotEndpoint : undefined,
+    polkadotEndpoint: typeof record.polkadotEndpoint === "string" ? record.polkadotEndpoint : typeof record.polkadotRpcUrl === "string" ? record.polkadotRpcUrl : undefined,
     viblyRpcUrl: typeof record.viblyRpcUrl === "string" ? record.viblyRpcUrl : undefined,
+    viblyChainEndpoint: typeof record.viblyChainEndpoint === "string" ? record.viblyChainEndpoint : typeof record.viblyRpcUrl === "string" ? record.viblyRpcUrl : undefined,
     viblyGenesisHash: typeof record.viblyGenesisHash === "string" ? record.viblyGenesisHash : undefined,
+    relayTokenSymbol: typeof record.relayTokenSymbol === "string" ? record.relayTokenSymbol : undefined,
   };
 }
 
@@ -58,11 +68,20 @@ export const networkProfiles: NetworkProfile[] = uniqueProfiles([
     stage: "local",
     coordinatorUrl: appConfig.defaultCoordinatorUrl,
     viblyRpcUrl: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
+    viblyChainEndpoint: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
+    relayTokenSymbol: "DOT",
+  },
+  {
+    id: "substrate:vibly-testnet",
+    label: "Testnet",
+    stage: "testnet",
+    relayTokenSymbol: "PLA",
   },
   {
     id: "substrate:vibly-incentivized-testnet",
     label: "Incentivized Testnet",
-    stage: "testnet",
+    stage: "mainnet",
+    relayTokenSymbol: "DOT",
   },
 ]);
 

@@ -335,7 +335,7 @@
   },
   "getVib": {
     "title": "获取 VIB",
-    "description": "在当前 Vibly 网络中进行 DOT 报价、跟踪已确认分配，并准备 Merkle 领取证明。",
+    "description": "在当前 Vibly 网络中进行中继链资产报价、跟踪已确认分配，并准备 Merkle 领取证明。",
     "network": "网络",
     "purchase": "购买",
     "claim": "领取",
@@ -344,6 +344,7 @@
     "allocation": "分配",
     "depositAddress": "收款地址",
     "dotAmount": "DOT 数量",
+    "tokenAmount": "{symbol} 数量",
     "estimatedVib": "预计 VIB",
     "createOrder": "创建充值订单",
     "copy": "复制",

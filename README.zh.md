@@ -43,6 +43,7 @@ pnpm dev
 | `AUTH_OIDC_CLIENT_ID` | OIDC 客户端 ID |
 | `AUTH_OIDC_CLIENT_SECRET` | OIDC 客户端密钥 |
 | `COORDINATOR_URL` | 上游协调器基础 URL（仅服务端） |
+| `VIBLY_COORDINATOR_NETWORK_PROFILES` | 可选的服务端 JSON 数组，用于按网络 profile id 映射协调器 URL |
 | `COORDINATOR_API_TOKEN` | 协调器调用的 Bearer token（仅服务端，永不发送至浏览器） |
 
 ### 公开变量（客户端可见）
@@ -52,6 +53,10 @@ pnpm dev
 | `NEXT_PUBLIC_APP_NAME` | 显示名称（默认 `Vibly Console`） |
 | `NEXT_PUBLIC_COORDINATOR_URL` | 仅用于 UI 展示的协调器 URL |
 | `NEXT_PUBLIC_ENABLE_DEV_TOOLS` | 设为 `true` 以显示开发者工具 |
+| `NEXT_PUBLIC_VIBLY_NETWORK_ID` | 默认 Console 网络 profile id |
+| `NEXT_PUBLIC_VIBLY_NETWORK_NAME` | 默认 Console 网络显示名称 |
+| `NEXT_PUBLIC_VIBLY_RPC_URL` | 默认 Vibly Chain RPC，用于浏览器领取流程 |
+| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | 可选的网络 profile JSON 数组（`id`、`label`、`stage`、`polkadotRpcUrl`、`viblyRpcUrl`、`relayTokenSymbol`） |
 
 ### 仅限开发
 

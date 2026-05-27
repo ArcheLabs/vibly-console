@@ -335,7 +335,7 @@
   },
   "getVib": {
     "title": "Get VIB",
-    "description": "Quote DOT deposits, track confirmed allocations, and prepare Merkle claims on the active Vibly network.",
+    "description": "Quote relay-chain deposits, track confirmed allocations, and prepare Merkle claims on the active Vibly network.",
     "network": "Network",
     "purchase": "Purchase",
     "claim": "Claim",
@@ -344,6 +344,7 @@
     "allocation": "Allocation",
     "depositAddress": "Deposit address",
     "dotAmount": "DOT amount",
+    "tokenAmount": "{symbol} amount",
     "estimatedVib": "Estimated VIB",
     "createOrder": "Create deposit order",
     "copy": "Copy",

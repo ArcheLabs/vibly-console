@@ -9,7 +9,8 @@ import {
 // transport (token/target in the URL). They are stripped before the
 // request reaches the upstream Coordinator and never honoured for
 // credential or routing decisions.
-const RESERVED_QUERY_KEYS = ["__coordinatorUrl", "__apiToken"];
+const NETWORK_QUERY_KEY = "__networkId";
+const RESERVED_QUERY_KEYS = ["__coordinatorUrl", "__apiToken", NETWORK_QUERY_KEY];
 
 function jsonError(status: number, code: string, message: string): NextResponse {
   return NextResponse.json({ ok: false, error: { code, message } }, { status });
@@ -45,18 +46,39 @@ async function validateWalletSession(baseUrl: string, walletSession: string): Pr
 }
 
 function assertWalletPrincipal(body: string, walletPrincipalId: string): NextResponse | null {
+  return assertWalletBodyField(body, "principalId", walletPrincipalId, {
+    invalidCode: "INVALID_ACTION_INTENT_BODY",
+    invalidMessage: "ActionIntent body must be a JSON object.",
+    parseMessage: "ActionIntent body must be valid JSON.",
+    mismatchCode: "WALLET_PRINCIPAL_MISMATCH",
+    mismatchMessage: "ActionIntent principalId must match the wallet session address.",
+  });
+}
+
+function assertWalletBodyField(
+  body: string,
+  field: string,
+  expected: string,
+  messages: {
+    invalidCode: string;
+    invalidMessage: string;
+    parseMessage: string;
+    mismatchCode: string;
+    mismatchMessage: string;
+  },
+): NextResponse | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
   } catch {
-    return jsonError(400, "INVALID_ACTION_INTENT_BODY", "ActionIntent body must be valid JSON.");
+    return jsonError(400, messages.invalidCode, messages.parseMessage);
   }
   if (!parsed || typeof parsed !== "object") {
-    return jsonError(400, "INVALID_ACTION_INTENT_BODY", "ActionIntent body must be a JSON object.");
+    return jsonError(400, messages.invalidCode, messages.invalidMessage);
   }
-  const principalId = (parsed as Record<string, unknown>).principalId;
-  if (principalId !== walletPrincipalId) {
-    return jsonError(403, "WALLET_PRINCIPAL_MISMATCH", "ActionIntent principalId must match the wallet session address.");
+  const actual = (parsed as Record<string, unknown>)[field];
+  if (actual !== expected) {
+    return jsonError(403, messages.mismatchCode, messages.mismatchMessage);
   }
   return null;
 }
@@ -82,6 +104,8 @@ async function proxy(
 ): Promise<NextResponse> {
   const { path } = await context.params;
   const routePath = `/${path.join("/")}`;
+  const incoming = new URL(request.url);
+  const requestedNetworkId = request.headers.get("x-vibly-network-id") ?? incoming.searchParams.get(NETWORK_QUERY_KEY);
   const session = await auth();
   const allowAnonymousRead = request.method === "GET" || request.method === "HEAD";
   const allowAnonymousWalletAuth =
@@ -92,21 +116,33 @@ async function proxy(
     request.method === "DELETE" && routePath === "/wallet/session" && Boolean(walletSession);
   const allowWalletActionIntent =
     request.method === "POST" && routePath === "/action-intents" && Boolean(walletSession);
-  const allowAnonymous = allowAnonymousRead || allowAnonymousWalletAuth || allowWalletSessionDelete || allowWalletActionIntent;
+  const allowWalletGetVibOrder =
+    request.method === "POST" && routePath === "/get-vib/orders" && Boolean(walletSession);
+  const allowAnonymous =
+    allowAnonymousRead ||
+    allowAnonymousWalletAuth ||
+    allowWalletSessionDelete ||
+    allowWalletActionIntent ||
+    allowWalletGetVibOrder;
+  const requiresWalletPrincipal = (allowWalletActionIntent || allowWalletGetVibOrder) && Boolean(walletSession);
 
   let credentials;
   let walletPrincipalId: string | null = null;
   try {
-    if (allowWalletActionIntent && walletSession) {
-      const anonymousCredentials = await resolveCoordinatorCredentials(session, { allowAnonymous: true });
+    if (requiresWalletPrincipal && walletSession) {
+      const anonymousCredentials = await resolveCoordinatorCredentials(session, {
+        allowAnonymous: true,
+        networkId: requestedNetworkId,
+      });
       walletPrincipalId = await validateWalletSession(anonymousCredentials.baseUrl, walletSession);
       if (!walletPrincipalId) {
-        return jsonError(401, "INVALID_WALLET_SESSION", "A valid wallet session is required for ActionIntent writes.");
+        return jsonError(401, "INVALID_WALLET_SESSION", "A valid wallet session is required for wallet-scoped writes.");
       }
     }
     credentials = await resolveCoordinatorCredentials(session, {
       allowAnonymous,
-      allowServerTokenWithoutSession: allowWalletActionIntent,
+      allowServerTokenWithoutSession: allowWalletActionIntent || allowWalletGetVibOrder,
+      networkId: requestedNetworkId,
     });
   } catch (e) {
     if (e instanceof CoordinatorSessionError) {
@@ -114,7 +150,6 @@ async function proxy(
     }
     return jsonError(500, "COORDINATOR_PROXY_ERROR", String(e));
   }
-  const incoming = new URL(request.url);
   for (const key of RESERVED_QUERY_KEYS) incoming.searchParams.delete(key);
 
   const target = new URL(`/${path.join("/")}`, credentials.baseUrl);
@@ -128,7 +163,7 @@ async function proxy(
   const accept = request.headers.get("accept");
   if (accept) headers["Accept"] = accept;
   if (walletSession) headers["x-wallet-session"] = walletSession;
-  const networkId = request.headers.get("x-vibly-network-id");
+  const networkId = requestedNetworkId;
   if (networkId) headers["X-Vibly-Network-Id"] = networkId;
   if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
 
@@ -137,6 +172,16 @@ async function proxy(
   if (allowWalletActionIntent && body && walletPrincipalId) {
     const principalError = assertWalletPrincipal(body, walletPrincipalId);
     if (principalError) return principalError;
+  }
+  if (allowWalletGetVibOrder && body && walletPrincipalId) {
+    const accountError = assertWalletBodyField(body, "accountId", walletPrincipalId, {
+      invalidCode: "INVALID_GET_VIB_ORDER_BODY",
+      invalidMessage: "Get VIB order body must be a JSON object.",
+      parseMessage: "Get VIB order body must be valid JSON.",
+      mismatchCode: "WALLET_ACCOUNT_MISMATCH",
+      mismatchMessage: "Get VIB order accountId must match the wallet session address.",
+    });
+    if (accountError) return accountError;
   }
 
   let upstream: Response;

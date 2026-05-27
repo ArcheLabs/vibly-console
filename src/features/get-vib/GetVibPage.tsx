@@ -57,7 +57,8 @@ export function GetVibPage() {
   const quote = quoteQuery.data ?? {};
   const summary = summaryQuery.data ?? {};
   const proof = proofQuery.data ?? null;
-  const records = useMemo(() => flattenRecords(recordsQuery.data), [recordsQuery.data]);
+  const relayTokenSymbol = text(config.relayTokenSymbol) || activeNetwork.relayTokenSymbol || "DOT";
+  const records = useMemo(() => flattenRecords(recordsQuery.data, relayTokenSymbol), [recordsQuery.data, relayTokenSymbol]);
   const curve = curvePoints(curveQuery.data);
 
   const depositAddress = text(quote.depositAddress) || text(config.depositAddress);
@@ -94,7 +95,7 @@ export function GetVibPage() {
         claimedDelta: text(summary.claimableAmount) || text(proof.cumulativeAmount),
         txHash,
         status: "confirmed",
-      });
+      }).catch(() => undefined);
       await Promise.all([summaryQuery.refetch(), recordsQuery.refetch()]);
     } catch (cause) {
       setClaimError(cause instanceof Error ? cause.message : String(cause));
@@ -138,7 +139,7 @@ export function GetVibPage() {
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <Panel title={t("purchase")} icon={Wallet}>
-            <label className="text-xs text-[var(--text-muted)]">{t("dotAmount")}</label>
+            <label className="text-xs text-[var(--text-muted)]">{t("tokenAmount", { symbol: relayTokenSymbol })}</label>
             <input
               value={dotAmount}
               onChange={(event) => setDotAmount(event.target.value)}
@@ -304,12 +305,12 @@ function InlineError({ title, error }: { title: string; error: unknown }) {
   );
 }
 
-function flattenRecords(value: Entity | undefined): TimelineRecord[] {
+function flattenRecords(value: Entity | undefined, relayTokenSymbol: string): TimelineRecord[] {
   const deposits = arrayOfEntities(value?.deposits).map((record) => ({
     id: text(record.id) || text(record.sourceId),
     kind: "deposit" as const,
     status: text(record.status),
-    amount: `${text(record.dotAmount) || "0"} DOT`,
+    amount: `${text(record.dotAmount) || "0"} ${relayTokenSymbol}`,
     secondary: text(record.sourceId),
     createdAt: text(record.finalizedAt) || text(record.observedAt),
   }));
@@ -365,12 +366,12 @@ function formatTime(value: string): string {
   return value.replace("T", " ").replace(/\.\d{3}Z$/, "");
 }
 
-async function submitVibClaim(accountId: string, proof: Entity, rpcUrlOverride?: string): Promise<string> {
+async function submitVibClaim(accountId: string, proof: Entity, rpcUrl: string | undefined): Promise<string> {
+  if (!rpcUrl) throw new Error("Vibly chain RPC is not configured for the active network profile.");
   const [{ ApiPromise, WsProvider }, { web3FromAddress }] = await Promise.all([
     import("@polkadot/api"),
     import("@polkadot/extension-dapp"),
   ]);
-  const rpcUrl = rpcUrlOverride ?? process.env.NEXT_PUBLIC_VIBLY_RPC_URL ?? process.env.NEXT_PUBLIC_SUBSTRATE_RPC_URL ?? "ws://127.0.0.1:9944";
   const api = await ApiPromise.create({ provider: new WsProvider(rpcUrl) });
   try {
     const injector = await web3FromAddress(accountId);

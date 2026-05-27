@@ -43,6 +43,7 @@ Default addresses: Console `http://localhost:3000` · Coordinator `http://localh
 | `AUTH_OIDC_CLIENT_ID` | OIDC client ID |
 | `AUTH_OIDC_CLIENT_SECRET` | OIDC client secret |
 | `COORDINATOR_URL` | Upstream coordinator base URL (server-side only) |
+| `VIBLY_COORDINATOR_NETWORK_PROFILES` | Optional server-side JSON array mapping network profile ids to coordinator URLs |
 | `COORDINATOR_API_TOKEN` | Bearer token for coordinator calls (server-side only, never sent to the browser) |
 
 ### Public (client-visible)
@@ -55,7 +56,7 @@ Default addresses: Console `http://localhost:3000` · Coordinator `http://localh
 | `NEXT_PUBLIC_VIBLY_NETWORK_ID` | Default Console network profile id |
 | `NEXT_PUBLIC_VIBLY_NETWORK_NAME` | Default Console network display name |
 | `NEXT_PUBLIC_VIBLY_RPC_URL` | Default Vibly Chain RPC used by browser claim flow |
-| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | Optional JSON array of selectable network profiles (`id`, `label`, `stage`, `viblyRpcUrl`) |
+| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | Optional JSON array of selectable network profiles (`id`, `label`, `stage`, `polkadotRpcUrl`, `viblyRpcUrl`, `relayTokenSymbol`) |
 
 ### Development only
 

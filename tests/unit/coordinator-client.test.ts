@@ -184,6 +184,25 @@ describe("CoordinatorClient", () => {
     expect(close).toHaveBeenCalled();
   });
 
+  it("adds only the selected network id to stream proxy URLs", () => {
+    const close = vi.fn();
+    const addEventListener = vi.fn();
+    const eventSource = vi.fn(function EventSourceMock(this: { addEventListener: typeof addEventListener; close: typeof close; onerror?: () => void }) {
+      this.addEventListener = addEventListener;
+      this.close = close;
+    });
+    vi.stubGlobal("EventSource", eventSource);
+    const client = createCoordinatorClient(auth, "substrate:vibly-testnet");
+    const unsubscribe = client.streamProjectEvents("project_1", { onEvent: vi.fn() });
+
+    expect(eventSource).toHaveBeenCalledWith("/api/coordinator/projects/project_1/stream?__networkId=substrate%3Avibly-testnet");
+    const calls = eventSource.mock.calls as unknown as Array<[string]>;
+    expect(calls[0]?.[0]).not.toContain("__apiToken");
+    expect(calls[0]?.[0]).not.toContain("__coordinatorUrl");
+    unsubscribe();
+  });
+
+
   it("uses feedEventId routes for feed details", async () => {
     const fetchMock = vi.fn(async () =>
       Response.json({

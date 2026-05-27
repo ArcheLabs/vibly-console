@@ -19,6 +19,7 @@ export interface CoordinatorCredentials {
 export interface ResolveCoordinatorCredentialOptions {
   allowAnonymous?: boolean;
   allowServerTokenWithoutSession?: boolean;
+  networkId?: string | null;
 }
 
 export class CoordinatorSessionError extends Error {
@@ -38,16 +39,71 @@ function readEnv(name: string): string | undefined {
   return value && value.trim().length > 0 ? value : undefined;
 }
 
+interface CoordinatorNetworkProfile {
+  id: string;
+  coordinatorUrl: string;
+  apiToken?: string;
+}
+
+function normalizeNetworkId(value: string | null | undefined): string | null {
+  const id = value?.trim();
+  if (!id || !/^[a-zA-Z0-9:_./-]{1,128}$/.test(id)) return null;
+  return id;
+}
+
+function normalizeCoordinatorNetworkProfile(value: unknown): CoordinatorNetworkProfile | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === "string" ? normalizeNetworkId(record.id) : null;
+  const coordinatorUrl =
+    typeof record.coordinatorUrl === "string"
+      ? record.coordinatorUrl.trim()
+      : typeof record.coordinatorEndpoint === "string"
+        ? record.coordinatorEndpoint.trim()
+        : "";
+  if (!id || !coordinatorUrl) return null;
+  return {
+    id,
+    coordinatorUrl,
+    apiToken: typeof record.apiToken === "string" && record.apiToken.trim() ? record.apiToken.trim() : undefined,
+  };
+}
+
+function readCoordinatorNetworkProfiles(): CoordinatorNetworkProfile[] {
+  const raw = readEnv("VIBLY_COORDINATOR_NETWORK_PROFILES") ?? readEnv("COORDINATOR_NETWORK_PROFILES");
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeCoordinatorNetworkProfile)
+      .filter((profile): profile is CoordinatorNetworkProfile => Boolean(profile));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Resolve the upstream Coordinator base URL.
  *
- * Phase 1: a single coordinator per Console deployment, configured via
- * `COORDINATOR_URL` (or the dev fallback `NEXT_PUBLIC_COORDINATOR_URL`,
- * useful only in local development). Future phases can swap this for a
- * per-tenant allowlist (`COORDINATOR_ALLOWED_ORIGINS`) without changing
- * any caller — the resolver still hides the choice.
+ * Console may expose multiple public network profiles, but the upstream
+ * Coordinator URL is still resolved server-side from a profile allowlist.
  */
-function resolveCoordinatorBaseUrl(): string {
+function resolveCoordinatorTarget(networkId: string | null | undefined): CoordinatorNetworkProfile {
+  const requestedNetworkId = normalizeNetworkId(networkId);
+  const profiles = readCoordinatorNetworkProfiles();
+  if (profiles.length > 0) {
+    const profile = requestedNetworkId ? profiles.find((item) => item.id === requestedNetworkId) : profiles[0];
+    if (!profile) {
+      throw new CoordinatorSessionError(
+        400,
+        "COORDINATOR_NETWORK_NOT_CONFIGURED",
+        `No Coordinator is configured for network profile ${requestedNetworkId}.`,
+      );
+    }
+    return profile;
+  }
+
   const fromEnv = readEnv("COORDINATOR_URL") ?? readEnv("NEXT_PUBLIC_COORDINATOR_URL");
   if (!fromEnv) {
     throw new CoordinatorSessionError(
@@ -56,7 +112,7 @@ function resolveCoordinatorBaseUrl(): string {
       "COORDINATOR_URL is not set on the server.",
     );
   }
-  return fromEnv.replace(/\/$/, "");
+  return { id: requestedNetworkId ?? "default", coordinatorUrl: fromEnv };
 }
 
 export async function resolveCoordinatorCredentials(
@@ -70,8 +126,9 @@ export async function resolveCoordinatorCredentials(
       "A signed-in Console session is required to access the Coordinator proxy.",
     );
   }
+  const target = resolveCoordinatorTarget(options.networkId);
   return {
-    baseUrl: resolveCoordinatorBaseUrl(),
-    token: session || options.allowServerTokenWithoutSession ? (readEnv("COORDINATOR_API_TOKEN") ?? null) : null,
+    baseUrl: target.coordinatorUrl.replace(/\/$/, ""),
+    token: session || options.allowServerTokenWithoutSession ? (target.apiToken ?? readEnv("COORDINATOR_API_TOKEN") ?? null) : null,
   };
 }

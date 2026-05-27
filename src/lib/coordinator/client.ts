@@ -142,8 +142,10 @@ export function createCoordinatorClient(auth: AuthState, networkId?: string): Co
 
 class HttpCoordinatorClient implements CoordinatorClient {
   private readonly contract: ConsoleContractClient;
+  private readonly networkId?: string;
 
   constructor(private readonly auth: AuthState, networkId?: string) {
+    this.networkId = networkId;
     this.contract = createConsoleContractClient(auth, networkId);
   }
 
@@ -1291,7 +1293,9 @@ class HttpCoordinatorClient implements CoordinatorClient {
     // the Coordinator Bearer token server-side. Never put credentials
     // in the URL — they would leak via Referer, history, and access logs.
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    return `/api/coordinator${cleanPath}`;
+    const url = new URL(`/api/coordinator${cleanPath}`, "http://console.local");
+    if (this.networkId) url.searchParams.set("__networkId", this.networkId);
+    return `${url.pathname}${url.search}`;
   }
 }
 
