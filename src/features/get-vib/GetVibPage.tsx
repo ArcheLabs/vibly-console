@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Check, Clipboard, Coins, Loader2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -60,6 +60,7 @@ export function GetVibPage() {
   const relayTokenSymbol = text(config.relayTokenSymbol) || activeNetwork.relayTokenSymbol || "DOT";
   const records = useMemo(() => flattenRecords(recordsQuery.data, relayTokenSymbol), [recordsQuery.data, relayTokenSymbol]);
   const curve = curvePoints(curveQuery.data);
+  const curveState = entity(curveQuery.data?.state);
 
   const depositAddress = text(quote.depositAddress) || text(config.depositAddress);
   const networkId = normalizeNetworkId(config.networkId) || activeNetwork.id;
@@ -130,6 +131,13 @@ export function GetVibPage() {
           </div>
         ) : null}
 
+        <section className="grid gap-4 md:grid-cols-4">
+          <Metric label={t("totalSold")} value={formatNumber(text(curveState.sold) || "0")} unit="VIB" />
+          <Metric label={t("currentPrice")} value={formatUsd(text(curveState.currentPriceUsd) || "0")} unit="USD" />
+          <Metric label={t("effectiveMarketCap")} value={formatUsd(text(curveState.effectiveMarketCapUsd) || "0")} unit="USD" />
+          <Metric label={t("raisedUsd")} value={formatUsd(text(curveState.raisedUsd) || "0")} unit="USD" />
+        </section>
+
         <section className="grid gap-4 md:grid-cols-3">
           <Metric label={t("purchased")} value={text(summary.purchasedAllocation) || "0"} unit="VIB" />
           <Metric label={t("claimable")} value={text(summary.claimableAmount) || "0"} unit="VIB" />
@@ -139,6 +147,11 @@ export function GetVibPage() {
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <Panel title={t("purchase")} icon={Wallet}>
+            <div className="mb-4 grid gap-3 md:grid-cols-3">
+              <Info label={t("paymentAsset")} value={relayTokenSymbol} />
+              <Info label={t("walletAddress")} value={short(accountId ?? "")} />
+              <Info label={t("slippage")} value="1%" />
+            </div>
             <label className="text-xs text-[var(--text-muted)]">{t("tokenAmount", { symbol: relayTokenSymbol })}</label>
             <input
               value={dotAmount}
@@ -146,8 +159,14 @@ export function GetVibPage() {
               inputMode="decimal"
               className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-lg text-[var(--text)] outline-none focus:border-[var(--accent)]"
             />
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <Info label={t("estimatedVib")} value={`${text(quote.vibAmount) || "0"} VIB`} />
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <Info label={t("estimatedVib")} value={`${formatNumber(text(quote.vibAmount) || "0")} VIB`} />
+              <Info label={t("costUsd")} value={formatUsd(text(quote.costUsd) || "0")} />
+              <Info label={t("costAsset")} value={`${text(quote.paymentAmount) || dotAmount} ${relayTokenSymbol}`} />
+              <Info label={t("averagePrice")} value={formatUsd(text(quote.averagePriceUsd) || "0")} />
+              <Info label={t("startPrice")} value={formatUsd(text(quote.startPriceUsd) || "0")} />
+              <Info label={t("endPrice")} value={formatUsd(text(quote.endPriceUsd) || "0")} />
+              <Info label={t("quoteExpiresAt")} value={formatTime(text(quote.expiresAt))} />
               <Info label={t("depositAddress")} value={short(depositAddress)} />
             </div>
             {!purchaseEnabled ? <InlineNotice>{t("purchaseUnavailable")}</InlineNotice> : null}
@@ -218,6 +237,7 @@ export function GetVibPage() {
                   <XAxis dataKey="soldVib" stroke="var(--text-subtle)" tickLine={false} axisLine={false} />
                   <YAxis stroke="var(--text-subtle)" tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }} />
+                  {text(curveState.sold) ? <ReferenceLine x={text(curveState.sold)} stroke="var(--warning)" strokeDasharray="4 4" /> : null}
                   <Area type="monotone" dataKey="price" stroke="var(--accent)" fill="url(#vibCurve)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -345,6 +365,10 @@ function arrayOfEntities(value: unknown): Entity[] {
   return Array.isArray(value) ? value.filter((item): item is Entity => Boolean(item && typeof item === "object" && !Array.isArray(item))) : [];
 }
 
+function entity(value: unknown): Entity {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Entity) : {};
+}
+
 function text(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
@@ -364,6 +388,18 @@ function short(value: string): string {
 function formatTime(value: string): string {
   if (!value) return "";
   return value.replace("T", " ").replace(/\.\d{3}Z$/, "");
+}
+
+function formatNumber(value: string): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(numeric);
+}
+
+function formatUsd(value: string): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "$0";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: numeric < 1 ? 6 : 2 }).format(numeric);
 }
 
 async function submitVibClaim(accountId: string, proof: Entity, rpcUrl: string | undefined): Promise<string> {

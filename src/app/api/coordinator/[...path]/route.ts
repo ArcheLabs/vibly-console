@@ -118,12 +118,15 @@ async function proxy(
     request.method === "POST" && routePath === "/action-intents" && Boolean(walletSession);
   const allowWalletGetVibOrder =
     request.method === "POST" && routePath === "/get-vib/orders" && Boolean(walletSession);
+  const allowGetVibQuote =
+    request.method === "POST" && routePath === "/get-vib/curve/quote";
   const allowAnonymous =
     allowAnonymousRead ||
     allowAnonymousWalletAuth ||
     allowWalletSessionDelete ||
     allowWalletActionIntent ||
-    allowWalletGetVibOrder;
+    allowWalletGetVibOrder ||
+    allowGetVibQuote;
   const requiresWalletPrincipal = (allowWalletActionIntent || allowWalletGetVibOrder) && Boolean(walletSession);
 
   let credentials;
