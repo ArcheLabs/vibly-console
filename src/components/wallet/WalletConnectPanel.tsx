@@ -81,11 +81,14 @@ export function WalletConnectPanel({
 
 function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
   const t = useTranslations("wallet");
+  const [polkadotSwitchMode, setPolkadotSwitchMode] = useState(false);
   const {
     evmAddress,
+    polkadotAccounts,
     session,
     busy,
     error,
+    loadPolkadotAccounts,
     loginWithEvm,
     loginWithPolkadot,
     logoutWallet,
@@ -93,12 +96,35 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
 
   async function run(action: () => Promise<unknown>, closeOnSuccess = true) {
     try {
-      await action();
-      if (closeOnSuccess && onClose) onClose();
+      const result = await action();
+      if (result !== false && closeOnSuccess && onClose) onClose();
     } catch {
       // Wallet extensions reject promises for user cancellation. The hook owns
       // the visible error state; the panel should not surface runtime errors.
     }
+  }
+
+  async function loginDefaultPolkadot() {
+    setPolkadotSwitchMode(false);
+    return loginWithPolkadot();
+  }
+
+  async function loginSelectedPolkadot(address: string) {
+    const result = await loginWithPolkadot(address);
+    if (result !== false) setPolkadotSwitchMode(false);
+    return result;
+  }
+
+  async function beginAccountSwitch() {
+    setPolkadotSwitchMode(false);
+    await logoutWallet();
+    const accounts = await loadPolkadotAccounts();
+    setPolkadotSwitchMode(accounts.length > 0);
+  }
+
+  async function refreshPolkadotAccounts() {
+    await loadPolkadotAccounts();
+    setPolkadotSwitchMode(true);
   }
 
   return (
@@ -141,14 +167,65 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
 
       {!session ? (
         <div className="mt-5 grid gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
-            onClick={() => void run(loginWithPolkadot)}
-          >
-            {busy ? <InlineLoading label={t("loggingIn")} /> : <><Zap className="h-4 w-4" />{t("connectPolkadot")}</>}
-          </button>
+          {polkadotSwitchMode && polkadotAccounts.length > 0 ? (
+            <div className="grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-[var(--text)]">{t("choosePolkadotAccount")}</div>
+                  <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t("choosePolkadotAccountHint")}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text)] disabled:opacity-50"
+                  onClick={() => void run(refreshPolkadotAccounts, false)}
+                  aria-label={t("refreshPolkadotAccounts")}
+                  title={t("refreshPolkadotAccounts")}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-3 py-2.5 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                onClick={() => void run(loginDefaultPolkadot)}
+              >
+                <Zap className="h-4 w-4" />
+                {t("useDefaultPolkadotAccount")}
+              </button>
+              <div className="grid gap-2">
+                {polkadotAccounts.map((account) => (
+                  <button
+                    key={account.address}
+                    type="button"
+                    disabled={busy}
+                    className="flex min-h-14 items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left transition hover:bg-[var(--surface-muted)] disabled:opacity-50"
+                    onClick={() => void run(() => loginSelectedPolkadot(account.address))}
+                  >
+                    <AddressAvatar address={account.address} label={account.name ?? account.address} size="h-9 w-9" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-[var(--text)]">
+                        {account.name ?? shortAddress(account.address)}
+                      </span>
+                      <span className="block truncate font-mono text-xs text-[var(--text-subtle)]">
+                        {account.source ? `${account.source} - ` : ""}{shortAddress(account.address)}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
+              onClick={() => void run(loginDefaultPolkadot)}
+            >
+              {busy ? <InlineLoading label={t("loggingIn")} /> : <><Zap className="h-4 w-4" />{t("connectPolkadot")}</>}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -165,7 +242,7 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
             type="button"
             disabled={busy}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--surface-muted)] disabled:opacity-50"
-            onClick={() => void run(logoutWallet)}
+            onClick={() => void run(beginAccountSwitch, false)}
           >
             <RefreshCw className="h-4 w-4" />
             {t("switchAccount")}

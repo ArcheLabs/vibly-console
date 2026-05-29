@@ -155,9 +155,12 @@ async function proxy(
   }
   for (const key of RESERVED_QUERY_KEYS) incoming.searchParams.delete(key);
 
-  const target = new URL(`/${path.join("/")}`, credentials.baseUrl);
-  incoming.searchParams.forEach((value, key) => {
-    target.searchParams.set(key, value);
+  const targets = credentials.baseUrls.map((baseUrl) => {
+    const target = new URL(`/${path.join("/")}`, baseUrl);
+    incoming.searchParams.forEach((value, key) => {
+      target.searchParams.set(key, value);
+    });
+    return target;
   });
 
   const headers: HeadersInit = {};
@@ -187,15 +190,27 @@ async function proxy(
     if (accountError) return accountError;
   }
 
-  let upstream: Response;
+  let upstream: Response | undefined;
+  let lastTarget = targets[0] ?? new URL(`/${path.join("/")}`, credentials.baseUrl);
   try {
-    upstream = await fetchCoordinator(target, {
-      method: request.method,
-      headers,
-      body,
-    });
+    let lastError: unknown;
+    for (const target of targets) {
+      lastTarget = target;
+      try {
+        upstream = await fetchCoordinator(target, {
+          method: request.method,
+          headers,
+          body,
+        });
+        lastError = undefined;
+        break;
+      } catch (cause) {
+        lastError = cause;
+      }
+    }
+    if (!upstream) throw lastError;
   } catch (cause) {
-    return upstreamUnavailable(target, cause);
+    return upstreamUnavailable(lastTarget, cause);
   }
 
   const upstreamContentType = upstream.headers.get("content-type") ?? "application/json";

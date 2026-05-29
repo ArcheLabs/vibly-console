@@ -6,11 +6,16 @@ import { useAuthState } from "../store/authStore";
 import { createCoordinatorClient } from "../coordinator/client";
 import { queryKeys } from "./keys";
 import { useActiveNetworkProfile } from "@/lib/network/profiles";
+import { useWalletSessionToken } from "@/lib/wallet/sessionStore";
 
 export function useCoordinatorClient() {
   const auth = useAuthState();
   const network = useActiveNetworkProfile();
-  return useMemo(() => createCoordinatorClient(auth, network.id), [auth, network.id]);
+  const walletSessionToken = useWalletSessionToken();
+  return useMemo(
+    () => createCoordinatorClient(auth, network.id, walletSessionToken),
+    [auth, network.id, walletSessionToken],
+  );
 }
 
 // ── V0.2 Network Feed ────────────────────────────────────────────────────

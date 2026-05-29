@@ -10,6 +10,11 @@ import {
   setWalletSessionToken,
   useWalletSessionToken,
 } from "@/lib/wallet/sessionStore";
+import {
+  getAuthorizedPolkadotAccounts,
+  getAuthorizedPolkadotAddress,
+  getAuthorizedPolkadotInjector,
+} from "@/lib/wallet/polkadotExtension";
 
 interface WalletSessionState {
   token: string;
@@ -58,6 +63,7 @@ export function useWalletAuth() {
   const auth = useAuthState();
   const walletToken = useWalletSessionToken();
   const [polkadotAddress, setPolkadotAddress] = useState<string | null>(null);
+  const [polkadotAccounts, setPolkadotAccounts] = useState<Array<{ address: string; name?: string; source?: string }>>([]);
   const [session, setSession] = useState<WalletSessionState | null>(null);
   const [busy, setBusy] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -83,14 +89,21 @@ export function useWalletAuth() {
     return address;
   }, [connectAsync, connectors]);
 
-  const connectPolkadot = useCallback(async () => {
+  const loadPolkadotAccounts = useCallback(async () => {
     setError(null);
-    const { web3Accounts, web3Enable } = await import("@polkadot/extension-dapp");
-    const extensions = await web3Enable("Vibly Console");
-    if (!extensions.length) throw new Error("未检测到 Polkadot 钱包扩展。");
-    const accounts = await web3Accounts();
-    if (!accounts.length) throw new Error("Polkadot 钱包中没有可用账号。");
-    const address = accounts[0]?.address;
+    const accounts = await getAuthorizedPolkadotAccounts();
+    const next = accounts.map((account) => ({
+      address: account.address,
+      name: account.meta.name,
+      source: account.meta.source,
+    }));
+    setPolkadotAccounts(next);
+    return next;
+  }, []);
+
+  const connectPolkadot = useCallback(async (preferredAddress?: string) => {
+    setError(null);
+    const address = await getAuthorizedPolkadotAddress(preferredAddress);
     if (!address) throw new Error("读取 Polkadot 地址失败。");
     setPolkadotAddress(address);
     return address;
@@ -144,10 +157,11 @@ export function useWalletAuth() {
       setWalletSessionToken(token, next?.expiresAt);
       setSession(next);
       markConnected();
+      return true;
     } catch (cause) {
       if (isUserRejected(cause)) {
         setError(null);
-        return;
+        return false;
       }
       setError(cause instanceof Error ? cause.message : "EVM 钱包登录失败");
       throw cause;
@@ -156,21 +170,20 @@ export function useWalletAuth() {
     }
   }, [client, connectEvm, evmAddress, markConnected, signMessageAsync]);
 
-  const loginWithPolkadot = useCallback(async () => {
+  const loginWithPolkadot = useCallback(async (preferredAddress?: string) => {
     setBusy(true);
     setError(null);
     try {
-      const address = await connectPolkadot();
+      const address = await connectPolkadot(preferredAddress);
       const challenge = await client.createWalletChallenge({ ecosystem: "polkadot", address });
       const challengeId = typeof challenge.id === "string" ? challenge.id : "";
       const message = typeof challenge.message === "string" ? challenge.message : "";
       if (!challengeId || !message) throw new Error("Coordinator 返回的 challenge 不完整。");
 
-      const [{ web3FromAddress }, { stringToHex }] = await Promise.all([
-        import("@polkadot/extension-dapp"),
+      const [{ stringToHex }, injector] = await Promise.all([
         import("@polkadot/util"),
+        getAuthorizedPolkadotInjector(address),
       ]);
-      const injector = await web3FromAddress(address);
       if (!injector.signer?.signRaw) throw new Error("当前 Polkadot 钱包不支持 signRaw。");
 
       const signed = await injector.signer.signRaw({
@@ -193,10 +206,11 @@ export function useWalletAuth() {
       setSession(next);
       setPolkadotAddress(address);
       markConnected();
+      return true;
     } catch (cause) {
       if (isUserRejected(cause)) {
         setError(null);
-        return;
+        return false;
       }
       setError(cause instanceof Error ? cause.message : "Polkadot 钱包登录失败");
       throw cause;
@@ -214,11 +228,10 @@ export function useWalletAuth() {
     }
 
     const address = session?.ecosystem === "polkadot" ? session.address : polkadotAddress ?? (await connectPolkadot());
-    const [{ web3FromAddress }, { stringToHex }] = await Promise.all([
-      import("@polkadot/extension-dapp"),
+    const [{ stringToHex }, injector] = await Promise.all([
       import("@polkadot/util"),
+      getAuthorizedPolkadotInjector(address),
     ]);
-    const injector = await web3FromAddress(address);
     if (!injector.signer?.signRaw) throw new Error("当前 Polkadot 钱包不支持 signRaw。");
     const signed = await injector.signer.signRaw({
       address,
@@ -273,6 +286,8 @@ export function useWalletAuth() {
       error,
       connectEvm,
       connectPolkadot,
+      polkadotAccounts,
+      loadPolkadotAccounts,
       loginWithEvm,
       loginWithPolkadot,
       refreshSession,
@@ -290,7 +305,9 @@ export function useWalletAuth() {
       loginWithEvm,
       loginWithPolkadot,
       logoutWallet,
+      loadPolkadotAccounts,
       polkadotAddress,
+      polkadotAccounts,
       refreshSession,
       signWalletMessage,
       session,

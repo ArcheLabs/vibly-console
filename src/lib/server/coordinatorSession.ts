@@ -13,6 +13,7 @@ import type { Session } from "next-auth";
  */
 export interface CoordinatorCredentials {
   baseUrl: string;
+  baseUrls: string[];
   token: string | null;
 }
 
@@ -42,6 +43,7 @@ function readEnv(name: string): string | undefined {
 interface CoordinatorNetworkProfile {
   id: string;
   coordinatorUrl: string;
+  coordinatorUrls: string[];
   apiToken?: string;
 }
 
@@ -55,16 +57,19 @@ function normalizeCoordinatorNetworkProfile(value: unknown): CoordinatorNetworkP
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const id = typeof record.id === "string" ? normalizeNetworkId(record.id) : null;
-  const coordinatorUrl =
-    typeof record.coordinatorUrl === "string"
-      ? record.coordinatorUrl.trim()
-      : typeof record.coordinatorEndpoint === "string"
-        ? record.coordinatorEndpoint.trim()
-        : "";
+  const coordinatorUrls = [
+    ...(Array.isArray(record.coordinatorUrls) ? record.coordinatorUrls : []),
+    record.coordinatorUrl,
+    record.coordinatorEndpoint,
+  ]
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+  const coordinatorUrl = coordinatorUrls[0] ?? "";
   if (!id || !coordinatorUrl) return null;
   return {
     id,
     coordinatorUrl,
+    coordinatorUrls,
     apiToken: typeof record.apiToken === "string" && record.apiToken.trim() ? record.apiToken.trim() : undefined,
   };
 }
@@ -112,7 +117,7 @@ function resolveCoordinatorTarget(networkId: string | null | undefined): Coordin
       "COORDINATOR_URL is not set on the server.",
     );
   }
-  return { id: requestedNetworkId ?? "default", coordinatorUrl: fromEnv };
+  return { id: requestedNetworkId ?? "default", coordinatorUrl: fromEnv, coordinatorUrls: [fromEnv] };
 }
 
 export async function resolveCoordinatorCredentials(
@@ -129,6 +134,7 @@ export async function resolveCoordinatorCredentials(
   const target = resolveCoordinatorTarget(options.networkId);
   return {
     baseUrl: target.coordinatorUrl.replace(/\/$/, ""),
+    baseUrls: target.coordinatorUrls.map((url) => url.replace(/\/$/, "")),
     token: session || options.allowServerTokenWithoutSession ? (target.apiToken ?? readEnv("COORDINATOR_API_TOKEN") ?? null) : null,
   };
 }

@@ -136,17 +136,17 @@ export interface StreamHandlers {
   onStatus?(status: "connected" | "disconnected" | "error"): void;
 }
 
-export function createCoordinatorClient(auth: AuthState, networkId?: string): CoordinatorClient {
-  return new HttpCoordinatorClient(auth, networkId);
+export function createCoordinatorClient(auth: AuthState, networkId?: string, walletSessionToken?: string | null): CoordinatorClient {
+  return new HttpCoordinatorClient(auth, networkId, walletSessionToken);
 }
 
 class HttpCoordinatorClient implements CoordinatorClient {
   private readonly contract: ConsoleContractClient;
   private readonly networkId?: string;
 
-  constructor(private readonly auth: AuthState, networkId?: string) {
+  constructor(private readonly auth: AuthState, networkId?: string, walletSessionToken?: string | null) {
     this.networkId = networkId;
-    this.contract = createConsoleContractClient(auth, networkId);
+    this.contract = createConsoleContractClient(auth, networkId, walletSessionToken);
   }
 
   async health() {

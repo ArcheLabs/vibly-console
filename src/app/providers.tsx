@@ -7,6 +7,8 @@ import { useState, ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { getEvmConfig } from "@/lib/wallet/evmConfig";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { DevConsoleErrorFilter } from "@/lib/browser/DevConsoleErrorFilter";
+import { ToastProvider } from "@/components/common/Toast";
 
 export function Providers({
   children,
@@ -33,10 +35,13 @@ export function Providers({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <DevConsoleErrorFilter />
       <ThemeProvider>
-        <SessionProvider>
-          <WagmiProvider config={getEvmConfig()}>{content}</WagmiProvider>
-        </SessionProvider>
+        <ToastProvider>
+          <SessionProvider>
+            <WagmiProvider config={getEvmConfig()}>{content}</WagmiProvider>
+          </SessionProvider>
+        </ToastProvider>
       </ThemeProvider>
     </NextIntlClientProvider>
   );

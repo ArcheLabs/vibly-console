@@ -56,7 +56,19 @@ Default addresses: Console `http://localhost:3000` · Coordinator `http://localh
 | `NEXT_PUBLIC_VIBLY_NETWORK_ID` | Default Console network profile id |
 | `NEXT_PUBLIC_VIBLY_NETWORK_NAME` | Default Console network display name |
 | `NEXT_PUBLIC_VIBLY_RPC_URL` | Default Vibly Chain RPC used by browser claim flow |
-| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | Optional JSON array of selectable network profiles (`id`, `label`, `stage`, `polkadotRpcUrl`, `viblyRpcUrl`, `relayTokenSymbol`) |
+| `NEXT_PUBLIC_PAYMENT_RPC_URL` | Payment chain RPC used by Get VIB balance reads and DOT/PAS transfers |
+| `NEXT_PUBLIC_POLKADOT_RPC_URL` | Optional alias/fallback for payment-chain Polkadot-compatible RPC |
+| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | Optional JSON array of selectable network profiles. Prefer URL arrays (`coordinatorUrls`, `paymentRpcUrls`, `viblyRpcUrls`) so Console can fail over when one endpoint is down. |
+
+For local Get VIB, keep the Vibly claim chain and payment chain RPCs separate:
+
+```env
+NEXT_PUBLIC_VIBLY_RPC_URL=ws://127.0.0.1:9944
+NEXT_PUBLIC_PAYMENT_RPC_URL=ws://127.0.0.1:9945
+NEXT_PUBLIC_POLKADOT_RPC_URL=ws://127.0.0.1:9945
+```
+
+Built-in payment RPC fallbacks are included for Paseo (`PAS`) and Polkadot mainnet (`DOT`); project-owned Vibly chain and Coordinator endpoints should still be supplied per deployment.
 
 ### Development only
 

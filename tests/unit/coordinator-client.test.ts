@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCoordinatorClient } from "@/lib/coordinator/client";
 import { ConsoleApiError } from "@/lib/coordinator/errors";
 import type { AuthState } from "@/lib/coordinator/types";
+import { clearWalletSessionToken, setWalletSessionToken } from "@/lib/wallet/sessionStore";
 
 const auth: AuthState = {
   coordinatorUrl: "http://coordinator.test",
@@ -13,6 +14,7 @@ const auth: AuthState = {
 describe("CoordinatorClient", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    clearWalletSessionToken();
   });
 
   it("unwraps list responses", async () => {
@@ -48,6 +50,31 @@ describe("CoordinatorClient", () => {
     );
     const client = createCoordinatorClient(auth);
     await expect(client.listProjects()).rejects.toBeInstanceOf(ConsoleApiError);
+  });
+
+  it("forwards the current wallet session token when refreshing wallet session", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        data: {
+          session: {
+            token: "wallet_token_1",
+            ecosystem: "polkadot",
+            address: "5abc",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+          },
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    setWalletSessionToken("wallet_token_1", "2099-01-01T00:00:00.000Z");
+
+    const client = createCoordinatorClient(auth, "substrate:vibly-solo", "wallet_token_1");
+    await expect(client.getWalletSession()).resolves.toMatchObject({ token: "wallet_token_1" });
+
+    const request = (fetchMock.mock.calls as unknown as Array<[Request]>)[0]?.[0];
+    expect(request?.url).toBe("http://coordinator.test/wallet/session");
+    expect(request?.headers.get("x-wallet-session")).toBe("wallet_token_1");
   });
 
   it("loads governance merged views through coordinator", async () => {
