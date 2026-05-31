@@ -15,7 +15,6 @@ export interface GetVibTableRecord {
   type: "exchange";
   paymentAmount: string;
   receivedVib: string;
-  slippage: string;
   time: string;
   status: GetVibRecordStatus;
   txHash: string;
@@ -44,7 +43,6 @@ export function mergeGetVibRecords(input: {
       type: "exchange" as const,
       paymentAmount: text(relay.dotAmount) || text(relay.paymentAmount) || text(deposit?.dotAmount),
       receivedVib: text(allocation?.vibAmount) || text(deposit?.quotedVibAmount) || "0",
-      slippage: slippageFromPrices(allocation ?? deposit),
       time: text(relay.finalizedAt) || text(relay.observedAt),
       status: statusFromRemote(text(relay.status), Boolean(allocation), claimed),
       txHash,
@@ -58,7 +56,6 @@ export function mergeGetVibRecords(input: {
       type: "exchange" as const,
       paymentAmount: item.paymentAmount,
       receivedVib: item.estimatedVib,
-      slippage: item.estimatedSlippage,
       time: item.submittedAt,
       status: item.status,
       txHash: item.txHash,
@@ -84,14 +81,6 @@ function statusFromRemote(relayStatus: string, hasAllocation: boolean, claimed: 
   if (hasAllocation) return "claimable";
   if (relayStatus === "confirmed") return "allocated";
   return "allocation_pending";
-}
-
-function slippageFromPrices(record: Entity | undefined): string {
-  const start = Number(record?.startPriceUsd);
-  const average = Number(record?.averagePriceUsd);
-  if (!Number.isFinite(start) || !Number.isFinite(average) || start <= 0) return "0%";
-  const value = ((average - start) / start) * 100;
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
 function entities(value: unknown): Entity[] {

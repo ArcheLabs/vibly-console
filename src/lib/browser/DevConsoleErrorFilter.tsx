@@ -27,7 +27,10 @@ function isNoisyExtensionPingFailure(args: unknown[]): boolean {
 
 function isNoisyApiWsDisconnect(args: unknown[]): boolean {
   const message = args.map(stringifyConsoleArg).join("\n");
-  return /API-WS:/i.test(message) && /disconnected from ws/i.test(message) && /Abnormal Closure/i.test(message);
+  const isWsModule = /API-WS:|RPC-CORE:/i.test(message);
+  const isDisconnect = /disconnected from ws/i.test(message);
+  const isClosure = /Normal Closure|Abnormal Closure/i.test(message);
+  return isWsModule && isDisconnect && isClosure;
 }
 
 export function DevConsoleErrorFilter() {

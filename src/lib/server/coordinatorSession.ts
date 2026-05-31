@@ -99,14 +99,10 @@ function resolveCoordinatorTarget(networkId: string | null | undefined): Coordin
   const profiles = readCoordinatorNetworkProfiles();
   if (profiles.length > 0) {
     const profile = requestedNetworkId ? profiles.find((item) => item.id === requestedNetworkId) : profiles[0];
-    if (!profile) {
-      throw new CoordinatorSessionError(
-        400,
-        "COORDINATOR_NETWORK_NOT_CONFIGURED",
-        `No Coordinator is configured for network profile ${requestedNetworkId}.`,
-      );
-    }
-    return profile;
+    if (profile) return profile;
+    // Requested network is not in the explicit allowlist — fall through to the
+    // default COORDINATOR_URL rather than hard-erroring, so built-in profiles
+    // (testnet, incentivized-testnet) that share the same coordinator still work.
   }
 
   const fromEnv = readEnv("COORDINATOR_URL") ?? readEnv("NEXT_PUBLIC_COORDINATOR_URL");

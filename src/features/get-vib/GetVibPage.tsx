@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Check, ChevronLeft, ChevronRight, Coins, Copy, ExternalLink, Gift, Info, Loader2, ShieldCheck, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Coins, Copy, ExternalLink, Gift, Info, Loader2, ShieldCheck, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
@@ -21,10 +21,12 @@ import type { Entity } from "@/lib/coordinator/types";
 import { errorMessage } from "@/lib/coordinator/errors";
 import { networkPaymentRpcUrls, networkViblyRpcUrls, useActiveNetworkProfile, type NetworkProfile } from "@/lib/network/profiles";
 import { getAuthorizedPolkadotInjector } from "@/lib/wallet/polkadotExtension";
-import { decimalToBaseUnits, estimatedSlippagePercent, isPositiveDecimal } from "@/lib/get-vib/amounts";
-import { queryPaymentBalance, queryPaymentChainInfo, submitPaymentTransfer } from "@/lib/get-vib/paymentTransfer";
+import { decimalToBaseUnits, isPositiveDecimal } from "@/lib/get-vib/amounts";
+import { queryPaymentBalance, submitPaymentTransfer } from "@/lib/get-vib/paymentTransfer";
 import { addPendingGetVibRecord, readPendingGetVibRecords, reconcilePendingGetVibRecords, writePendingGetVibRecords, type PendingGetVibRecord } from "@/lib/get-vib/pendingRecords";
 import { mergeGetVibRecords, paginateRecords, type GetVibTableRecord } from "@/lib/get-vib/records";
+import { useGetVibLiveEvents } from "@/lib/query/useGetVibLiveEvents";
+import { usePaymentChainInfo } from "@/lib/network/paymentChainInfo";
 
 type ActiveTab = "exchange" | "curve";
 
@@ -36,11 +38,12 @@ export function GetVibPage() {
   const paymentRpcUrls = useMemo(() => networkPaymentRpcUrls(activeNetwork), [activeNetwork]);
   const viblyRpcUrls = useMemo(() => networkViblyRpcUrls(activeNetwork), [activeNetwork]);
 
+  const paymentChainInfo = usePaymentChainInfo();
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("exchange");
   const [paymentAmount, setPaymentAmount] = useState("1");
   const [balance, setBalance] = useState<{ freeBaseUnits: string; free: string } | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [paymentChainInfo, setPaymentChainInfo] = useState<{ tokenSymbol?: string; tokenDecimals?: number; rpcUrl?: string } | null>(null);
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
@@ -64,22 +67,21 @@ export function GetVibPage() {
   const polkadotAccount = wallet.session?.ecosystem === "polkadot" ? wallet.session.address : wallet.polkadotAddress;
   const accountId = polkadotAccount ?? wallet.session?.address ?? wallet.evmAddress ?? null;
   const purchaseEnabled = config.purchaseEnabled !== false && Boolean(depositAddress);
-
   const quoteQuery = useGetVibQuote(paymentAmount, purchaseEnabled);
   const summaryQuery = useGetVibSummary(accountId);
   const proofQuery = useGetVibProof(accountId);
   const recordsQuery = useGetVibRecords(accountId);
   const curveQuery = useGetVibCurve();
   const claimRecordMutation = useRecordGetVibClaim();
+  useGetVibLiveEvents();
 
   const quote = quoteQuery.data ?? {};
   const summary = summaryQuery.data ?? {};
   const proof = proofQuery.data ?? null;
   const curve = curvePoints(curveQuery.data);
   const curveState = entity(curveQuery.data?.state);
+  const soldOut = curveState.soldOut === true;
   const quoteErrorMessage = quoteQuery.error ? errorMessage(quoteQuery.error) : "";
-  const slippage = estimatedSlippagePercent(quote.startPriceUsd, quote.averagePriceUsd);
-  const slippageText = `${slippage >= 0 ? "+" : ""}${slippage.toFixed(2)}%`;
   const amountBaseUnits = amountToBaseUnitsOrNull(paymentAmount, paymentTokenDecimals);
   const balanceLoading = Boolean(polkadotAccount && paymentRpcUrls.length > 0 && !balance && !balanceError);
   const insufficientBalance = Boolean(balance && amountBaseUnits !== null && amountBaseUnits > BigInt(balance.freeBaseUnits || "0"));
@@ -109,22 +111,6 @@ export function GetVibPage() {
       writePendingGetVibRecords(networkId, accountId, next);
     }
   }, [accountId, networkId, pendingRecords, recordsQuery.data]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setPaymentChainInfo(null);
-    if (paymentRpcUrls.length === 0) return;
-    void queryPaymentChainInfo(paymentRpcUrls)
-      .then((next) => {
-        if (!cancelled) setPaymentChainInfo(next);
-      })
-      .catch((cause) => {
-        if (!cancelled) setBalanceError(cause instanceof Error ? cause.message : String(cause));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentRpcUrls]);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,13 +215,13 @@ export function GetVibPage() {
         txHash,
         paymentAmount,
         estimatedVib: text(quote.vibAmount) || "0",
-        estimatedSlippage: slippageText,
+        estimatedSlippage: "",
         submittedAt: new Date().toISOString(),
         status: "submitted",
       });
       setPendingRecords(pending);
       notify(t("records.statusValue.submitted"), txHash, "success");
-      await Promise.all([recordsQuery.refetch(), summaryQuery.refetch()]);
+      await Promise.all([recordsQuery.refetch(), summaryQuery.refetch(), curveQuery.refetch(), quoteQuery.refetch()]);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       setTransferError(message);
@@ -246,12 +232,12 @@ export function GetVibPage() {
   }
 
   async function claimVib() {
-    if (!accountId || !proof) return;
+    if (!polkadotAccount || !proof) return;
     setClaiming(true);
     setClaimError(null);
     setClaimTxHash(null);
     try {
-      const txHash = await submitVibClaim(accountId, proof, viblyRpcUrls);
+      const txHash = await submitVibClaim(polkadotAccount, proof, viblyRpcUrls);
       setClaimTxHash(txHash);
       await claimRecordMutation.mutateAsync({
         networkId,
@@ -295,24 +281,48 @@ export function GetVibPage() {
         </div>
 
         {activeTab === "exchange" ? (
-          <>
-            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-              <Panel className="min-w-0">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-[var(--text-muted)]">{t("records.exchangeType", { symbol: paymentTokenSymbol })}</div>
-                    <h2 className="mt-1 text-xl font-semibold text-[var(--text)]">{t("purchase")}</h2>
+            <section className="grid min-w-0 gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_30rem] xl:items-start">
+              <Panel className="min-w-0 overflow-hidden">
+                {soldOut ? (
+                  <div className="flex flex-col items-center py-8 text-center">
+                    <Coins className="h-12 w-12 text-[var(--text-muted)]" />
+                    <h2 className="mt-4 text-xl font-bold text-[var(--text)]">{t("soldOut")}</h2>
+                    <p className="mt-2 max-w-sm text-sm text-[var(--text-muted)]">{t("soldOutDescription")}</p>
                   </div>
-                  <StatusPill active={purchaseEnabled} text={purchaseEnabled ? t("active") : t("paused")} />
+                ) : null}
+                {/* Wallet row — only shown when connected */}
+                {!soldOut && polkadotAccount ? (
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-1.5">
+                        <div className="h-4 w-4 shrink-0 rounded-full bg-[#E6007A]" />
+                        <span className="shrink-0 text-sm font-semibold text-[var(--text)]">{paymentTokenSymbol}</span>
+                      </div>
+                    </div>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="min-w-0 truncate font-mono text-sm text-[var(--text)]">{short(polkadotAccount)}</span>
+                      <button type="button" onClick={() => copy(polkadotAccount, setCopiedWallet)} className="shrink-0 text-[var(--text-muted)] hover:text-[var(--accent)]" aria-label={t("copy")}>
+                        {copiedWallet ? <Check className="h-3.5 w-3.5 text-[var(--accent)]" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Amount label + inline balance — balance only shown when connected */}
+                {!soldOut ? (
+                <>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-[var(--text-muted)]">{t("amountLabel", { symbol: paymentTokenSymbol })}</label>
+                  {polkadotAccount && balance ? (
+                    <button type="button" onClick={() => setPaymentAmount(balance.free)} className="text-xs text-[var(--accent)] hover:underline">
+                      {t("balanceValue", { amount: balance.free, symbol: paymentTokenSymbol })}
+                    </button>
+                  ) : polkadotAccount && balanceLoading ? (
+                    <span className="text-xs text-[var(--text-muted)]">{t("balanceLoading")}</span>
+                  ) : null}
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  <InfoBlock label={t("paymentAsset")} value={paymentTokenSymbol} />
-                  <InfoBlock label={t("walletAddress")} value={short(polkadotAccount ?? "") || t("walletRequired")} />
-                  <InfoBlock label={t("balance")} value={balance ? t("balanceValue", { amount: balance.free, symbol: paymentTokenSymbol }) : balanceError ? t("balanceUnavailable") : balanceLoading ? t("balanceLoading") : "—"} />
-                </div>
-
-                <label className="mt-6 block text-sm font-medium text-[var(--text-muted)]">{t("amountLabel", { symbol: paymentTokenSymbol })}</label>
+                {/* Amount input */}
                 <div className={`mt-2 flex items-center gap-3 rounded-lg border bg-[var(--surface)] px-4 py-3 ${amountInvalid || insufficientBalance || curveAmountExceeded ? "border-[var(--danger)]" : "border-[var(--border)] focus-within:border-[var(--accent)]"}`}>
                   <input
                     value={paymentAmount}
@@ -325,55 +335,69 @@ export function GetVibPage() {
                     type="button"
                     onClick={() => balance?.free && setPaymentAmount(balance.free)}
                     disabled={!balance}
-                    className="rounded-md border border-[var(--border)] px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+                    className="rounded-md border border-[var(--border)] px-2 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:enabled:border-[var(--accent)] hover:enabled:text-[var(--accent)] disabled:cursor-default disabled:opacity-40"
                   >
                     {t("max")}
                   </button>
                   <span className="text-sm font-semibold text-[var(--text-muted)]">{paymentTokenSymbol}</span>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  <InfoBlock label={t("estimatedReceive")} value={`${formatNumber(text(quote.vibAmount) || "0")} VIB`} />
-                  <InfoBlock label={t("estimatedSlippage")} value={slippageText} />
-                  <InfoBlock label={t("averagePrice")} value={formatUsd(text(quote.averagePriceUsd) || "0")} />
-                  <InfoBlock label={t("startPrice")} value={formatUsd(text(quote.startPriceUsd) || "0")} />
-                  <InfoBlock label={t("endPrice")} value={formatUsd(text(quote.endPriceUsd) || "0")} />
-                  <InfoBlock label={t("costUsd")} value={formatUsd(text(quote.costUsd) || "0")} />
+                {/* Chevron indicator */}
+                <div className="mt-4 mb-4 flex justify-center">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-muted)]">
+                    <ChevronDown className="h-4 w-4 text-[var(--accent)]" />
+                  </div>
                 </div>
 
-                <MiniCurve curve={curve} curveState={curveState} />
+                {/* Quote card */}
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-5 text-center">
+                  <div className="text-sm text-[var(--text-muted)]">{t("estimatedReceive")}</div>
+                  <div className="mt-1 text-4xl font-bold tracking-tight text-[var(--accent)]">
+                    {formatNumber(text(quote.vibAmount) || "0")}{" "}
+                    <span className="text-2xl font-semibold">VIB</span>
+                  </div>
+                </div>
+
+                {/* CTA button */}
+                <button
+                  type="button"
+                  onClick={handleGetVib}
+                  disabled={transferring}
+                  className="mt-4 mx-auto flex items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-6 py-2 text-sm font-semibold text-[var(--accent-foreground)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {transferring ? t("transferring") : t("transferCta")}
+                  {!transferring ? <ExternalLink className="h-3.5 w-3.5" /> : null}
+                </button>
+
+                {/* Shield disclaimer */}
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-xs text-[var(--text-muted)]">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+                  <span>{t("estimateNotice")}</span>
+                </div>
 
                 {!purchaseEnabled ? <InlineNotice>{t("purchaseUnavailable")}</InlineNotice> : null}
                 {quoteQuery.error ? <InlineError title={t("quoteError")} error={quoteQuery.error} /> : null}
                 {transferError ? <InlineError title={t("transferError")} error={transferError} /> : null}
                 {polkadotAccount && paymentRpcUrls.length === 0 ? <InlineNotice>{t("paymentRpcUnavailable")}</InlineNotice> : null}
+                </>
+                ) : null}
 
-                <div className="mt-6 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={handleGetVib}
-                    disabled={transferring}
-                    className="inline-flex h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-5 text-sm font-semibold text-[var(--accent-foreground)] shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
-                    {transferring ? t("transferring") : "Get VIB"}
-                  </button>
-                </div>
-                <p className="mt-4 text-center text-xs leading-5 text-[var(--text-muted)]">{t("estimateNotice")}</p>
+                <MiniCurve curve={curve} curveState={curveState} />
               </Panel>
 
-              <div className="grid gap-5">
+              <div className="grid min-w-0 gap-5 overflow-hidden">
                 <Panel>
-                  <div className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
-                    <Info className="h-4 w-4 text-[var(--accent)]" />
-                    {t("notice.title")}
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-semibold text-[var(--text)]">{t("notice.title")}</span>
+                    <Info className="h-4 w-4 text-[var(--text-muted)]" />
                   </div>
-                  <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--text-muted)]">
-                    <p>{t("notice.estimatedOnly")}</p>
-                    <p>{t("notice.finalizedRule")}</p>
-                    <p>{t("notice.addressOnly")}</p>
-                    <p>{t("notice.claimLater")}</p>
-                  </div>
+                  <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-6 text-[var(--text-muted)]">
+                    <li>{t("notice.estimatedOnly")}</li>
+                    <li>{t("notice.finalizedRule")}</li>
+                    <li>{t("notice.addressOnly")}</li>
+                    <li>{t("notice.claimLater")}</li>
+                  </ul>
                   <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
                     <div className="text-xs text-[var(--text-muted)]">{t("depositAddress")}</div>
                     <div className="mt-1 flex items-center gap-2">
@@ -395,34 +419,16 @@ export function GetVibPage() {
                     claimTxHash={claimTxHash}
                     claimError={claimError}
                     onClaim={claimVib}
-                    canClaim={Boolean(accountId && proof && claimableAmount > 0)}
+                    canClaim={Boolean(polkadotAccount && proof && claimableAmount > 0)}
                   />
                 </Panel>
               </div>
             </section>
-
-            <Panel>
-              <RecordsTable
-                records={paginated.items}
-                page={paginated.page}
-                pageCount={paginated.pageCount}
-                pageSize={pageSize}
-                tokenSymbol={paymentTokenSymbol}
-                t={t}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-                txUrl={(hash) => txExplorerUrl(activeNetwork, hash)}
-                error={recordsQuery.error}
-              />
-            </Panel>
-          </>
         ) : (
           <section className="grid gap-5">
-            <section className="grid gap-4 md:grid-cols-4">
+            <section className="grid gap-4 md:grid-cols-2">
               <Metric label={t("totalSold")} value={formatNumber(text(curveState.sold) || "0")} unit="VIB" />
-              <Metric label={t("currentPrice")} value={formatUsd(text(curveState.currentPriceUsd) || "0")} unit="USD" />
-              <Metric label={t("effectiveMarketCap")} value={formatUsd(text(curveState.effectiveMarketCapUsd) || "0")} unit="USD" />
-              <Metric label={t("raisedUsd")} value={formatUsd(text(curveState.raisedUsd) || "0")} unit="USD" />
+              <Metric label={t("remainingAllocation")} value={formatNumber(text(curveState.remainingAllocation) || "0")} unit="VIB" />
             </section>
             <Panel>
               <h2 className="text-lg font-semibold text-[var(--text)]">{t("curve.fullTitle")}</h2>
@@ -438,6 +444,20 @@ export function GetVibPage() {
                 <InfoBlock label={t("curve.claimMethod")} value={t("curve.claimMethodValue")} />
               </div>
             </Panel>
+            <Panel>
+              <RecordsTable
+                records={paginated.items}
+                page={paginated.page}
+                pageCount={paginated.pageCount}
+                pageSize={pageSize}
+                tokenSymbol={paymentTokenSymbol}
+                t={t}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                txUrl={(hash) => txExplorerUrl(activeNetwork, hash)}
+                error={recordsQuery.error}
+              />
+            </Panel>
           </section>
         )}
       </div>
@@ -446,6 +466,7 @@ export function GetVibPage() {
         <Modal onClose={() => {
           setLoginPromptOpen(false);
           setTransferAfterLogin(false);
+          setTransferring(false);
         }}>
           <WalletConnectPanel mode="panel" />
         </Modal>
@@ -468,7 +489,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick(): 
 
 function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-5 shadow-[var(--shadow)] ${className}`}>
+    <section className={`min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-5 shadow-[var(--shadow)] ${className}`}>
       {children}
     </section>
   );
@@ -504,22 +525,43 @@ function StatusPill({ active, text: label }: { active: boolean; text: string }) 
 }
 
 function MiniCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Entity }) {
+  const t = useTranslations("getVib");
+  const totalVib = curve.length > 0 ? Number(curve[curve.length - 1].soldVib) : 0;
+  const soldVib = Number(text(curveState.sold)) || 0;
+  const progressPct = totalVib > 0 ? Math.min(100, (soldVib / totalVib) * 100) : 0;
   return (
-    <div className="mt-5 h-36 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={curve}>
-          <defs>
-            <linearGradient id="miniVibCurve" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.45} />
-              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <XAxis dataKey="soldVib" hide />
-          <YAxis hide />
-          {text(curveState.sold) ? <ReferenceLine x={text(curveState.sold)} stroke="var(--warning)" strokeDasharray="4 4" /> : null}
-          <Area type="monotone" dataKey="price" stroke="var(--accent)" fill="url(#miniVibCurve)" strokeWidth={2} />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs font-medium text-[var(--text)]">{t("curve.title")}</span>
+        <Info className="h-3 w-3 text-[var(--text-muted)]" />
+      </div>
+      {totalVib > 0 ? (
+        <div className="mt-2">
+          <div className="mb-1 flex items-center justify-between text-xs text-[var(--text-muted)]">
+            <span>{t("curve.soldProgress")}</span>
+            <span>{progressPct.toFixed(1)}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface)]">
+            <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+        </div>
+      ) : null}
+      <div className="mt-3 h-24">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <AreaChart data={curve}>
+            <defs>
+              <linearGradient id="miniVibCurve" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.45} />
+                <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="soldVib" hide />
+            <YAxis hide />
+            {text(curveState.sold) ? <ReferenceLine x={text(curveState.sold)} stroke="var(--warning)" strokeDasharray="4 4" label={{ value: t("curve.currentPoint"), position: "insideTopRight", fontSize: 10, fill: "var(--warning)" }} /> : null}
+            <Area type="monotone" dataKey="price" stroke="var(--accent)" fill="url(#miniVibCurve)" strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -527,7 +569,7 @@ function MiniCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Ent
 function FullCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Entity }) {
   return (
     <div className="mt-4 h-[26rem]">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <AreaChart data={curve}>
           <defs>
             <linearGradient id="fullVibCurve" x1="0" x2="0" y1="0" y2="1">
@@ -537,8 +579,8 @@ function FullCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Ent
           </defs>
           <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis dataKey="soldVib" stroke="var(--text-subtle)" tickLine={false} axisLine={false} />
-          <YAxis stroke="var(--text-subtle)" tickLine={false} axisLine={false} tickFormatter={(value) => `$${Number(value).toFixed(3)}`} />
-          <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8 }} formatter={(value) => formatUsd(String(value))} />
+          <YAxis stroke="var(--text-subtle)" tickLine={false} axisLine={false} />
+          <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8 }} />
           {text(curveState.sold) ? <ReferenceLine x={text(curveState.sold)} stroke="var(--warning)" strokeDasharray="4 4" /> : null}
           <Area type="monotone" dataKey="price" stroke="var(--accent)" fill="url(#fullVibCurve)" strokeWidth={2} />
         </AreaChart>
@@ -568,29 +610,67 @@ function ClaimCard({
   canClaim: boolean;
   onClaim(): void;
 }) {
+  // Countdown: the protocol publishes a new Merkle root roughly every 30 minutes.
+  // We show a countdown from the last root publication time (or just cycle from now).
+  const ROOT_INTERVAL_MS = 30 * 60 * 1000;
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Derive the last root epoch from rootVersion if available, otherwise use wall clock.
+    const rootVersion = Number(text(proof?.rootVersion)) || 0;
+    const epochStart = rootVersion > 0
+      ? new Date(text(proof?.publishedAt) || "").getTime() || (Date.now() - (Date.now() % ROOT_INTERVAL_MS))
+      : Date.now() - (Date.now() % ROOT_INTERVAL_MS);
+    const nextRoot = epochStart + ROOT_INTERVAL_MS;
+
+    function tick() {
+      const remaining = nextRoot - Date.now();
+      setCountdown(remaining > 0 ? remaining : 0);
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [proof]);
+
   const status = claiming ? "claiming" : claimError ? "failed" : claimableAmount > 0 && proof ? "claimable" : Number(summary.purchasedAllocation ?? 0) > 0 ? "waiting_allocation" : "idle";
+  const isPending = status === "waiting_allocation";
+  const countdownMinutes = countdown !== null ? Math.ceil(countdown / 60000) : null;
+
   return (
     <div>
-      <div className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
-        <ShieldCheck className="h-4 w-4 text-[var(--accent)]" />
-        {t("claim.title")}
+      <div className="flex items-center justify-between">
+        <span className="text-base font-semibold text-[var(--text)]">{t("claim.title")}</span>
+        <Info className="h-4 w-4 text-[var(--text-muted)]" />
       </div>
-      <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-        <div className="text-sm text-[var(--text-muted)]">{t("claim.status." + status)}</div>
-        <div className="mt-2 text-2xl font-semibold text-[var(--text)]">{formatNumber(text(summary.claimableAmount) || "0")} VIB</div>
+
+      <div className="mt-5 flex flex-col items-center py-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent)]/10">
+          <Gift className="h-8 w-8 text-[var(--accent)]" />
+        </div>
+        <div className="mt-4 text-sm text-[var(--text-muted)]">{t("claim.available")}</div>
+        <div className="mt-1 text-3xl font-bold tracking-tight text-[var(--accent)]">
+          {formatNumber(text(summary.claimableAmount) || "0")} VIB
+        </div>
+        <div className="mt-3 flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)]">
+          {isPending || status === "idle" ? <Clock className="h-3.5 w-3.5 shrink-0" /> : null}
+          {t("claim.status." + status)}
+        </div>
+        {isPending && countdownMinutes !== null && countdownMinutes > 0 ? (
+          <div className="mt-2 flex items-center gap-1 text-xs text-[var(--text-muted)]">
+            <Clock className="h-3 w-3 shrink-0" />
+            {t("claim.nextRootIn", { minutes: countdownMinutes })}
+          </div>
+        ) : null}
       </div>
-      <div className="mt-3 grid gap-2 text-sm text-[var(--text-muted)]">
-        <div>{t("purchased")}: {formatNumber(text(summary.purchasedAllocation) || "0")} VIB</div>
-        <div>{t("claimed")}: {formatNumber(text(summary.claimedAmount) || "0")} VIB</div>
-      </div>
+
       <button
         type="button"
         onClick={onClaim}
         disabled={!canClaim || claiming}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:border disabled:border-[var(--border)] disabled:bg-transparent disabled:text-[var(--text-muted)]"
+        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:cursor-default disabled:border disabled:border-[var(--border)] disabled:bg-transparent disabled:text-[var(--text-muted)]"
       >
-        {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-        {claiming ? t("claiming") : t("claim.claimVib")}
+        {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {claiming ? t("claiming") : !canClaim ? t("claim.none") : t("claim.claimVib")}
       </button>
       {claimTxHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTxHash}</p> : null}
       {claimError ? <p className="mt-3 text-xs text-[var(--danger)]">{claimError}</p> : null}
@@ -624,16 +704,7 @@ function RecordsTable({
   if (error) return <InlineError title={t("recordsError")} error={error} />;
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-[var(--text)]">{t("records.title")}</h2>
-        <select
-          value={pageSize}
-          onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--text)]"
-        >
-          {[10, 20, 50].map((value) => <option key={value} value={value}>{t("records.pageSize", { count: value })}</option>)}
-        </select>
-      </div>
+      <h2 className="text-lg font-semibold text-[var(--text)]">{t("records.title")}</h2>
       {records.length === 0 ? (
         <div className="mt-4 rounded-lg border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">{t("emptyRecords")}</div>
       ) : (
@@ -643,9 +714,9 @@ function RecordsTable({
               <thead className="text-xs uppercase text-[var(--text-muted)]">
                 <tr>
                   <th className="py-2 pr-3">{t("records.type")}</th>
-                  <th className="py-2 pr-3">{t("records.paymentAmount")}</th>
+                  <th className="py-2 pr-3">{t("records.paymentAmount")} ({tokenSymbol})</th>
                   <th className="py-2 pr-3">{t("records.receivedVib")}</th>
-                  <th className="py-2 pr-3">{t("records.slippage")}</th>
+                  <th className="py-2 pr-3">{t("records.time")}</th>
                   <th className="py-2 pr-3">{t("records.status")}</th>
                   <th className="py-2 pr-3">{t("records.txHash")}</th>
                 </tr>
@@ -660,10 +731,32 @@ function RecordsTable({
           </div>
         </>
       )}
-      <div className="mt-4 flex items-center justify-end gap-2 text-sm text-[var(--text-muted)]">
-        <button type="button" onClick={() => onPageChange(page - 1)} disabled={page <= 1} className="rounded-md border border-[var(--border)] p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
-        <span>{page} / {pageCount}</span>
-        <button type="button" onClick={() => onPageChange(page + 1)} disabled={page >= pageCount} className="rounded-md border border-[var(--border)] p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--text-muted)]">
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => onPageChange(page - 1)} disabled={page <= 1} className="rounded-md border border-[var(--border)] p-2 disabled:cursor-default disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+          {pageNumbers(page, pageCount).map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="px-1.5">…</span>
+            ) : (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPageChange(p as number)}
+                className={`min-w-[2rem] rounded-md border px-2 py-1 text-sm transition ${page === p ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-foreground)]" : "border-[var(--border)] hover:border-[var(--accent)]"}`}
+              >
+                {p}
+              </button>
+            ),
+          )}
+          <button type="button" onClick={() => onPageChange(page + 1)} disabled={page >= pageCount} className="rounded-md border border-[var(--border)] p-2 disabled:cursor-default disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
+        </div>
+        <select
+          value={pageSize}
+          onChange={(event) => onPageSizeChange(Number(event.target.value))}
+          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--text)]"
+        >
+          {[10, 20, 50].map((value) => <option key={value} value={value}>{t("records.pageSize", { count: value })}</option>)}
+        </select>
       </div>
     </div>
   );
@@ -676,7 +769,7 @@ function RecordRow({ record, tokenSymbol, t, txUrl }: { record: GetVibTableRecor
       <td className="py-3 pr-3 text-[var(--text)]">{t("records.exchangeType", { symbol: tokenSymbol })}</td>
       <td className="py-3 pr-3 text-[var(--text)]">{record.paymentAmount} {tokenSymbol}</td>
       <td className="py-3 pr-3 text-[var(--text)]">{formatNumber(record.receivedVib)} VIB</td>
-      <td className="py-3 pr-3 text-[var(--text-muted)]">{record.slippage}</td>
+      <td className="py-3 pr-3 text-[var(--text-muted)]">{formatTime(record.time)}</td>
       <td className="py-3 pr-3 text-[var(--text-muted)]">{t("records.statusValue." + record.status)}</td>
       <td className="py-3 pr-3">{url ? <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--accent)]">{short(record.txHash)} <ExternalLink className="h-3 w-3" /></a> : <span className="font-mono text-xs text-[var(--text-muted)]">{short(record.txHash)}</span>}</td>
     </tr>
@@ -693,7 +786,7 @@ function RecordCard({ record, tokenSymbol, t, txUrl }: { record: GetVibTableReco
       </div>
       <div className="mt-3 grid gap-1 text-sm text-[var(--text-muted)]">
         <div>{record.paymentAmount} {tokenSymbol} → {formatNumber(record.receivedVib)} VIB</div>
-        <div>{record.slippage} · {formatTime(record.time)}</div>
+        <div>{formatTime(record.time)}</div>
         <div>{url ? <a href={url} target="_blank" rel="noreferrer" className="text-[var(--accent)]">{short(record.txHash)}</a> : short(record.txHash)}</div>
       </div>
     </div>
@@ -765,7 +858,7 @@ function amountToBaseUnitsOrNull(value: string, decimals: number): bigint | null
 }
 
 function isCurveAmountExceeded(message: string): boolean {
-  return /exceed|remaining|soldAfter|allocation|maximum|capacity|上限|超过/i.test(message);
+  return /exceed|remaining|soldAfter|allocation|maximum|capacity|sold.?out|insufficient|售罄|上限|超过/i.test(message);
 }
 
 function short(value: string): string {
@@ -788,6 +881,16 @@ function formatUsd(value: string): string {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "$0";
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: numeric < 1 ? 6 : 2 }).format(numeric);
+}
+
+function pageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) pages.push(p);
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
 }
 
 function txExplorerUrl(profile: NetworkProfile, txHash: string): string | undefined {

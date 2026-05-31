@@ -37,20 +37,14 @@ export function NetworkSelector() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full min-w-0 items-center gap-3 rounded-lg border border-[var(--sidebar-border)] bg-[var(--sidebar-surface-muted)] px-3 py-2.5 text-left text-[var(--sidebar-text)] shadow-sm transition hover:border-[var(--accent)]/60 hover:bg-[var(--sidebar-bg)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25"
+        className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-[var(--sidebar-border)] bg-[var(--sidebar-surface-muted)] px-2.5 py-2 text-left text-[var(--sidebar-text)] transition hover:border-[var(--accent)]/60 hover:bg-[var(--sidebar-bg)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25"
         aria-haspopup="listbox"
         aria-expanded={open}
         title={active.id}
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-bg)] ring-1 ring-[var(--sidebar-border)]">
-          <Network className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-medium uppercase text-[var(--sidebar-text-muted)]">{t("selectorLabel")}</span>
-          <span className="block truncate text-sm font-semibold">{active.label}</span>
-        </span>
-        <StageBadge profile={active} />
-        <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--sidebar-text-muted)] transition ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <Network className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{active.label}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-[var(--sidebar-text-muted)] transition ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
 
       {open ? (
@@ -65,27 +59,15 @@ export function NetworkSelector() {
               role="option"
               aria-selected={profile.id === active.id}
               onClick={() => onSelect(profile.id)}
-              className="flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left text-sm text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-surface-muted)]"
+              className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-surface-muted)]"
             >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{profile.label}</span>
-                <span className="block truncate text-xs text-[var(--sidebar-text-muted)]">{profile.id}</span>
-              </span>
-              <StageBadge profile={profile} />
-              {profile.id === active.id ? <Check className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" /> : <span className="h-4 w-4 shrink-0" />}
+              <span className="min-w-0 flex-1 truncate font-medium">{profile.label}</span>
+              {profile.stage ? <span className="shrink-0 text-[10px] uppercase text-[var(--sidebar-text-muted)]">{profile.stage}</span> : null}
+              {profile.id === active.id ? <Check className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" /> : <span className="h-3.5 w-3.5 shrink-0" />}
             </button>
           ))}
         </div>
       ) : null}
     </div>
-  );
-}
-
-function StageBadge({ profile }: { profile: NetworkProfile }) {
-  const label = profile.stage ?? "custom";
-  return (
-    <span className="shrink-0 rounded-md border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] px-2 py-1 text-[10px] font-semibold uppercase text-[var(--sidebar-text-muted)]">
-      {label}
-    </span>
   );
 }

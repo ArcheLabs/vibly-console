@@ -4,7 +4,7 @@ export interface PendingGetVibRecord {
   txHash: string;
   paymentAmount: string;
   estimatedVib: string;
-  estimatedSlippage: string;
+  estimatedSlippage?: string;
   submittedAt: string;
   status: PendingGetVibStatus;
 }
@@ -53,7 +53,6 @@ function isPendingRecord(value: unknown): value is PendingGetVibRecord {
       typeof record.txHash === "string" &&
       typeof record.paymentAmount === "string" &&
       typeof record.estimatedVib === "string" &&
-      typeof record.estimatedSlippage === "string" &&
       typeof record.submittedAt === "string" &&
       (record.status === "submitted" || record.status === "finalized_pending" || record.status === "allocation_pending"),
   );

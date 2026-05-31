@@ -128,6 +128,11 @@ async function proxy(
     allowWalletGetVibOrder ||
     allowGetVibQuote;
   const requiresWalletPrincipal = (allowWalletActionIntent || allowWalletGetVibOrder) && Boolean(walletSession);
+  // GET requests to /streams/* are SSE endpoints that may be used without a
+  // console session (wallet-only users). The server-side API token is still
+  // injected so the coordinator can enforce auth on its side; it is never
+  // visible to the browser.
+  const allowServerTokenForStream = allowAnonymousRead && routePath.startsWith("/streams/");
 
   let credentials;
   let walletPrincipalId: string | null = null;
@@ -144,7 +149,7 @@ async function proxy(
     }
     credentials = await resolveCoordinatorCredentials(session, {
       allowAnonymous,
-      allowServerTokenWithoutSession: allowWalletActionIntent || allowWalletGetVibOrder,
+      allowServerTokenWithoutSession: allowWalletActionIntent || allowWalletGetVibOrder || allowServerTokenForStream,
       networkId: requestedNetworkId,
     });
   } catch (e) {

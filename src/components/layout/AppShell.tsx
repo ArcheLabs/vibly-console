@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Bot, Building2, Coins, LayoutDashboard, Menu, Network, Rss, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { useAuthState } from "@/lib/store/authStore";
 import { useNetworkAgents, useNetworkOrganizations } from "@/lib/query/hooks";
 import { SettingsMenu } from "@/components/layout/SettingsMenu";
 import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 import { NetworkSelector } from "@/components/layout/NetworkSelector";
+import { useActiveNetworkProfile, networkPaymentRpcUrls } from "@/lib/network/profiles";
+import { refreshPaymentChainInfo } from "@/lib/network/paymentChainInfo";
 
 const navItems = [
   { href: "/", key: "feed", icon: Rss },
@@ -103,6 +106,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useAuthState();
   const t = useTranslations("shell");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const activeNetwork = useActiveNetworkProfile();
+
+  useEffect(() => {
+    refreshPaymentChainInfo(networkPaymentRpcUrls(activeNetwork));
+  }, [activeNetwork]);
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">

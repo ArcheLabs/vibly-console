@@ -73,6 +73,7 @@ export interface CoordinatorClient {
   replayTrace(traceId: string): Promise<Entity>;
   listEvents(input?: PageInput): Promise<Page<EventEnvelope>>;
   streamProjectEvents(projectId: string, handlers: StreamHandlers): () => void;
+  streamGetVibEvents(handlers: StreamHandlers): () => void;
 
   // V0.2: Network Feed (backed by /events until /feed is in contract)
   getNetworkFeed(input?: PageInput | number): Promise<Page<Entity>>;
@@ -849,6 +850,25 @@ class HttpCoordinatorClient implements CoordinatorClient {
       }
     };
     eventSource.addEventListener("ProjectEvent", handleMessage);
+    eventSource.onerror = () => handlers.onStatus?.("error");
+    return () => {
+      eventSource.close();
+      handlers.onStatus?.("disconnected");
+    };
+  }
+
+  streamGetVibEvents(handlers: StreamHandlers) {
+    const url = this.makeStreamUrl(`/streams/events?type=GetVibCurveUpdated`);
+    const eventSource = new EventSource(url);
+    handlers.onStatus?.("connected");
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        handlers.onEvent(JSON.parse(event.data) as EventEnvelope);
+      } catch {
+        // Ignore malformed stream frames.
+      }
+    };
+    eventSource.addEventListener("EventEnvelope", handleMessage);
     eventSource.onerror = () => handlers.onStatus?.("error");
     return () => {
       eventSource.close();
