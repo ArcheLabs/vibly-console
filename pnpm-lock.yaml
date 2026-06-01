@@ -26,7 +26,7 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@vibly/coordinator-http-contract':
+      '@vibly-ai/coordinator-http-contract':
         specifier: workspace:*
         version: link:../vibly-coordinator-http-contract
       date-fns:

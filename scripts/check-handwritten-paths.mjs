@@ -2,7 +2,7 @@
 /**
  * Guard: forbid new handwritten coordinator paths outside
  * `src/lib/coordinator/`. The contract package
- * (@vibly/coordinator-http-contract) is the single source of truth for HTTP
+ * (@vibly-ai/coordinator-http-contract) is the single source of truth for HTTP
  * paths; consumers must call those typed methods, not assemble URLs by hand.
  *
  * Heuristic: matches `/projects/...`, `/events`, `/health`, etc. used as
@@ -68,7 +68,7 @@ for (const file of walk(ROOT)) {
 if (violations.length > 0) {
   console.error(
     `[contract guard] Handwritten coordinator paths or URL credentials detected. ` +
-      `Use @vibly/coordinator-http-contract for paths, and the Auth.js session + server-side credential resolver for transport credentials.`,
+      `Use @vibly-ai/coordinator-http-contract for paths, and the Auth.js session + server-side credential resolver for transport credentials.`,
   );
   for (const v of violations) console.error(` - ${v.file}: ${v.match}`);
   process.exit(1);

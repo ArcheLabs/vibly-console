@@ -1,5 +1,5 @@
 /**
- * Adapter that builds a `@vibly/coordinator-http-contract` client matching
+ * Adapter that builds a `@vibly-ai/coordinator-http-contract` client matching
  * the console's `AuthState` (direct vs proxy URL building, optional Bearer
  * token).
  *
@@ -14,8 +14,8 @@
  * an explicit `apiToken` purely as a transport credential and never
  * persists it.
  */
-import { createCoordinatorClient } from "@vibly/coordinator-http-contract/client";
-import type { CoordinatorClient as ContractClient } from "@vibly/coordinator-http-contract/client";
+import { createCoordinatorClient } from "@vibly-ai/coordinator-http-contract/client";
+import type { CoordinatorClient as ContractClient } from "@vibly-ai/coordinator-http-contract/client";
 import type { AuthState } from "./types";
 import { readWalletSessionToken } from "@/lib/wallet/sessionStore";
 

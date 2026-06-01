@@ -20,7 +20,7 @@
     "@polkadot/util": "^13.2.2",
     "@tanstack/react-query": "^5.100.5",
     "@tanstack/react-table": "^8.21.3",
-    "@vibly/coordinator-http-contract": "workspace:*",
+    "@vibly-ai/coordinator-http-contract": "workspace:*",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.468.0",
     "next": "^16.2.4",

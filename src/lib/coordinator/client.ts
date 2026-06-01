@@ -1,5 +1,5 @@
-import { unwrapEnvelope, unwrapListEnvelope } from "@vibly/coordinator-http-contract/client";
-import { CoordinatorApiError as ContractApiError } from "@vibly/coordinator-http-contract/errors";
+import { unwrapEnvelope, unwrapListEnvelope } from "@vibly-ai/coordinator-http-contract/client";
+import { CoordinatorApiError as ContractApiError } from "@vibly-ai/coordinator-http-contract/errors";
 import { ConsoleApiError } from "./errors";
 import type { AuthState, Entity, EventEnvelope, Page, PageInput } from "./types";
 import { createConsoleContractClient, type ConsoleContractClient } from "./contractClient";
