@@ -283,7 +283,14 @@
       "rootWallet": "Root Wallet",
       "identityId": "Identity ID",
       "ecosystem": "Ecosystem",
-      "recovery": "Recovery"
+      "recovery": "Recovery",
+      "registerTitle": "Root identity is not registered",
+      "registerHint": "Register this Polkadot root wallet on the Vibly chain. Console does not store your private key.",
+      "registerAction": "Register root identity",
+      "registering": "Registering...",
+      "registerSubmitted": "Registration submitted",
+      "registerFailed": "Registration failed",
+      "registerPolkadotOnly": "Root identity registration currently requires a Polkadot root wallet."
     },
     "agents": {
       "title": "My Agents",
@@ -328,7 +335,11 @@
       "authorize": "Authorize with root wallet",
       "challengeFirst": "Create a challenge first.",
       "invalidDescriptor": "Invalid descriptor",
-      "authFailed": "Authorization failed"
+      "authFailed": "Authorization failed",
+      "authorizedTitle": "Root authorization complete",
+      "chainSetupNeeded": "Session key authorization is complete. Finish identity, chain agent registration, and staking in Console before running this command.",
+      "copyLinkHint": "Copy this command back to the Agent machine, then run agent status. It includes a minimal runtime token stored in local 0600 profile config.",
+      "copyLink": "Copy link command"
     },
     "receiptDialog": {
       "title": "Record Wallet Stake Transaction",

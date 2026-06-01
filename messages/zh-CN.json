@@ -283,7 +283,14 @@
       "rootWallet": "根钱包",
       "identityId": "身份 ID",
       "ecosystem": "生态系统",
-      "recovery": "恢复"
+      "recovery": "恢复",
+      "registerTitle": "根身份尚未注册",
+      "registerHint": "使用当前 Polkadot 根钱包在 Vibly 链上注册身份。Console 不保存你的私钥。",
+      "registerAction": "注册根身份",
+      "registering": "注册中...",
+      "registerSubmitted": "注册交易已提交",
+      "registerFailed": "注册失败",
+      "registerPolkadotOnly": "根身份注册目前需要使用 Polkadot 根钱包。"
     },
     "agents": {
       "title": "我的代理",
@@ -328,7 +335,11 @@
       "authorize": "用根钱包授权",
       "challengeFirst": "请先创建挑战",
       "invalidDescriptor": "无效描述符",
-      "authFailed": "授权失败"
+      "authFailed": "授权失败",
+      "authorizedTitle": "根钱包授权已完成",
+      "chainSetupNeeded": "会话密钥授权已完成。请先在 Console 完成身份、链上 Agent 注册和质押，再运行此命令。",
+      "copyLinkHint": "复制这条命令回到 Agent 机器，然后运行 agent status。命令包含最小权限 runtime token，会写入本地 0600 profile 配置。",
+      "copyLink": "复制回填命令"
     },
     "receiptDialog": {
       "title": "记录钱包质押交易",

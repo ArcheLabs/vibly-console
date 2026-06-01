@@ -28,19 +28,10 @@ import { StatusPill, CapTag } from "@/components/common/Badge";
 import { useCoordinatorClient, usePersonalCenter } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
-import { useActiveNetworkProfile } from "@/lib/network/profiles";
+import { networkViblyRpcUrls, useActiveNetworkProfile } from "@/lib/network/profiles";
 import type { Entity } from "@/lib/coordinator/types";
-
-const defaultDescriptor = {
-  displayName: "observer-agent",
-  sessionPublicKey: "",
-  keyType: "sr25519",
-  capabilities: ["observer", "researcher"],
-  organizationIds: ["default"],
-  scopes: ["availability", "task_result", "pause_duty", "resume_duty"],
-  stakeLimit: "100",
-  expiresAt: "",
-};
+import { AddAgentFlow } from "@/components/identity/AddAgentFlow";
+import { registerRootIdentityOnChain } from "@/lib/identity/rootIdentityChain";
 
 function asRecord(value: unknown): Entity {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Entity) : {};
@@ -69,6 +60,7 @@ export function PersonalCenterPage() {
   const { data, isLoading, error, refetch } = usePersonalCenter();
   const [addOpen, setAddOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [identityTxHash, setIdentityTxHash] = useState<string | null>(null);
 
   const agents = asArray(data?.agents);
   const alerts = asArray(data?.alerts);
@@ -81,10 +73,25 @@ export function PersonalCenterPage() {
   const activeAgents = agents.filter((agent) => String(agent.dutyStatus ?? "active") === "active").length;
   const sessionKeys = agents.flatMap((agent) => asArray(agent.sessionKeys).map((key) => ({ key, agent })));
   const expiringKeys = sessionKeys.filter((item) => isExpiringSoon(String(item.key.expiresAt ?? ""))).length;
+  const hasRootIdentity = Boolean(identity.identityId || identity.status);
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => client.revokeAgentSessionKey(keyId, { reason: "Revoked from personal center" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) }),
+  });
+
+  const registerIdentityMutation = useMutation({
+    mutationFn: async () => {
+      if (wallet.session?.ecosystem !== "polkadot") throw new Error(t("identity.registerPolkadotOnly"));
+      return await registerRootIdentityOnChain({
+        rpcUrl: networkViblyRpcUrls(network),
+        accountId: wallet.session.address,
+      });
+    },
+    onSuccess: async (txHash) => {
+      setIdentityTxHash(txHash);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
+    },
   });
 
   if (wallet.initializing) {
@@ -97,7 +104,7 @@ export function PersonalCenterPage() {
         <PageHeader icon={Wallet} title={t("title")} description={t("notConnectedSubtitle")} />
         <div className="mt-8 flex flex-col items-start gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-[var(--text-muted)]">{t("notConnectedSubtitle")}</p>
-          <WalletConnectPanel mode="button" />
+          <WalletConnectPanel mode="button" autoOpen />
         </div>
       </div>
     );
@@ -169,6 +176,29 @@ export function PersonalCenterPage() {
                 <InfoTile label={t("identity.ecosystem")} value={String(session.ecosystem ?? "wallet")} />
                 <InfoTile label={t("identity.recovery")} value={String(identity.recoveryStatus ?? "Not set")} tone="warning" />
               </div>
+              {!hasRootIdentity ? (
+                <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+                  <div className="text-sm font-semibold text-[var(--text)]">{t("identity.registerTitle")}</div>
+                  <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t("identity.registerHint")}</p>
+                  {wallet.session?.ecosystem !== "polkadot" ? (
+                    <div className="mt-3 text-xs text-amber-400">{t("identity.registerPolkadotOnly")}</div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="action-primary mt-4"
+                    disabled={registerIdentityMutation.isPending || wallet.session?.ecosystem !== "polkadot"}
+                    onClick={() => registerIdentityMutation.mutate()}
+                  >
+                    {registerIdentityMutation.isPending ? t("identity.registering") : t("identity.registerAction")}
+                  </button>
+                  {identityTxHash ? <div className="mt-3 break-all font-mono text-xs text-[var(--text-muted)]">{t("identity.registerSubmitted")}: {identityTxHash}</div> : null}
+                  {registerIdentityMutation.error ? (
+                    <div className="mt-3 rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-400">
+                      {registerIdentityMutation.error instanceof Error ? registerIdentityMutation.error.message : t("identity.registerFailed")}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </Panel>
         </section>
@@ -361,67 +391,9 @@ function SecurityEvent({ event }: { event: Entity }) {
 
 function AddAgentDialog({ onClose }: { onClose(): void }) {
   const t = useTranslations("personalCenter");
-  const client = useCoordinatorClient();
-  const wallet = useWalletAuth();
-  const network = useActiveNetworkProfile();
-  const queryClient = useQueryClient();
-  const [raw, setRaw] = useState(JSON.stringify(defaultDescriptor, null, 2));
-  const [challenge, setChallenge] = useState<Entity | null>(null);
-  const [sessionSignature, setSessionSignature] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const challengeMutation = useMutation({
-    mutationFn: async () => {
-      setError(null);
-      const descriptor = JSON.parse(raw) as Record<string, unknown>;
-      const next = await client.createAgentEnrollmentChallenge({ descriptor });
-      setChallenge(next);
-      return next;
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : t("addAgentDialog.invalidDescriptor")),
-  });
-
-  const authorizeMutation = useMutation({
-    mutationFn: async () => {
-      if (!challenge) throw new Error(t("addAgentDialog.challengeFirst"));
-      const message = String(challenge.rootAuthorizationMessage ?? "");
-      const rootAuthorizationSignature = await wallet.signWalletMessage(message);
-      return client.authorizeAgentEnrollment({
-        challengeId: challenge.id,
-        sessionSignature,
-        rootAuthorizationSignature,
-      });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
-      onClose();
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : t("addAgentDialog.authFailed")),
-  });
-
   return (
     <Modal title={t("addAgentDialog.title")} onClose={onClose}>
-      <div className="grid gap-4">
-        <label className="text-sm">
-          <span className="mb-2 block font-semibold text-[var(--text-muted)]">{t("addAgentDialog.descriptorLabel")}</span>
-          <textarea className="h-56 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-xs text-[var(--text)]" value={raw} onChange={(event) => setRaw(event.target.value)} />
-        </label>
-        <button type="button" className="action-primary justify-center" disabled={challengeMutation.isPending} onClick={() => challengeMutation.mutate()}>{t("addAgentDialog.createChallenge")}</button>
-        {challenge ? (
-          <div className="grid gap-3">
-            <div className="rounded-xl bg-[var(--surface-muted)] p-3">
-              <div className="text-xs font-normal uppercase text-[var(--text-subtle)]">{t("addAgentDialog.signatureMessage")}</div>
-              <pre className="mt-2 max-h-40 overflow-auto text-xs text-[var(--text-muted)]">{String(challenge.message ?? "")}</pre>
-            </div>
-            <label className="text-sm">
-              <span className="mb-2 block font-semibold text-[var(--text-muted)]">{t("addAgentDialog.sessionSigLabel")}</span>
-              <textarea className="h-24 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-xs text-[var(--text)]" value={sessionSignature} onChange={(event) => setSessionSignature(event.target.value)} />
-            </label>
-            <button type="button" className="action-primary justify-center" disabled={authorizeMutation.isPending || !sessionSignature} onClick={() => authorizeMutation.mutate()}>{t("addAgentDialog.authorize")}</button>
-          </div>
-        ) : null}
-        {error ? <div className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-400">{error}</div> : null}
-      </div>
+      <AddAgentFlow />
     </Modal>
   );
 }

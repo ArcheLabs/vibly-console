@@ -341,6 +341,11 @@ export function GetVibPage() {
                   </button>
                   <span className="text-sm font-semibold text-[var(--text-muted)]">{paymentTokenSymbol}</span>
                 </div>
+                {insufficientBalance ? (
+                  <div className="mt-1 text-left text-xs font-medium text-[var(--danger)]">
+                    {t("feedback.insufficientBalanceBody", { symbol: paymentTokenSymbol })}
+                  </div>
+                ) : null}
 
                 {/* Chevron indicator */}
                 <div className="mt-4 mb-4 flex justify-center">

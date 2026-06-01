@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut, RefreshCw, Wallet, X, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddressAvatar } from "@/components/domain/AddressAvatar";
@@ -16,18 +16,25 @@ export function shortAddress(value: string | null | undefined) {
 export function WalletConnectPanel({
   mode = "button",
   placement = "default",
+  autoOpen = false,
 }: {
   mode?: "button" | "panel";
   placement?: "default" | "sidebar";
+  autoOpen?: boolean;
 }) {
   const t = useTranslations("wallet");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const wallet = useWalletAuth();
   const label = wallet.session
     ? `${wallet.session.ecosystem}:${shortAddress(wallet.session.address)}`
     : placement === "sidebar"
       ? t("sidebarLogin")
       : t("connect");
+
+  useEffect(() => {
+    if (autoOpen && !wallet.session) setOpen(true);
+    if (wallet.session) setOpen(false);
+  }, [autoOpen, wallet.session]);
 
   if (mode === "panel") {
     return <WalletPanelContent onClose={null} />;

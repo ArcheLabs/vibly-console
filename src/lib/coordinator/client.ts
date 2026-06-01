@@ -956,8 +956,13 @@ class HttpCoordinatorClient implements CoordinatorClient {
   }
 
   async getAgentReputation(agentId: string) {
-    const evidence = await this.listReputationEvidence(agentId);
-    return { agentId, evidence: evidence.data } as Entity;
+    return await runContract(async () => {
+      const result = await this.contract.GET("/agents/{id}/reputation", {
+        params: { path: { id: agentId } },
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "reputation");
+    });
   }
 
   async getPersonalCenter() {
