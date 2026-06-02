@@ -8,6 +8,7 @@ import { WagmiProvider } from "wagmi";
 import { getEvmConfig } from "@/lib/wallet/evmConfig";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 import { DevConsoleErrorFilter } from "@/lib/browser/DevConsoleErrorFilter";
+import { ChainTransactionTray } from "@/components/common/ChainTransactionTray";
 import { ToastProvider } from "@/components/common/Toast";
 
 export function Providers({
@@ -39,7 +40,10 @@ export function Providers({
       <ThemeProvider>
         <ToastProvider>
           <SessionProvider>
-            <WagmiProvider config={getEvmConfig()}>{content}</WagmiProvider>
+            <WagmiProvider config={getEvmConfig()}>
+              {content}
+              <ChainTransactionTray />
+            </WagmiProvider>
           </SessionProvider>
         </ToastProvider>
       </ThemeProvider>

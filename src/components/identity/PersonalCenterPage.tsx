@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
@@ -32,6 +32,12 @@ import { networkViblyRpcUrls, useActiveNetworkProfile } from "@/lib/network/prof
 import type { Entity } from "@/lib/coordinator/types";
 import { AddAgentFlow } from "@/components/identity/AddAgentFlow";
 import { registerRootIdentityOnChain } from "@/lib/identity/rootIdentityChain";
+import { txExplorerUrl } from "@/lib/network/explorer";
+import {
+  createChainTransaction,
+  updateChainTransaction,
+  useChainTransactions,
+} from "@/lib/chain/transactionStore";
 
 function asRecord(value: unknown): Entity {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Entity) : {};
@@ -60,7 +66,8 @@ export function PersonalCenterPage() {
   const { data, isLoading, error, refetch } = usePersonalCenter();
   const [addOpen, setAddOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [identityTxHash, setIdentityTxHash] = useState<string | null>(null);
+  const [identityTransactionId, setIdentityTransactionId] = useState<string | null>(null);
+  const chainTransactions = useChainTransactions();
 
   const agents = asArray(data?.agents);
   const alerts = asArray(data?.alerts);
@@ -74,6 +81,7 @@ export function PersonalCenterPage() {
   const sessionKeys = agents.flatMap((agent) => asArray(agent.sessionKeys).map((key) => ({ key, agent })));
   const expiringKeys = sessionKeys.filter((item) => isExpiringSoon(String(item.key.expiresAt ?? ""))).length;
   const hasRootIdentity = Boolean(identity.identityId || identity.status);
+  const identityTransaction = chainTransactions.find((item) => item.id === identityTransactionId) ?? null;
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => client.revokeAgentSessionKey(keyId, { reason: "Revoked from personal center" }),
@@ -83,16 +91,67 @@ export function PersonalCenterPage() {
   const registerIdentityMutation = useMutation({
     mutationFn: async () => {
       if (wallet.session?.ecosystem !== "polkadot") throw new Error(t("identity.registerPolkadotOnly"));
-      return await registerRootIdentityOnChain({
+      const tracker = createChainTransaction({
+        title: t("identity.registerTitle"),
+        body: t("identity.registerAwaitingSignature"),
+      });
+      setIdentityTransactionId(tracker.id);
+      const txHash = await registerRootIdentityOnChain({
         rpcUrl: networkViblyRpcUrls(network),
         accountId: wallet.session.address,
+        onStatus: (status) => {
+          updateChainTransaction(tracker.id, {
+            phase: status.phase,
+            txHash: status.txHash,
+            explorerUrl: status.txHash ? txExplorerUrl(network, status.txHash) : undefined,
+            body:
+              status.phase === "awaiting_signature"
+                ? t("identity.registerAwaitingSignature")
+                : status.phase === "broadcast"
+                  ? t("identity.registerBroadcast")
+                  : status.phase === "in_block"
+                    ? t("identity.registerInBlock")
+                    : t("identity.registerFinalized"),
+          });
+        },
       });
+      return { txHash, trackerId: tracker.id };
     },
-    onSuccess: async (txHash) => {
-      setIdentityTxHash(txHash);
+    onSuccess: async ({ txHash, trackerId }) => {
+      updateChainTransaction(trackerId, {
+        phase: "waiting_sync",
+        txHash,
+        explorerUrl: txExplorerUrl(network, txHash),
+        body: t("identity.registerPendingSync"),
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
     },
+    onError: (cause) => {
+      if (!identityTransactionId) return;
+      updateChainTransaction(identityTransactionId, {
+        phase: "failed",
+        body: cause instanceof Error ? cause.message : t("identity.registerFailed"),
+      });
+    },
   });
+  const registerBusy = registerIdentityMutation.isPending || identityTransaction?.phase === "waiting_sync";
+
+  useEffect(() => {
+    if (hasRootIdentity && identityTransactionId) {
+      updateChainTransaction(identityTransactionId, {
+        phase: "completed",
+        body: t("identity.registerConfirmed"),
+      });
+    }
+  }, [hasRootIdentity, identityTransactionId, t]);
+
+  useEffect(() => {
+    if (!identityTransaction || hasRootIdentity || identityTransaction.phase !== "waiting_sync") return;
+    const timer = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [hasRootIdentity, identityTransaction, network.id, queryClient]);
 
   if (wallet.initializing) {
     return <div className="p-8"><LoadingState label="Loading wallet session..." /></div>;
@@ -186,12 +245,35 @@ export function PersonalCenterPage() {
                   <button
                     type="button"
                     className="action-primary mt-4"
-                    disabled={registerIdentityMutation.isPending || wallet.session?.ecosystem !== "polkadot"}
+                    disabled={registerBusy || wallet.session?.ecosystem !== "polkadot"}
                     onClick={() => registerIdentityMutation.mutate()}
                   >
-                    {registerIdentityMutation.isPending ? t("identity.registering") : t("identity.registerAction")}
+                    {registerIdentityMutation.isPending
+                      ? identityTransaction?.phase === "awaiting_signature"
+                        ? t("identity.registerAwaitingSignature")
+                        : identityTransaction?.phase === "broadcast"
+                          ? t("identity.registerBroadcast")
+                          : identityTransaction?.phase === "in_block"
+                            ? t("identity.registerInBlock")
+                            : t("identity.registering")
+                      : identityTransaction?.phase === "waiting_sync"
+                        ? t("identity.registerWaitingSync")
+                        : t("identity.registerAction")}
                   </button>
-                  {identityTxHash ? <div className="mt-3 break-all font-mono text-xs text-[var(--text-muted)]">{t("identity.registerSubmitted")}: {identityTxHash}</div> : null}
+                  {identityTransaction?.txHash ? (
+                    <div className="mt-3 space-y-2">
+                      <div className="break-all font-mono text-xs text-[var(--text-muted)]">{t("identity.registerSubmitted")}: {identityTransaction.txHash}</div>
+                      <div className="text-xs text-[var(--text-muted)]">
+                        {identityTransaction.phase === "waiting_sync"
+                          ? t("identity.registerPendingSync")
+                          : identityTransaction.phase === "completed"
+                            ? t("identity.registerConfirmed")
+                            : identityTransaction.phase === "failed"
+                              ? t("identity.registerFailed")
+                              : t("identity.registerSubmitted")}
+                      </div>
+                    </div>
+                  ) : null}
                   {registerIdentityMutation.error ? (
                     <div className="mt-3 rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-400">
                       {registerIdentityMutation.error instanceof Error ? registerIdentityMutation.error.message : t("identity.registerFailed")}

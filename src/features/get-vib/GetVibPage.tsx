@@ -19,14 +19,20 @@ import {
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import type { Entity } from "@/lib/coordinator/types";
 import { errorMessage } from "@/lib/coordinator/errors";
-import { networkPaymentRpcUrls, networkViblyRpcUrls, useActiveNetworkProfile, type NetworkProfile } from "@/lib/network/profiles";
-import { getAuthorizedPolkadotInjector } from "@/lib/wallet/polkadotExtension";
+import { networkPaymentRpcUrls, networkViblyRpcUrls, useActiveNetworkProfile } from "@/lib/network/profiles";
 import { decimalToBaseUnits, isPositiveDecimal } from "@/lib/get-vib/amounts";
 import { queryPaymentBalance, submitPaymentTransfer } from "@/lib/get-vib/paymentTransfer";
 import { addPendingGetVibRecord, readPendingGetVibRecords, reconcilePendingGetVibRecords, writePendingGetVibRecords, type PendingGetVibRecord } from "@/lib/get-vib/pendingRecords";
 import { mergeGetVibRecords, paginateRecords, type GetVibTableRecord } from "@/lib/get-vib/records";
 import { useGetVibLiveEvents } from "@/lib/query/useGetVibLiveEvents";
 import { usePaymentChainInfo } from "@/lib/network/paymentChainInfo";
+import {
+  createChainTransaction,
+  updateChainTransaction,
+  useChainTransactions,
+} from "@/lib/chain/transactionStore";
+import { submitSubstrateTransaction } from "@/lib/chain/substrateTx";
+import { txExplorerUrl } from "@/lib/network/explorer";
 
 type ActiveTab = "exchange" | "curve";
 
@@ -54,8 +60,10 @@ export function GetVibPage() {
   const [copiedWallet, setCopiedWallet] = useState(false);
   const [copiedDeposit, setCopiedDeposit] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
+  const [claimTransactionId, setClaimTransactionId] = useState<string | null>(null);
+  const chainTransactions = useChainTransactions();
 
   const configQuery = useGetVibConfig();
   const config = configQuery.data ?? {};
@@ -93,6 +101,8 @@ export function GetVibPage() {
   );
   const paginated = paginateRecords(records, page, pageSize);
   const claimableAmount = Number(summary.claimableAmount ?? 0);
+  const paymentTransaction = chainTransactions.find((item) => item.id === paymentTransactionId) ?? null;
+  const claimTransaction = chainTransactions.find((item) => item.id === claimTransactionId) ?? null;
 
   useEffect(() => {
     if (!accountId) {
@@ -106,11 +116,19 @@ export function GetVibPage() {
     if (!accountId) return;
     const confirmedHashes = arrayOfEntities(recordsQuery.data?.relayDeposits).map((item) => text(item.extrinsicHash)).filter(Boolean);
     const next = reconcilePendingGetVibRecords(pendingRecords, confirmedHashes);
+    for (const record of pendingRecords) {
+      if (confirmedHashes.includes(record.txHash) && paymentTransaction?.txHash === record.txHash) {
+        updateChainTransaction(paymentTransaction.id, {
+          phase: "completed",
+          body: t("feedback.paymentObserved"),
+        });
+      }
+    }
     if (next.length !== pendingRecords.length) {
       setPendingRecords(next);
       writePendingGetVibRecords(networkId, accountId, next);
     }
-  }, [accountId, networkId, pendingRecords, recordsQuery.data]);
+  }, [accountId, networkId, paymentTransaction, pendingRecords, recordsQuery.data, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,6 +221,11 @@ export function GetVibPage() {
     if (!polkadotAccount || paymentRpcUrls.length === 0) return;
     setTransferError(null);
     setTransferring(true);
+    const tracker = createChainTransaction({
+      title: t("feedback.paymentTitle"),
+      body: t("feedback.awaitingSignature"),
+    });
+    setPaymentTransactionId(tracker.id);
     try {
       const txHash = await submitPaymentTransfer({
         rpcUrl: paymentRpcUrls,
@@ -210,6 +233,21 @@ export function GetVibPage() {
         depositAddress,
         amount: paymentAmount,
         decimals: paymentTokenDecimals,
+        onStatus: (status) => {
+          updateChainTransaction(tracker.id, {
+            phase: status.phase,
+            txHash: status.txHash,
+            explorerUrl: status.txHash ? txExplorerUrl(activeNetwork, status.txHash) : undefined,
+            body:
+              status.phase === "awaiting_signature"
+                ? t("feedback.awaitingSignature")
+                : status.phase === "broadcast"
+                  ? t("feedback.broadcast")
+                  : status.phase === "in_block"
+                    ? t("feedback.inBlock")
+                    : t("feedback.finalized"),
+          });
+        },
       });
       const pending = addPendingGetVibRecord(networkId, polkadotAccount, {
         txHash,
@@ -220,11 +258,21 @@ export function GetVibPage() {
         status: "submitted",
       });
       setPendingRecords(pending);
+      updateChainTransaction(tracker.id, {
+        phase: "waiting_sync",
+        txHash,
+        explorerUrl: txExplorerUrl(activeNetwork, txHash),
+        body: t("feedback.paymentPendingAllocation"),
+      });
       notify(t("records.statusValue.submitted"), txHash, "success");
       await Promise.all([recordsQuery.refetch(), summaryQuery.refetch(), curveQuery.refetch(), quoteQuery.refetch()]);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       setTransferError(message);
+      updateChainTransaction(tracker.id, {
+        phase: "failed",
+        body: message,
+      });
       notify(t("transferError"), message, "danger");
     } finally {
       setTransferring(false);
@@ -235,10 +283,33 @@ export function GetVibPage() {
     if (!polkadotAccount || !proof) return;
     setClaiming(true);
     setClaimError(null);
-    setClaimTxHash(null);
+    const tracker = createChainTransaction({
+      title: t("claimTitle"),
+      body: t("feedback.awaitingSignature"),
+    });
+    setClaimTransactionId(tracker.id);
     try {
-      const txHash = await submitVibClaim(polkadotAccount, proof, viblyRpcUrls);
-      setClaimTxHash(txHash);
+      const txHash = await submitVibClaim(polkadotAccount, proof, viblyRpcUrls, (status) => {
+        updateChainTransaction(tracker.id, {
+          phase: status.phase,
+          txHash: status.txHash,
+          explorerUrl: status.txHash ? txExplorerUrl(activeNetwork, status.txHash) : undefined,
+          body:
+            status.phase === "awaiting_signature"
+              ? t("feedback.awaitingSignature")
+              : status.phase === "broadcast"
+                ? t("feedback.broadcast")
+                : status.phase === "in_block"
+                  ? t("feedback.inBlock")
+                  : t("feedback.finalized"),
+        });
+      });
+      updateChainTransaction(tracker.id, {
+        phase: "waiting_sync",
+        txHash,
+        explorerUrl: txExplorerUrl(activeNetwork, txHash),
+        body: t("feedback.claimPendingSync"),
+      });
       await claimRecordMutation.mutateAsync({
         networkId,
         accountId,
@@ -249,9 +320,20 @@ export function GetVibPage() {
         txHash,
         status: "confirmed",
       }).catch(() => undefined);
+      updateChainTransaction(tracker.id, {
+        phase: "completed",
+        txHash,
+        explorerUrl: txExplorerUrl(activeNetwork, txHash),
+        body: t("feedback.claimCompleted"),
+      });
       await Promise.all([summaryQuery.refetch(), recordsQuery.refetch()]);
     } catch (cause) {
-      setClaimError(cause instanceof Error ? cause.message : String(cause));
+      const message = cause instanceof Error ? cause.message : String(cause);
+      setClaimError(message);
+      updateChainTransaction(tracker.id, {
+        phase: "failed",
+        body: message,
+      });
     } finally {
       setClaiming(false);
     }
@@ -371,7 +453,15 @@ export function GetVibPage() {
                   className="mt-4 mx-auto flex items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-6 py-2 text-sm font-semibold text-[var(--accent-foreground)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {transferring ? t("transferring") : t("transferCta")}
+                  {transferring
+                    ? paymentTransaction?.phase === "awaiting_signature"
+                      ? t("feedback.awaitingSignature")
+                      : paymentTransaction?.phase === "broadcast"
+                        ? t("feedback.broadcast")
+                        : paymentTransaction?.phase === "in_block"
+                          ? t("feedback.inBlock")
+                          : t("transferring")
+                    : t("transferCta")}
                   {!transferring ? <ExternalLink className="h-3.5 w-3.5" /> : null}
                 </button>
 
@@ -421,7 +511,7 @@ export function GetVibPage() {
                     proof={proof}
                     claimableAmount={claimableAmount}
                     claiming={claiming}
-                    claimTxHash={claimTxHash}
+                    claimTransaction={claimTransaction}
                     claimError={claimError}
                     onClaim={claimVib}
                     canClaim={Boolean(polkadotAccount && proof && claimableAmount > 0)}
@@ -600,7 +690,7 @@ function ClaimCard({
   proof,
   claimableAmount,
   claiming,
-  claimTxHash,
+  claimTransaction,
   claimError,
   canClaim,
   onClaim,
@@ -610,7 +700,7 @@ function ClaimCard({
   proof: Entity | null;
   claimableAmount: number;
   claiming: boolean;
-  claimTxHash: string | null;
+  claimTransaction: ReturnType<typeof useChainTransactions>[number] | null;
   claimError: string | null;
   canClaim: boolean;
   onClaim(): void;
@@ -675,9 +765,20 @@ function ClaimCard({
         className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:cursor-default disabled:border disabled:border-[var(--border)] disabled:bg-transparent disabled:text-[var(--text-muted)]"
       >
         {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {claiming ? t("claiming") : !canClaim ? t("claim.none") : t("claim.claimVib")}
+        {claiming
+          ? claimTransaction?.phase === "awaiting_signature"
+            ? t("feedback.awaitingSignature")
+            : claimTransaction?.phase === "broadcast"
+              ? t("feedback.broadcast")
+              : claimTransaction?.phase === "in_block"
+                ? t("feedback.inBlock")
+                : t("claiming")
+          : !canClaim
+            ? t("claim.none")
+            : t("claim.claimVib")}
       </button>
-      {claimTxHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTxHash}</p> : null}
+      {claimTransaction?.txHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTransaction.txHash}</p> : null}
+      {claimTransaction?.phase === "waiting_sync" && claimTransaction.body ? <p className="mt-2 text-xs text-[var(--text-muted)]">{claimTransaction.body}</p> : null}
       {claimError ? <p className="mt-3 text-xs text-[var(--danger)]">{claimError}</p> : null}
     </div>
   );
@@ -898,31 +999,17 @@ function pageNumbers(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
-function txExplorerUrl(profile: NetworkProfile, txHash: string): string | undefined {
-  if (!profile.explorerTxUrl || !txHash) return undefined;
-  return profile.explorerTxUrl.includes("{txHash}") ? profile.explorerTxUrl.replace("{txHash}", txHash) : `${profile.explorerTxUrl}${txHash}`;
-}
-
-async function submitVibClaim(accountId: string, proof: Entity, rpcUrls: string[]): Promise<string> {
-  if (rpcUrls.length === 0) throw new Error("Vibly chain RPC is not configured for the active network profile.");
-  const [{ ApiPromise, WsProvider }, injector] = await Promise.all([
-    import("@polkadot/api"),
-    getAuthorizedPolkadotInjector(accountId),
-  ]);
-  let api: InstanceType<typeof ApiPromise> | undefined;
-  let lastError: unknown;
-  for (const rpcUrl of rpcUrls) {
-    try {
-      api = await ApiPromise.create({ provider: new WsProvider(rpcUrl) });
-      break;
-    } catch (cause) {
-      lastError = cause;
-    }
-  }
-  if (!api) throw lastError instanceof Error ? lastError : new Error("Unable to connect to Vibly chain RPC.");
-  try {
-    if (!injector.signer) throw new Error("Current wallet does not expose a Polkadot signer.");
-    const tx = api.tx.vibClaim.claim(
+async function submitVibClaim(
+  accountId: string,
+  proof: Entity,
+  rpcUrls: string[],
+  onStatus?: Parameters<typeof submitSubstrateTransaction>[0]["onStatus"],
+): Promise<string> {
+  return await submitSubstrateTransaction({
+    rpcUrl: rpcUrls,
+    accountId,
+    onStatus,
+    buildTx: async (api) => api.tx.vibClaim.claim(
       text(proof.networkId),
       Number(proof.rootVersion),
       text(proof.identityId),
@@ -931,24 +1018,6 @@ async function submitVibClaim(accountId: string, proof: Entity, rpcUrls: string[
         position: text(item.position) === "left" ? "Left" : "Right",
         hash: text(item.hash),
       })),
-    );
-    return await new Promise<string>((resolve, reject) => {
-      let unsub: (() => void) | undefined;
-      tx.signAndSend(accountId, { signer: injector.signer }, (result) => {
-        if (result.dispatchError) {
-          reject(new Error(result.dispatchError.toString()));
-          unsub?.();
-          return;
-        }
-        if (result.status.isInBlock || result.status.isFinalized) {
-          resolve(tx.hash.toHex());
-          unsub?.();
-        }
-      }).then((fn) => {
-        unsub = fn;
-      }).catch(reject);
-    });
-  } finally {
-    await api.disconnect();
-  }
+    ),
+  });
 }

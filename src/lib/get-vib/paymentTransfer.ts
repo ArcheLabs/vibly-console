@@ -1,5 +1,5 @@
 import { decimalToBaseUnits, baseUnitsToDecimal } from "@/lib/get-vib/amounts";
-import { getAuthorizedPolkadotInjector } from "@/lib/wallet/polkadotExtension";
+import { submitSubstrateTransaction, type SubstrateTransactionStatus } from "@/lib/chain/substrateTx";
 
 export interface PaymentTransferInput {
   rpcUrl: string | string[];
@@ -7,6 +7,7 @@ export interface PaymentTransferInput {
   depositAddress: string;
   amount: string;
   decimals: number;
+  onStatus?(status: SubstrateTransactionStatus): void;
 }
 
 export interface PaymentChainInfo {
@@ -43,44 +44,21 @@ export async function submitPaymentTransfer(input: PaymentTransferInput): Promis
   const amountBaseUnits = decimalToBaseUnits(input.amount, input.decimals);
   if (amountBaseUnits <= 0n) throw new Error("Payment amount must be greater than zero.");
 
-  const [modules, injector] = await Promise.all([
-    import("@polkadot/api"),
-    getAuthorizedPolkadotInjector(input.accountId),
-  ]);
+  const modules = await import("@polkadot/api");
   const { api } = await connectPaymentApi(modules, input.rpcUrl);
   try {
     const account = await api.query.system.account(input.accountId);
     const free = BigInt((account as unknown as { data?: { free?: { toString(): string } } }).data?.free?.toString() ?? "0");
     if (free <= amountBaseUnits) throw new Error("Insufficient payment token balance.");
-    if (!injector.signer) throw new Error("Current wallet does not expose a Polkadot signer.");
-
-    const tx = api.tx.balances.transferKeepAlive(input.depositAddress, amountBaseUnits.toString());
-    return await new Promise<string>((resolve, reject) => {
-      let settled = false;
-      let unsub: (() => void) | undefined;
-      tx.signAndSend(input.accountId, { signer: injector.signer }, (result) => {
-        if (settled) return;
-        if (result.dispatchError) {
-          settled = true;
-          reject(new Error(result.dispatchError.toString()));
-          unsub?.();
-          return;
-        }
-        if (result.status.isBroadcast || result.status.isInBlock || result.status.isFinalized) {
-          settled = true;
-          resolve(tx.hash.toHex());
-          unsub?.();
-        }
-      }).then((fn) => {
-        unsub = fn;
-      }).catch((cause) => {
-        settled = true;
-        reject(cause);
-      });
-    });
   } finally {
     await api.disconnect();
   }
+  return await submitSubstrateTransaction({
+    rpcUrl: input.rpcUrl,
+    accountId: input.accountId,
+    onStatus: input.onStatus,
+    buildTx: async (api) => api.tx.balances.transferKeepAlive(input.depositAddress, amountBaseUnits.toString()),
+  });
 }
 
 export async function queryPaymentChainInfo(rpcUrl: string | string[]): Promise<PaymentChainInfo> {
