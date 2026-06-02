@@ -23,6 +23,7 @@ export interface ChainTransactionRecord {
 }
 
 const listeners = new Set<() => void>();
+const emptyRecords: ChainTransactionRecord[] = [];
 let records: ChainTransactionRecord[] = [];
 
 function emit() {
@@ -87,5 +88,5 @@ function subscribe(listener: () => void) {
 }
 
 export function useChainTransactions(): ChainTransactionRecord[] {
-  return useSyncExternalStore(subscribe, readChainTransactions, () => []);
+  return useSyncExternalStore(subscribe, readChainTransactions, () => emptyRecords);
 }

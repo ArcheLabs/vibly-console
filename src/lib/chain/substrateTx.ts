@@ -6,6 +6,7 @@ export interface SubstrateTransactionStatus {
   phase: "awaiting_signature" | "broadcast" | "in_block" | "finalized";
   txHash?: string;
   blockHash?: string;
+  events?: unknown[];
 }
 
 export async function submitSubstrateTransaction(input: {
@@ -44,6 +45,7 @@ export async function submitSubstrateTransaction(input: {
           asFinalized?: { toHex(): string };
         };
         txHash?: { toHex(): string };
+        events?: unknown[];
       }) => {
         if (settled) return;
         const txHash = result.txHash?.toHex?.() || lastTxHash;
@@ -70,6 +72,7 @@ export async function submitSubstrateTransaction(input: {
             phase: "finalized",
             txHash,
             blockHash: result.status.asFinalized?.toHex?.(),
+            events: result.events,
           });
           resolve(txHash);
           unsub?.();

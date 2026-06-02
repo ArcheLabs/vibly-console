@@ -57,6 +57,8 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+const LOCAL_ROOT_IDENTITY_KEY = "vibly.console.rootIdentityReceipts.v1";
+
 export function PersonalCenterPage() {
   const t = useTranslations("personalCenter");
   const wallet = useWalletAuth();
@@ -67,15 +69,17 @@ export function PersonalCenterPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [identityTransactionId, setIdentityTransactionId] = useState<string | null>(null);
+  const [localRootIdentity, setLocalRootIdentity] = useState<Entity | null>(null);
   const chainTransactions = useChainTransactions();
 
   const agents = asArray(data?.agents);
   const alerts = asArray(data?.alerts);
   const events = asArray(data?.securityEvents);
   const stakeTotals = asRecord(data?.stakeTotals);
-  const identity = asRecord(data?.identity);
+  const serverIdentity = asRecord(data?.identity);
   const session = asRecord(data?.session ?? wallet.session);
   const rootAddress = String(session.address ?? wallet.session?.address ?? "");
+  const identity = Object.keys(serverIdentity).length ? serverIdentity : asRecord(localRootIdentity);
   const identityLabel = String(identity.displayName ?? identity.name ?? identity.identityId ?? rootAddress ?? "wallet session");
   const activeAgents = agents.filter((agent) => String(agent.dutyStatus ?? "active") === "active").length;
   const sessionKeys = agents.flatMap((agent) => asArray(agent.sessionKeys).map((key) => ({ key, agent })));
@@ -98,7 +102,7 @@ export function PersonalCenterPage() {
         body: t("identity.registerAwaitingSignature"),
       });
       setIdentityTransactionId(tracker.id);
-      const txHash = await registerRootIdentityOnChain({
+      const receipt = await registerRootIdentityOnChain({
         rpcUrl: networkViblyRpcUrls(network),
         accountId: wallet.session.address,
         onStatus: (status) => {
@@ -117,14 +121,28 @@ export function PersonalCenterPage() {
           });
         },
       });
-      return { txHash, trackerId: tracker.id };
+      return { ...receipt, trackerId: tracker.id };
     },
-    onSuccess: async ({ txHash, trackerId }) => {
+    onSuccess: async ({ txHash, identityId, trackerId }) => {
+      if (identityId && rootAddress) {
+        const localIdentity = {
+          ecosystem: "polkadot",
+          chainId: network.id,
+          identityId,
+          viblyRootAddress: rootAddress,
+          status: "active",
+          source: "finalized-transaction",
+          txHash,
+          updatedAt: new Date().toISOString(),
+        };
+        saveLocalRootIdentity(network.id, rootAddress, localIdentity);
+        setLocalRootIdentity(localIdentity);
+      }
       updateChainTransaction(trackerId, {
-        phase: "waiting_sync",
+        phase: identityId ? "completed" : "waiting_sync",
         txHash,
         explorerUrl: txExplorerUrl(network, txHash),
-        body: t("identity.registerPendingSync"),
+        body: identityId ? t("identity.registerConfirmed") : t("identity.registerPendingSync"),
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
     },
@@ -137,6 +155,10 @@ export function PersonalCenterPage() {
     },
   });
   const registerBusy = registerIdentityMutation.isPending || identityTransaction?.phase === "waiting_sync";
+
+  useEffect(() => {
+    setLocalRootIdentity(rootAddress ? loadLocalRootIdentity(network.id, rootAddress) : null);
+  }, [network.id, rootAddress]);
 
   useEffect(() => {
     if (hasRootIdentity && identityTransactionId) {
@@ -355,6 +377,34 @@ export function PersonalCenterPage() {
       `}</style>
     </div>
   );
+}
+
+function localRootIdentityStorageKey(networkId: string, rootAddress: string): string {
+  return `${networkId}:${rootAddress}`;
+}
+
+function loadLocalRootIdentity(networkId: string, rootAddress: string): Entity | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LOCAL_ROOT_IDENTITY_KEY);
+    const parsed = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+    const identity = asRecord(parsed[localRootIdentityStorageKey(networkId, rootAddress)]);
+    return Object.keys(identity).length ? identity : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalRootIdentity(networkId: string, rootAddress: string, identity: Entity): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(LOCAL_ROOT_IDENTITY_KEY);
+    const parsed = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+    parsed[localRootIdentityStorageKey(networkId, rootAddress)] = identity;
+    window.localStorage.setItem(LOCAL_ROOT_IDENTITY_KEY, JSON.stringify(parsed));
+  } catch {
+    // Local cache is a UX fallback; coordinator/indexer sync remains authoritative.
+  }
 }
 
 function Panel({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: ReactNode; children: ReactNode }) {
