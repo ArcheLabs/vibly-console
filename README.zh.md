@@ -59,6 +59,7 @@ pnpm dev
 | `NEXT_PUBLIC_PAYMENT_RPC_URL` | Get VIB 使用的支付链 RPC，用于读取 DOT/PAS 余额和提交转账 |
 | `NEXT_PUBLIC_POLKADOT_RPC_URL` | 可选的支付链 Polkadot 兼容 RPC 别名/兜底 |
 | `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | 可选的网络 profile JSON 数组。建议使用地址数组（`coordinatorUrls`、`paymentRpcUrls`、`viblyRpcUrls`），这样单个端点不可用时 Console 会尝试下一个。 |
+| `NEXT_PUBLIC_VIBLY_NETWORK_MANIFEST_URL` | bootstrap 网络 manifest URL；默认 `https://vibly.network/networks.json` |
 
 本地 Get VIB 需要区分 Vibly 领取链和支付链 RPC：
 

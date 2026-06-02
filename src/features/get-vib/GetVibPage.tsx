@@ -72,9 +72,11 @@ export function GetVibPage() {
   const paymentRpcUrl = paymentChainInfo?.rpcUrl ?? paymentRpcUrls[0];
   const depositAddress = text(config.depositAddress);
   const networkId = normalizeNetworkId(config.networkId) || activeNetwork.id;
+  const getVibConversionEnabled = activeNetwork.features?.getVibConversion !== false;
+  const getVibClaimEnabled = activeNetwork.features?.getVibClaim !== false;
   const polkadotAccount = wallet.session?.ecosystem === "polkadot" ? wallet.session.address : wallet.polkadotAddress;
   const accountId = polkadotAccount ?? wallet.session?.address ?? wallet.evmAddress ?? null;
-  const purchaseEnabled = config.purchaseEnabled !== false && Boolean(depositAddress);
+  const purchaseEnabled = getVibConversionEnabled && config.purchaseEnabled !== false && Boolean(depositAddress);
   const quoteQuery = useGetVibQuote(paymentAmount, purchaseEnabled);
   const summaryQuery = useGetVibSummary(accountId);
   const proofQuery = useGetVibProof(accountId);
@@ -514,7 +516,8 @@ export function GetVibPage() {
                     claimTransaction={claimTransaction}
                     claimError={claimError}
                     onClaim={claimVib}
-                    canClaim={Boolean(polkadotAccount && proof && claimableAmount > 0)}
+                    canClaim={Boolean(getVibClaimEnabled && polkadotAccount && proof && claimableAmount > 0)}
+                    claimUnavailableMessage={!getVibClaimEnabled ? activeNetwork.messages?.getVibClaim ?? t("feedback.claimUnavailable") : undefined}
                   />
                 </Panel>
               </div>
@@ -692,6 +695,7 @@ function ClaimCard({
   claiming,
   claimTransaction,
   claimError,
+  claimUnavailableMessage,
   canClaim,
   onClaim,
 }: {
@@ -702,6 +706,7 @@ function ClaimCard({
   claiming: boolean;
   claimTransaction: ReturnType<typeof useChainTransactions>[number] | null;
   claimError: string | null;
+  claimUnavailableMessage?: string;
   canClaim: boolean;
   onClaim(): void;
 }) {
@@ -777,6 +782,7 @@ function ClaimCard({
             ? t("claim.none")
             : t("claim.claimVib")}
       </button>
+      {claimUnavailableMessage ? <p className="mt-3 text-xs text-[var(--warning)]">{claimUnavailableMessage}</p> : null}
       {claimTransaction?.txHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTransaction.txHash}</p> : null}
       {claimTransaction?.phase === "waiting_sync" && claimTransaction.body ? <p className="mt-2 text-xs text-[var(--text-muted)]">{claimTransaction.body}</p> : null}
       {claimError ? <p className="mt-3 text-xs text-[var(--danger)]">{claimError}</p> : null}

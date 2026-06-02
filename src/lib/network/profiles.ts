@@ -7,6 +7,10 @@ export interface NetworkProfile {
   id: string;
   label: string;
   stage?: "local" | "testnet" | "mainnet" | string;
+  status?: "active" | "prelaunch" | "maintenance" | "deprecated" | string;
+  manifestVersion?: number;
+  updatedAt?: string;
+  ttlSeconds?: number;
   coordinatorUrl?: string;
   coordinatorUrls?: string[];
   coordinatorEndpoint?: string;
@@ -24,10 +28,37 @@ export interface NetworkProfile {
   viblyChainEndpoint?: string;
   viblyGenesisHash?: string;
   relayTokenSymbol?: string;
+  chains?: {
+    payment?: NetworkChainManifest;
+    vibly?: NetworkChainManifest;
+  };
+  features?: NetworkFeatureFlags;
+  messages?: Record<string, string>;
 }
 
 const STORAGE_KEY = "vibly-console.network-profile";
 const listeners = new Set<() => void>();
+let runtimeProfiles: NetworkProfile[] | null = null;
+let runtimeLoadStarted = false;
+
+interface NetworkChainManifest {
+  chainId: string;
+  genesisHash?: string;
+  rpcUrls?: string[];
+  tokenSymbol?: string;
+  tokenDecimals?: number;
+  explorerTxUrl?: string;
+  status?: string;
+}
+
+interface NetworkFeatureFlags {
+  agentJoin: boolean;
+  daemon: boolean;
+  staking: boolean;
+  rootIdentityRegistration: boolean;
+  getVibConversion: boolean;
+  getVibClaim: boolean;
+}
 
 const PASEO_PAYMENT_RPC_URLS = [
   "wss://rpc.ibp.network/paseo",
@@ -58,14 +89,22 @@ function normalizeProfile(value: unknown): NetworkProfile | null {
   const id = typeof record.id === "string" ? record.id.trim() : "";
   if (!id) return null;
   const coordinatorUrls = stringArray(record.coordinatorUrls).concat(stringArray(record.coordinatorUrl), stringArray(record.coordinatorEndpoint));
+  const chains = record.chains && typeof record.chains === "object" ? record.chains as { payment?: NetworkChainManifest; vibly?: NetworkChainManifest } : {};
   const paymentRpcUrls = stringArray(record.paymentRpcUrls)
+    .concat(stringArray(chains.payment?.rpcUrls))
     .concat(stringArray(record.paymentRpcUrl), stringArray(record.polkadotRpcUrl), stringArray(record.polkadotEndpoint));
   const viblyRpcUrls = stringArray(record.viblyRpcUrls)
+    .concat(stringArray(chains.vibly?.rpcUrls))
     .concat(stringArray(record.viblyRpcUrl), stringArray(record.viblyChainEndpoint));
+  const features = record.features && typeof record.features === "object" ? record.features as NetworkFeatureFlags : undefined;
   return {
     id,
     label: typeof record.label === "string" && record.label.trim() ? record.label.trim() : id,
     stage: typeof record.stage === "string" ? record.stage : undefined,
+    status: typeof record.status === "string" ? record.status : undefined,
+    manifestVersion: typeof record.manifestVersion === "number" ? record.manifestVersion : undefined,
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
+    ttlSeconds: typeof record.ttlSeconds === "number" ? record.ttlSeconds : undefined,
     coordinatorUrl: coordinatorUrls[0],
     coordinatorUrls,
     coordinatorEndpoint: coordinatorUrls[0],
@@ -73,11 +112,17 @@ function normalizeProfile(value: unknown): NetworkProfile | null {
     paymentRpcUrls,
     paymentTokenSymbol: typeof record.paymentTokenSymbol === "string"
       ? record.paymentTokenSymbol
+      : typeof chains.payment?.tokenSymbol === "string"
+        ? chains.payment.tokenSymbol
       : typeof record.relayTokenSymbol === "string"
         ? record.relayTokenSymbol
         : undefined,
-    paymentTokenDecimals: typeof record.paymentTokenDecimals === "number" && Number.isFinite(record.paymentTokenDecimals) ? record.paymentTokenDecimals : undefined,
-    paymentGenesisHash: typeof record.paymentGenesisHash === "string" ? record.paymentGenesisHash : undefined,
+    paymentTokenDecimals: typeof record.paymentTokenDecimals === "number" && Number.isFinite(record.paymentTokenDecimals)
+      ? record.paymentTokenDecimals
+      : typeof chains.payment?.tokenDecimals === "number"
+        ? chains.payment.tokenDecimals
+        : undefined,
+    paymentGenesisHash: typeof record.paymentGenesisHash === "string" ? record.paymentGenesisHash : chains.payment?.genesisHash,
     explorerTxUrl: typeof record.explorerTxUrl === "string" ? record.explorerTxUrl : undefined,
     explorerAddressUrl: typeof record.explorerAddressUrl === "string" ? record.explorerAddressUrl : undefined,
     polkadotRpcUrl: paymentRpcUrls[0],
@@ -85,8 +130,11 @@ function normalizeProfile(value: unknown): NetworkProfile | null {
     viblyRpcUrl: viblyRpcUrls[0],
     viblyRpcUrls,
     viblyChainEndpoint: viblyRpcUrls[0],
-    viblyGenesisHash: typeof record.viblyGenesisHash === "string" ? record.viblyGenesisHash : undefined,
+    viblyGenesisHash: typeof record.viblyGenesisHash === "string" ? record.viblyGenesisHash : chains.vibly?.genesisHash,
     relayTokenSymbol: typeof record.relayTokenSymbol === "string" ? record.relayTokenSymbol : undefined,
+    chains,
+    features,
+    messages: record.messages && typeof record.messages === "object" ? record.messages as Record<string, string> : undefined,
   };
 }
 
@@ -110,7 +158,7 @@ function uniqueProfiles(profiles: NetworkProfile[]): NetworkProfile[] {
   });
 }
 
-export const networkProfiles: NetworkProfile[] = uniqueProfiles([
+const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
   ...parseConfiguredProfiles(),
   {
     id: appConfig.defaultNetworkId,
@@ -140,15 +188,32 @@ export const networkProfiles: NetworkProfile[] = uniqueProfiles([
   {
     id: "substrate:vibly-incentivized-testnet",
     label: "Incentivized Testnet",
-    stage: "mainnet",
+    stage: "testnet",
+    status: "prelaunch",
     coordinatorUrl: appConfig.defaultCoordinatorUrl,
     coordinatorUrls: [appConfig.defaultCoordinatorUrl].filter(Boolean),
     paymentRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
     paymentRpcUrls: POLKADOT_PAYMENT_RPC_URLS,
     polkadotRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
     polkadotEndpoint: POLKADOT_PAYMENT_RPC_URLS[0],
+    features: {
+      agentJoin: false,
+      daemon: false,
+      staking: false,
+      rootIdentityRegistration: false,
+      getVibConversion: true,
+      getVibClaim: false,
+    },
+    messages: {
+      getVibClaim: "VIB claim to incentivized testnet is not live yet.",
+      prelaunch: "Incentivized testnet agent onboarding will open after the network launch.",
+    },
   },
 ]);
+
+export function networkProfiles(): NetworkProfile[] {
+  return runtimeProfiles?.length ? runtimeProfiles : fallbackNetworkProfiles;
+}
 
 export function networkCoordinatorUrls(profile: NetworkProfile): string[] {
   return profile.coordinatorUrls?.length ? profile.coordinatorUrls : [profile.coordinatorUrl, profile.coordinatorEndpoint].filter(Boolean) as string[];
@@ -163,18 +228,20 @@ export function networkViblyRpcUrls(profile: NetworkProfile): string[] {
 }
 
 export function getDefaultNetworkProfile(): NetworkProfile {
-  return networkProfiles[0] ?? { id: "substrate:vibly-solo", label: "Local", stage: "local" };
+  void ensureRuntimeProfiles();
+  return networkProfiles()[0] ?? { id: "substrate:vibly-solo", label: "Local", stage: "local" };
 }
 
 export function readActiveNetworkProfile(): NetworkProfile {
+  void ensureRuntimeProfiles();
   if (typeof window === "undefined") return getDefaultNetworkProfile();
   const selectedId = window.localStorage.getItem(STORAGE_KEY);
-  return networkProfiles.find((profile) => profile.id === selectedId) ?? getDefaultNetworkProfile();
+  return networkProfiles().find((profile) => profile.id === selectedId) ?? getDefaultNetworkProfile();
 }
 
 export function selectNetworkProfile(networkId: string): void {
   if (typeof window === "undefined") return;
-  const next = networkProfiles.find((profile) => profile.id === networkId) ?? getDefaultNetworkProfile();
+  const next = networkProfiles().find((profile) => profile.id === networkId) ?? getDefaultNetworkProfile();
   window.localStorage.setItem(STORAGE_KEY, next.id);
   for (const listener of listeners) listener();
 }
@@ -186,4 +253,35 @@ function subscribe(listener: () => void): () => void {
 
 export function useActiveNetworkProfile(): NetworkProfile {
   return useSyncExternalStore(subscribe, readActiveNetworkProfile, getDefaultNetworkProfile);
+}
+
+export function useNetworkProfiles(): NetworkProfile[] {
+  return useSyncExternalStore(subscribe, networkProfiles, () => fallbackNetworkProfiles);
+}
+
+async function ensureRuntimeProfiles(): Promise<void> {
+  if (typeof window === "undefined" || runtimeLoadStarted) return;
+  runtimeLoadStarted = true;
+  const loaded = await fetchProfiles(appConfig.defaultCoordinatorUrl.replace(/\/$/, "") + "/networks")
+    .catch(() => fetchProfiles(appConfig.networkManifestUrl))
+    .catch(() => []);
+  if (loaded.length) {
+    runtimeProfiles = uniqueProfiles([...loaded, ...fallbackNetworkProfiles]);
+    for (const listener of listeners) listener();
+  }
+}
+
+async function fetchProfiles(url: string): Promise<NetworkProfile[]> {
+  const response = await fetch(url);
+  if (!response.ok) return [];
+  const json = await response.json() as unknown;
+  const record = json && typeof json === "object" ? json as Record<string, unknown> : {};
+  const networks = Array.isArray(json)
+    ? json
+    : Array.isArray(record.networks)
+      ? record.networks
+      : Array.isArray((record.data as Record<string, unknown> | undefined)?.networks)
+        ? ((record.data as Record<string, unknown>).networks as unknown[])
+        : [];
+  return networks.map(normalizeProfile).filter((profile): profile is NetworkProfile => Boolean(profile));
 }

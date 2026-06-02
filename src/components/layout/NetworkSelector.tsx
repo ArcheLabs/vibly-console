@@ -5,15 +5,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
-  networkProfiles,
   selectNetworkProfile,
   useActiveNetworkProfile,
-  type NetworkProfile,
+  useNetworkProfiles,
 } from "@/lib/network/profiles";
 
 export function NetworkSelector() {
   const t = useTranslations("network");
   const active = useActiveNetworkProfile();
+  const profiles = useNetworkProfiles();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -52,7 +52,7 @@ export function NetworkSelector() {
           role="listbox"
           className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-lg border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] py-1 shadow-xl"
         >
-          {networkProfiles.map((profile) => (
+          {profiles.map((profile) => (
             <button
               key={profile.id}
               type="button"
@@ -62,6 +62,7 @@ export function NetworkSelector() {
               className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-surface-muted)]"
             >
               <span className="min-w-0 flex-1 truncate font-medium">{profile.label}</span>
+              {profile.status && profile.status !== "active" ? <span className="shrink-0 text-[10px] uppercase text-[var(--warning)]">{profile.status}</span> : null}
               {profile.stage ? <span className="shrink-0 text-[10px] uppercase text-[var(--sidebar-text-muted)]">{profile.stage}</span> : null}
               {profile.id === active.id ? <Check className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" /> : <span className="h-3.5 w-3.5 shrink-0" />}
             </button>

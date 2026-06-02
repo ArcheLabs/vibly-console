@@ -258,6 +258,7 @@
     "syncState": "同步状态",
     "recordTx": "记录钱包交易",
     "addAgent": "添加代理",
+    "networkFeatureUnavailable": "当前网络尚未开放此操作。",
     "walletConnected": "根钱包已连接",
     "metrics": {
       "identity": "身份",
@@ -471,6 +472,7 @@
       "paymentObserved": "Coordinator 已观察到充值，分配流程正在推进。",
       "claimPendingSync": "链上领取已 finalized，正在同步 Console 侧领取记录。",
       "claimCompleted": "VIB 已领取完成。",
+      "claimUnavailable": "VIB claim 到激励测试网暂未上线。",
       "balanceLoading": "余额仍在加载",
       "balanceLoadingBody": "请稍等余额读取完成后再提交转账。",
       "balanceUnavailable": "余额暂不可用",

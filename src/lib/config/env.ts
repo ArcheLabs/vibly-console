@@ -9,4 +9,5 @@ export const appConfig = {
   polkadotRpcUrl: process.env.NEXT_PUBLIC_POLKADOT_RPC_URL,
   paymentRpcUrl: process.env.NEXT_PUBLIC_PAYMENT_RPC_URL,
   networkProfilesJson: process.env.NEXT_PUBLIC_VIBLY_NETWORK_PROFILES,
+  networkManifestUrl: process.env.NEXT_PUBLIC_VIBLY_NETWORK_MANIFEST_URL ?? "https://vibly.network/networks.json",
 };

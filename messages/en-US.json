@@ -258,6 +258,7 @@
     "syncState": "Sync state",
     "recordTx": "Record wallet tx",
     "addAgent": "Add Agent",
+    "networkFeatureUnavailable": "This network is not open for this action yet.",
     "walletConnected": "Root wallet connected",
     "metrics": {
       "identity": "Identity",
@@ -471,6 +472,7 @@
       "paymentObserved": "Coordinator observed the deposit. Allocation is now progressing.",
       "claimPendingSync": "Claim finalized on-chain. Syncing the claim record in Console.",
       "claimCompleted": "VIB claim completed.",
+      "claimUnavailable": "VIB claim to incentivized testnet is not live yet.",
       "balanceLoading": "Balance is still loading",
       "balanceLoadingBody": "Please wait until the wallet balance has loaded before submitting the transfer.",
       "balanceUnavailable": "Balance unavailable",

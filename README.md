@@ -59,6 +59,7 @@ Default addresses: Console `http://localhost:3000` · Coordinator `http://localh
 | `NEXT_PUBLIC_PAYMENT_RPC_URL` | Payment chain RPC used by Get VIB balance reads and DOT/PAS transfers |
 | `NEXT_PUBLIC_POLKADOT_RPC_URL` | Optional alias/fallback for payment-chain Polkadot-compatible RPC |
 | `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | Optional JSON array of selectable network profiles. Prefer URL arrays (`coordinatorUrls`, `paymentRpcUrls`, `viblyRpcUrls`) so Console can fail over when one endpoint is down. |
+| `NEXT_PUBLIC_VIBLY_NETWORK_MANIFEST_URL` | Bootstrap network manifest URL; defaults to `https://vibly.network/networks.json` |
 
 For local Get VIB, keep the Vibly claim chain and payment chain RPCs separate:
 

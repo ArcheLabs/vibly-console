@@ -82,6 +82,8 @@ export function PersonalCenterPage() {
   const expiringKeys = sessionKeys.filter((item) => isExpiringSoon(String(item.key.expiresAt ?? ""))).length;
   const hasRootIdentity = Boolean(identity.identityId || identity.status);
   const identityTransaction = chainTransactions.find((item) => item.id === identityTransactionId) ?? null;
+  const canRegisterRootIdentity = network.status === "active" && network.features?.rootIdentityRegistration !== false;
+  const canAddAgent = network.status === "active" && network.features?.agentJoin !== false;
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => client.revokeAgentSessionKey(keyId, { reason: "Revoked from personal center" }),
@@ -198,7 +200,7 @@ export function PersonalCenterPage() {
             <button type="button" onClick={() => setReceiptOpen(true)} className="action-secondary">
               <Zap className="h-4 w-4" /> {t("recordTx")}
             </button>
-            <button type="button" onClick={() => setAddOpen(true)} className="action-primary">
+            <button type="button" onClick={() => setAddOpen(true)} disabled={!canAddAgent} className="action-primary disabled:cursor-not-allowed disabled:opacity-50" title={!canAddAgent ? network.messages?.prelaunch ?? t("networkFeatureUnavailable") : undefined}>
               <Plus className="h-4 w-4" /> {t("addAgent")}
             </button>
           </div>
@@ -242,10 +244,13 @@ export function PersonalCenterPage() {
                   {wallet.session?.ecosystem !== "polkadot" ? (
                     <div className="mt-3 text-xs text-amber-400">{t("identity.registerPolkadotOnly")}</div>
                   ) : null}
+                  {!canRegisterRootIdentity ? (
+                    <div className="mt-3 text-xs text-amber-400">{network.messages?.prelaunch ?? t("networkFeatureUnavailable")}</div>
+                  ) : null}
                   <button
                     type="button"
                     className="action-primary mt-4"
-                    disabled={registerBusy || wallet.session?.ecosystem !== "polkadot"}
+                    disabled={registerBusy || wallet.session?.ecosystem !== "polkadot" || !canRegisterRootIdentity}
                     onClick={() => registerIdentityMutation.mutate()}
                   >
                     {registerIdentityMutation.isPending
@@ -311,7 +316,7 @@ export function PersonalCenterPage() {
             </Panel>
             <Panel title={t("quickActions.title")}>
               <div className="grid gap-3">
-                <button type="button" className="quick-primary" onClick={() => setAddOpen(true)}><span><Plus className="h-4 w-4" /> {t("quickActions.addAgent")}</span><ChevronRight className="h-4 w-4" /></button>
+                <button type="button" disabled={!canAddAgent} className="quick-primary disabled:cursor-not-allowed disabled:opacity-50" onClick={() => setAddOpen(true)}><span><Plus className="h-4 w-4" /> {t("quickActions.addAgent")}</span><ChevronRight className="h-4 w-4" /></button>
                 <button type="button" className="quick-secondary" onClick={() => setReceiptOpen(true)}><span><Zap className="h-4 w-4" /> {t("quickActions.recordStake")}</span><ChevronRight className="h-4 w-4" /></button>
               </div>
             </Panel>
