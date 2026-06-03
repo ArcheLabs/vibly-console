@@ -91,6 +91,8 @@ export interface CoordinatorClient {
   getPersonalCenter(): Promise<Entity>;
   getGuardianDecision(accountId: string): Promise<Entity>;
   createAgentEnrollment(body: Record<string, unknown>): Promise<Entity>;
+  authorizeAgentSessionPublicKey(body: Record<string, unknown>): Promise<Entity>;
+  getAgentEnrollmentStatus(sessionPublicKey: string): Promise<Entity>;
   createAgentEnrollmentChallenge(body: Record<string, unknown>): Promise<Entity>;
   authorizeAgentEnrollment(body: Record<string, unknown>): Promise<Entity>;
   revokeAgentSessionKey(id: string, body?: Record<string, unknown>): Promise<Entity>;
@@ -997,6 +999,32 @@ class HttpCoordinatorClient implements CoordinatorClient {
   async createAgentEnrollment(body: Record<string, unknown>) {
     return await runContract(async () => {
       const result = await this.contract.POST("/agent-enrollments", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "authorization");
+    });
+  }
+
+  async authorizeAgentSessionPublicKey(body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const post = this.contract.POST as unknown as (
+        path: string,
+        init: { body: never },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/agent-enrollments/public-keys", { body: body as never });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "authorization");
+    });
+  }
+
+  async getAgentEnrollmentStatus(sessionPublicKey: string) {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: { sessionPublicKey: string } } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/agent-enrollments/status", {
+        params: { query: { sessionPublicKey } },
+      });
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "authorization");
     });

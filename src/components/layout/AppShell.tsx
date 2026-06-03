@@ -52,15 +52,12 @@ function NetworkHealthPanel() {
 function Brand() {
   const app = useTranslations("app");
   return (
-    <div className="flex h-20 items-center gap-3 px-5">
-      <Link href="/" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--sidebar-surface-muted)] shadow-sm ring-1 ring-[var(--accent)]/30 transition-opacity hover:opacity-80" aria-label={app("name")}>
-        <img src="/vibly-logo.png" alt="" className="h-full w-full object-cover" />
-      </Link>
-      <div className="min-w-0 flex-1">
-        <Link href="/" className="block truncate text-sm font-semibold tracking-tight text-[var(--sidebar-text)] transition-opacity hover:opacity-80">
-          {app("name")}
+    <div className="px-5 pb-4 pt-8">
+      <div className="flex flex-col items-start gap-3">
+        <Link href="/" className="transition-opacity hover:opacity-80" aria-label={app("name")}>
+          <img src="/vibly-logo.svg" alt={app("name")} className="h-11 w-auto" />
         </Link>
-        <div className="mt-1">
+        <div className="w-full max-w-[13rem]">
           <NetworkSelector />
         </div>
       </div>

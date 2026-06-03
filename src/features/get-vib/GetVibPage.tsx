@@ -20,7 +20,7 @@ import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import type { Entity } from "@/lib/coordinator/types";
 import { errorMessage } from "@/lib/coordinator/errors";
 import { networkPaymentRpcUrls, networkViblyRpcUrls, useActiveNetworkProfile } from "@/lib/network/profiles";
-import { decimalToBaseUnits, isPositiveDecimal } from "@/lib/get-vib/amounts";
+import { baseUnitsToDecimal, decimalToBaseUnits, isPositiveDecimal } from "@/lib/get-vib/amounts";
 import { queryPaymentBalance, submitPaymentTransfer } from "@/lib/get-vib/paymentTransfer";
 import { addPendingGetVibRecord, readPendingGetVibRecords, reconcilePendingGetVibRecords, writePendingGetVibRecords, type PendingGetVibRecord } from "@/lib/get-vib/pendingRecords";
 import { mergeGetVibRecords, paginateRecords, type GetVibTableRecord } from "@/lib/get-vib/records";
@@ -62,6 +62,7 @@ export function GetVibPage() {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [localClaimed, setLocalClaimed] = useState<{ networkId: string; accountId: string; rootVersion: number; cumulativeAmount: string } | null>(null);
+  const [chainClaimedAmount, setChainClaimedAmount] = useState<string | null>(null);
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
   const [claimTransactionId, setClaimTransactionId] = useState<string | null>(null);
   const chainTransactions = useChainTransactions();
@@ -112,7 +113,12 @@ export function GetVibPage() {
     localClaimed.rootVersion === Number(proof?.rootVersion ?? 0) &&
     localClaimed.cumulativeAmount === text(proof?.cumulativeAmount),
   );
-  const claimableAmountText = localClaimMatches ? "0" : text(summary.claimableAmount) || "0";
+  const proofCumulativeAmount = text(proof?.cumulativeAmount) || "0";
+  const chainClaimMatches = Boolean(
+    chainClaimedAmount &&
+    decimalToBaseUnits(chainClaimedAmount, 12) >= decimalToBaseUnits(proofCumulativeAmount, 12),
+  );
+  const claimableAmountText = localClaimMatches || chainClaimMatches ? "0" : text(summary.claimableAmount) || "0";
   const claimableAmount = Number(claimableAmountText);
   const paymentTransaction = chainTransactions.find((item) => item.id === paymentTransactionId) ?? null;
   const claimTransaction = chainTransactions.find((item) => item.id === claimTransactionId) ?? null;
@@ -124,6 +130,57 @@ export function GetVibPage() {
     }
     setPendingRecords(readPendingGetVibRecords(networkId, accountId));
   }, [accountId, networkId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setChainClaimedAmount(null);
+    if (!polkadotAccount || !proof || viblyRpcUrls.length === 0) return;
+    void queryClaimedVibAmount({
+      rpcUrl: viblyRpcUrls,
+      accountId: polkadotAccount,
+      decimals: 12,
+    }).then((claimedAmount) => {
+      if (!cancelled) setChainClaimedAmount(claimedAmount);
+    }).catch(() => {
+      if (!cancelled) setChainClaimedAmount(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [polkadotAccount, proof, viblyRpcUrls]);
+
+  useEffect(() => {
+    if (!polkadotAccount || !proof || !chainClaimMatches) return;
+    const summaryClaimedAmount = text(summary.claimedAmount) || "0";
+    const missingBaseUnits =
+      decimalToBaseUnits(proofCumulativeAmount, 12) - decimalToBaseUnits(summaryClaimedAmount, 12);
+    if (missingBaseUnits <= 0n) return;
+
+    setLocalClaimed({
+      networkId,
+      accountId: polkadotAccount,
+      rootVersion: Number(proof.rootVersion),
+      cumulativeAmount: proofCumulativeAmount,
+    });
+
+    void claimRecordMutation.mutateAsync({
+      networkId,
+      accountId: polkadotAccount,
+      identityId: text(proof.identityId) || undefined,
+      rootVersion: Number(proof.rootVersion),
+      cumulativeAmount: proofCumulativeAmount,
+      claimedDelta: baseUnitsToDecimal(missingBaseUnits, 12, 12),
+      status: "confirmed",
+    }).catch(() => undefined);
+  }, [
+    chainClaimMatches,
+    claimRecordMutation,
+    networkId,
+    polkadotAccount,
+    proof,
+    proofCumulativeAmount,
+    summary.claimedAmount,
+  ]);
 
   useEffect(() => {
     if (!accountId) return;
@@ -534,7 +591,7 @@ export function GetVibPage() {
                     proof={proof}
                     claimableAmountText={claimableAmountText}
                     claimableAmount={claimableAmount}
-                    claimed={localClaimMatches}
+                    claimed={localClaimMatches || chainClaimMatches}
                     claiming={claiming}
                     claimTransaction={claimTransaction}
                     claimError={claimError}
@@ -1072,4 +1129,37 @@ async function submitVibClaim(
       })),
     ),
   });
+}
+
+async function queryClaimedVibAmount(input: {
+  rpcUrl: string | string[];
+  accountId: string;
+  decimals: number;
+}): Promise<string> {
+  const modules = await import("@polkadot/api");
+  const endpoints = Array.isArray(input.rpcUrl) ? input.rpcUrl : [input.rpcUrl];
+  let lastError: unknown;
+
+  for (const endpoint of endpoints.map((item) => item.trim()).filter(Boolean)) {
+    const provider = new modules.WsProvider(endpoint);
+    try {
+      const api = await modules.ApiPromise.create({ provider });
+      try {
+        const claimed = await api.query.vibClaim.claimedAmount(input.accountId);
+        const claimedBaseUnits = (claimed as { toString(): string }).toString();
+        return baseUnitsToDecimal(claimedBaseUnits, input.decimals, input.decimals);
+      } finally {
+        await api.disconnect();
+      }
+    } catch (cause) {
+      lastError = cause;
+      try {
+        await provider.disconnect();
+      } catch {
+        // ignore disconnect failures while trying the next endpoint
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Unable to query VIB claim state.");
 }

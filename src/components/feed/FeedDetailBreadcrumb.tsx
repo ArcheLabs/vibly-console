@@ -1,54 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import type { Entity } from "@/lib/coordinator/types";
 import type { EntityNameMap } from "@/lib/entities/display";
 import { eventTypeFor, organizationIdFor, organizationNameFor, projectNameFor, text } from "@/lib/entities/display";
+import { DetailPageHeader, type BreadcrumbItem } from "@/components/layout/DetailPageHeader";
 
 export function FeedDetailBreadcrumb({ event, organizationNames, projectNames }: { event: Entity; organizationNames?: EntityNameMap; projectNames?: EntityNameMap }) {
   const orgId = organizationIdFor(event);
   const org = organizationNameFor(event, organizationNames);
   const project = projectNameFor(event, projectNames);
   const objectType = text(event.objectType, eventTypeFor(event), "Event");
+  const breadcrumbs: BreadcrumbItem[] = [{ label: "Vibly", href: "/" }];
+
+  if (org) breadcrumbs.push({ label: org, href: orgId ? `/organizations/${encodeURIComponent(orgId)}` : undefined });
+  if (project && project !== org) breadcrumbs.push({ label: project });
+  breadcrumbs.push({ label: objectType });
 
   return (
-    <div className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-xl">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2 text-sm">
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-full p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]"
-            aria-label="返回动态"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-          <span className="text-[var(--text-subtle)]">/</span>
-          <span className="text-[var(--text-muted)]">Vibly</span>
-          {org && (
-            <>
-              <span className="text-[var(--text-subtle)]">/</span>
-              <span className="font-medium text-[var(--text)]">{org}</span>
-            </>
-          )}
-          {project && project !== org && (
-            <>
-              <span className="text-[var(--text-subtle)]">/</span>
-              <span className="font-medium text-[var(--text)]">{project}</span>
-            </>
-          )}
-          <span className="text-[var(--text-subtle)]">/</span>
-          <span className="font-semibold text-[var(--text)]">{objectType}</span>
-        </div>
-        {orgId && (
+    <DetailPageHeader
+      breadcrumbs={breadcrumbs}
+      sticky
+      emphasized
+      right={
+        orgId ? (
           <Link
             href={`/organizations/${encodeURIComponent(orgId)}`}
             className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
           >
             进入组织 Console
           </Link>
-        )}
-      </div>
-    </div>
+        ) : undefined
+      }
+    />
   );
 }

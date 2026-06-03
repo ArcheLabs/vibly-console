@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useNetworkOrganization, useOrganizationFeed, useProjects } from "@/lib/query/hooks";
 import { StatusBadge, RoleBadge } from "@/components/common/Badge";
@@ -8,6 +9,7 @@ import { LoadingState, ErrorState, EmptyState } from "@/components/common/States
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { NetworkFeed } from "@/components/feed/NetworkFeed";
 import { JsonViewer } from "@/components/common/JsonViewer";
+import { DetailPageHeader } from "@/components/layout/DetailPageHeader";
 import type { Entity } from "@/lib/coordinator/types";
 import { entityNameMap } from "@/lib/entities/display";
 import { formatDateTime } from "@/lib/utils/format";
@@ -61,9 +63,21 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
   const organizationNames = { [orgId]: name };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-<div className="flex items-start gap-5">
+    <div className="w-full py-6">
+      <DetailPageHeader
+        breadcrumbs={[
+          { label: "Vibly", href: "/" },
+          { label: t("title"), href: "/organizations" },
+          { label: name },
+        ]}
+        icon={Building2}
+        title={name}
+        description={description || t("description")}
+      />
+
+      <div className="mx-auto mt-6 max-w-6xl px-4 sm:px-8">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+        <div className="flex items-start gap-5">
           <div className="flex items-start gap-5 min-w-0 flex-1">
             <AgentAvatar name={name} tone="org" size="h-16 w-16" />
             <div className="min-w-0 flex-1">
@@ -157,6 +171,7 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
             </section>
           </div>
         ) : null}
+      </div>
       </div>
     </div>
   );

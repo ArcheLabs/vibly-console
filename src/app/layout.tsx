@@ -9,6 +9,11 @@ import enMessages from "../../messages/en-US.json";
 export const metadata: Metadata = {
   title: "Vibly Console",
   description: "Human-facing console for Vibly and Concord coordination networks.",
+  icons: {
+    icon: "/vibly.ico",
+    shortcut: "/vibly.ico",
+    apple: "/vibly.ico",
+  },
 };
 
 const messageCatalog: Record<AppLocale, Record<string, unknown>> = {

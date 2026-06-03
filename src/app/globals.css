@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --brand-accent: #33d6c2;
-  --brand-accent-hover: #5eead4;
-  --brand-accent-foreground: #071014;
+  --brand-accent: #2186ff;
+  --brand-accent-hover: #0755ff;
+  --brand-accent-foreground: #f8fbff;
   --background: #f6f7f9;
   --surface: #ffffff;
   --surface-muted: #eef2f6;
@@ -47,7 +47,7 @@
   --text-muted: #cbd5e1;
   --text-subtle: #64748b;
   --accent: var(--brand-accent);
-  --accent-hover: var(--brand-accent-hover);
+  --accent-hover: #35a8ff;
   --accent-foreground: var(--brand-accent-foreground);
   --danger: #fb7185;
   --danger-surface: #3a1720;
