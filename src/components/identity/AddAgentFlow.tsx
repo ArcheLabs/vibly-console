@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { useCoordinatorClient } from "@/lib/query/hooks";
 import { queryKeys } from "@/lib/query/keys";
 import { useActiveNetworkProfile } from "@/lib/network/profiles";
-import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import type { Entity } from "@/lib/coordinator/types";
 
 export const defaultAgentDescriptor = {
@@ -49,52 +48,31 @@ export function decodeEnrollmentDescriptor(value: string): Entity {
 export function AddAgentFlow({ initialDescriptor }: { initialDescriptor?: Entity | null }) {
   const t = useTranslations("personalCenter");
   const client = useCoordinatorClient();
-  const wallet = useWalletAuth();
   const network = useActiveNetworkProfile();
   const queryClient = useQueryClient();
   const initialRaw = useMemo(() => descriptorJson(initialDescriptor), [initialDescriptor]);
   const [raw, setRaw] = useState(initialRaw);
-  const [challenge, setChallenge] = useState<Entity | null>(null);
   const [authorization, setAuthorization] = useState<Entity | null>(null);
-  const [sessionSignature, setSessionSignature] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setRaw(initialRaw);
-    setChallenge(null);
     setAuthorization(null);
-    setSessionSignature("");
     setError(null);
   }, [initialRaw]);
 
-  const challengeMutation = useMutation({
+  const addMutation = useMutation({
     mutationFn: async () => {
       setError(null);
       const descriptor = JSON.parse(raw) as Record<string, unknown>;
-      const next = await client.createAgentEnrollmentChallenge({ descriptor });
-      setChallenge(next);
-      return next;
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : t("addAgentDialog.invalidDescriptor")),
-  });
-
-  const authorizeMutation = useMutation({
-    mutationFn: async () => {
-      if (!challenge) throw new Error(t("addAgentDialog.challengeFirst"));
-      const message = String(challenge.rootAuthorizationMessage ?? "");
-      const rootAuthorizationSignature = await wallet.signWalletMessage(message);
-      return client.authorizeAgentEnrollment({
-        challengeId: challenge.id,
-        sessionSignature,
-        rootAuthorizationSignature,
-      });
+      return client.createAgentEnrollment({ descriptor });
     },
     onSuccess: async (next) => {
       setAuthorization(next);
       await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
     },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : t("addAgentDialog.authFailed")),
+    onError: (cause) => setError(cause instanceof Error ? cause.message : t("addAgentDialog.addFailed")),
   });
 
   const descriptor = parseDescriptor(raw);
@@ -114,20 +92,7 @@ export function AddAgentFlow({ initialDescriptor }: { initialDescriptor?: Entity
         <span className="mb-2 block font-semibold text-[var(--text-muted)]">{t("addAgentDialog.descriptorLabel")}</span>
         <textarea className="h-56 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-xs text-[var(--text)]" value={raw} onChange={(event) => setRaw(event.target.value)} />
       </label>
-      <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50" disabled={challengeMutation.isPending} onClick={() => challengeMutation.mutate()}>{t("addAgentDialog.createChallenge")}</button>
-      {challenge ? (
-        <div className="grid gap-3">
-          <div className="rounded-xl bg-[var(--surface-muted)] p-3">
-            <div className="text-xs font-normal uppercase text-[var(--text-subtle)]">{t("addAgentDialog.signatureMessage")}</div>
-            <pre className="mt-2 max-h-40 overflow-auto text-xs text-[var(--text-muted)]">{String(challenge.message ?? "")}</pre>
-          </div>
-          <label className="text-sm">
-            <span className="mb-2 block font-semibold text-[var(--text-muted)]">{t("addAgentDialog.sessionSigLabel")}</span>
-            <textarea className="h-24 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-xs text-[var(--text)]" value={sessionSignature} onChange={(event) => setSessionSignature(event.target.value)} />
-          </label>
-          <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50" disabled={authorizeMutation.isPending || !sessionSignature} onClick={() => authorizeMutation.mutate()}>{t("addAgentDialog.authorize")}</button>
-        </div>
-      ) : null}
+      <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50" disabled={addMutation.isPending} onClick={() => addMutation.mutate()}>{addMutation.isPending ? t("addAgentDialog.adding") : t("addAgentDialog.add")}</button>
       {authorization ? (
         <div className="grid gap-3 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent)]/10 p-4">
           <div>

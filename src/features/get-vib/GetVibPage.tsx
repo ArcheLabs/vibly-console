@@ -61,6 +61,7 @@ export function GetVibPage() {
   const [copiedDeposit, setCopiedDeposit] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [localClaimed, setLocalClaimed] = useState<{ networkId: string; accountId: string; rootVersion: number; cumulativeAmount: string } | null>(null);
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
   const [claimTransactionId, setClaimTransactionId] = useState<string | null>(null);
   const chainTransactions = useChainTransactions();
@@ -88,6 +89,8 @@ export function GetVibPage() {
   const quote = quoteQuery.data ?? {};
   const summary = summaryQuery.data ?? {};
   const proof = proofQuery.data ?? null;
+  const rootUploadStatus = text(proof?.rootUploadStatus);
+  const rootUploaded = rootUploadStatus === "uploaded";
   const curve = curvePoints(curveQuery.data);
   const curveState = entity(curveQuery.data?.state);
   const soldOut = curveState.soldOut === true;
@@ -102,7 +105,15 @@ export function GetVibPage() {
     [pendingRecords, recordsQuery.data],
   );
   const paginated = paginateRecords(records, page, pageSize);
-  const claimableAmount = Number(summary.claimableAmount ?? 0);
+  const localClaimMatches = Boolean(
+    localClaimed &&
+    localClaimed.networkId === networkId &&
+    localClaimed.accountId === polkadotAccount &&
+    localClaimed.rootVersion === Number(proof?.rootVersion ?? 0) &&
+    localClaimed.cumulativeAmount === text(proof?.cumulativeAmount),
+  );
+  const claimableAmountText = localClaimMatches ? "0" : text(summary.claimableAmount) || "0";
+  const claimableAmount = Number(claimableAmountText);
   const paymentTransaction = chainTransactions.find((item) => item.id === paymentTransactionId) ?? null;
   const claimTransaction = chainTransactions.find((item) => item.id === claimTransactionId) ?? null;
 
@@ -312,16 +323,26 @@ export function GetVibPage() {
         explorerUrl: txExplorerUrl(activeNetwork, txHash),
         body: t("feedback.claimPendingSync"),
       });
-      await claimRecordMutation.mutateAsync({
+      const claimBody = {
         networkId,
-        accountId,
+        accountId: polkadotAccount,
         identityId: text(proof.identityId) || undefined,
         rootVersion: Number(proof.rootVersion),
         cumulativeAmount: text(proof.cumulativeAmount),
         claimedDelta: text(summary.claimableAmount) || text(proof.cumulativeAmount),
         txHash,
         status: "confirmed",
-      }).catch(() => undefined);
+      };
+      setLocalClaimed({
+        networkId,
+        accountId: polkadotAccount,
+        rootVersion: Number(proof.rootVersion),
+        cumulativeAmount: text(proof.cumulativeAmount),
+      });
+      await claimRecordMutation.mutateAsync(claimBody).catch((cause) => {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        notify(t("feedback.claimRecordSyncFailed"), message, "warning");
+      });
       updateChainTransaction(tracker.id, {
         phase: "completed",
         txHash,
@@ -511,13 +532,21 @@ export function GetVibPage() {
                     t={t}
                     summary={summary}
                     proof={proof}
+                    claimableAmountText={claimableAmountText}
                     claimableAmount={claimableAmount}
+                    claimed={localClaimMatches}
                     claiming={claiming}
                     claimTransaction={claimTransaction}
                     claimError={claimError}
                     onClaim={claimVib}
-                    canClaim={Boolean(getVibClaimEnabled && polkadotAccount && proof && claimableAmount > 0)}
-                    claimUnavailableMessage={!getVibClaimEnabled ? activeNetwork.messages?.getVibClaim ?? t("feedback.claimUnavailable") : undefined}
+                    canClaim={Boolean(getVibClaimEnabled && polkadotAccount && proof && claimableAmount > 0 && rootUploaded)}
+                    claimUnavailableMessage={
+                      !getVibClaimEnabled
+                        ? activeNetwork.messages?.getVibClaim ?? t("feedback.claimUnavailable")
+                        : proof && claimableAmount > 0 && !rootUploaded
+                          ? t("claim.rootNotUploaded")
+                          : undefined
+                    }
                   />
                 </Panel>
               </div>
@@ -691,7 +720,9 @@ function ClaimCard({
   t,
   summary,
   proof,
+  claimableAmountText,
   claimableAmount,
+  claimed,
   claiming,
   claimTransaction,
   claimError,
@@ -702,7 +733,9 @@ function ClaimCard({
   t: ReturnType<typeof useTranslations>;
   summary: Entity;
   proof: Entity | null;
+  claimableAmountText: string;
   claimableAmount: number;
+  claimed: boolean;
   claiming: boolean;
   claimTransaction: ReturnType<typeof useChainTransactions>[number] | null;
   claimError: string | null;
@@ -732,7 +765,20 @@ function ClaimCard({
     return () => clearInterval(id);
   }, [proof]);
 
-  const status = claiming ? "claiming" : claimError ? "failed" : claimableAmount > 0 && proof ? "claimable" : Number(summary.purchasedAllocation ?? 0) > 0 ? "waiting_allocation" : "idle";
+  const rootUploaded = text(proof?.rootUploadStatus) === "uploaded";
+  const status = claiming
+    ? "claiming"
+    : claimError
+      ? "failed"
+      : claimed
+        ? "claimed"
+      : claimableAmount > 0 && proof && rootUploaded
+        ? "claimable"
+        : claimableAmount > 0 && proof
+          ? "waiting_root"
+          : Number(summary.purchasedAllocation ?? 0) > 0
+            ? "waiting_allocation"
+            : "idle";
   const isPending = status === "waiting_allocation";
   const countdownMinutes = countdown !== null ? Math.ceil(countdown / 60000) : null;
 
@@ -749,7 +795,7 @@ function ClaimCard({
         </div>
         <div className="mt-4 text-sm text-[var(--text-muted)]">{t("claim.available")}</div>
         <div className="mt-1 text-3xl font-bold tracking-tight text-[var(--accent)]">
-          {formatNumber(text(summary.claimableAmount) || "0")} VIB
+          {formatNumber(claimableAmountText)} VIB
         </div>
         <div className="mt-3 flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)]">
           {isPending || status === "idle" ? <Clock className="h-3.5 w-3.5 shrink-0" /> : null}

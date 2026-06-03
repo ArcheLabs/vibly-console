@@ -255,8 +255,6 @@
     "title": "Personal Center",
     "subtitle": "Root keys stay in the wallet. Agents use authorized session keys for work, duty, and bounded staking operations.",
     "notConnectedSubtitle": "Connect the root wallet to manage identity, agent session keys, staking receipts, and duty status.",
-    "syncState": "Sync state",
-    "recordTx": "Record wallet tx",
     "addAgent": "Add Agent",
     "networkFeatureUnavailable": "This network is not open for this action yet.",
     "walletConnected": "Root wallet connected",
@@ -268,7 +266,13 @@
     },
     "balance": {
       "title": "VIB Balance",
-      "subtitle": "Stake ledgers synced by Coordinator indexers.",
+      "subtitle": "Wallet balance and stake ledgers synced from the active Vibly network.",
+      "availableVib": "Available VIB",
+      "availableVibHint": "Free balance in the connected root wallet",
+      "loading": "Loading",
+      "unavailable": "Unavailable",
+      "polkadotOnly": "Connect a Polkadot root wallet to read VIB balance.",
+      "rpcUnavailable": "Vibly chain RPC is not configured for this network.",
       "activeStake": "Active Stake",
       "activeStakeHint": "active ledgers",
       "pendingUnbond": "Pending Unbond",
@@ -313,39 +317,19 @@
       "empty": "No authorized agents yet. Import an agent descriptor to add one.",
       "add": "Add"
     },
-    "alerts": {
-      "title": "Security Alerts",
-      "subtitle": "Identity and agent issues."
-    },
     "quickActions": {
       "title": "Quick Actions",
-      "addAgent": "Add Agent",
-      "recordStake": "Record Stake Tx"
-    },
-    "authScope": {
-      "title": "Authorization Scope",
-      "subtitle": "Default capabilities for newly enrolled agents.",
-      "allowed": "Allowed",
-      "stakeLimit": "Stake Limit",
-      "expiration": "Expiration"
-    },
-    "events": {
-      "title": "Recent Security Events",
-      "subtitle": "Audit trail for root wallet and session-key actions.",
-      "empty": "No security events recorded yet."
+      "addAgent": "Add Agent"
     },
     "addAgentDialog": {
       "title": "Add Agent",
       "descriptorLabel": "Agent descriptor JSON",
-      "createChallenge": "Create challenge",
-      "signatureMessage": "Agent signature message",
-      "sessionSigLabel": "Session key signature from agent",
-      "authorize": "Authorize with root wallet",
-      "challengeFirst": "Create a challenge first.",
+      "add": "Add agent",
+      "adding": "Adding agent...",
       "invalidDescriptor": "Invalid descriptor",
-      "authFailed": "Authorization failed",
-      "authorizedTitle": "Root authorization complete",
-      "chainSetupNeeded": "Session key authorization is complete. Finish identity, chain agent registration, and staking in Console before running this command.",
+      "addFailed": "Add agent failed",
+      "authorizedTitle": "Agent added",
+      "chainSetupNeeded": "The local agent was added. Finish identity, chain agent registration, and staking in Console before running this command.",
       "copyLinkHint": "Copy this command back to the Agent machine, then run agent status. It includes a minimal runtime token stored in local 0600 profile config.",
       "copyLink": "Copy link command"
     },
@@ -430,9 +414,11 @@
       "claimVib": "Claim VIB",
       "details": "Claim details",
       "nextRootIn": "Next root in ~{minutes} min",
+      "rootNotUploaded": "Your allocation is ready, but the claim root has not been published on-chain yet.",
       "status": {
         "idle": "No allocation yet",
         "waiting_allocation": "Waiting allocation",
+        "waiting_root": "Waiting root publish",
         "claimable": "Claimable",
         "claiming": "Claiming",
         "claimed": "Claimed",
@@ -472,6 +458,7 @@
       "paymentObserved": "Coordinator observed the deposit. Allocation is now progressing.",
       "claimPendingSync": "Claim finalized on-chain. Syncing the claim record in Console.",
       "claimCompleted": "VIB claim completed.",
+      "claimRecordSyncFailed": "Claim succeeded on-chain, but Console has not synced the claim record yet.",
       "claimUnavailable": "VIB claim to incentivized testnet is not live yet.",
       "balanceLoading": "Balance is still loading",
       "balanceLoadingBody": "Please wait until the wallet balance has loaded before submitting the transfer.",

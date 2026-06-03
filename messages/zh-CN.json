@@ -255,8 +255,6 @@
     "title": "个人中心",
     "subtitle": "根密钥保留在钱包中。代理使用授权会话密钥执行工作、值班和有限质押操作。",
     "notConnectedSubtitle": "请连接根钱包，以管理身份、代理会话密钥、质押记录和值班状态。",
-    "syncState": "同步状态",
-    "recordTx": "记录钱包交易",
     "addAgent": "添加代理",
     "networkFeatureUnavailable": "当前网络尚未开放此操作。",
     "walletConnected": "根钱包已连接",
@@ -268,7 +266,13 @@
     },
     "balance": {
       "title": "VIB 余额",
-      "subtitle": "质押账本由 Coordinator 索引器同步。",
+      "subtitle": "从当前 Vibly 网络同步根钱包余额和质押账本。",
+      "availableVib": "可用 VIB",
+      "availableVibHint": "已连接根钱包中的可用余额",
+      "loading": "加载中",
+      "unavailable": "不可用",
+      "polkadotOnly": "请连接 Polkadot 根钱包以读取 VIB 余额。",
+      "rpcUnavailable": "当前网络未配置 Vibly 链 RPC。",
       "activeStake": "活跃质押",
       "activeStakeHint": "活跃账本数",
       "pendingUnbond": "待解绑",
@@ -313,39 +317,19 @@
       "empty": "暂无已授权代理。请导入代理描述符以添加。",
       "add": "添加"
     },
-    "alerts": {
-      "title": "安全提醒",
-      "subtitle": "身份和代理问题。"
-    },
     "quickActions": {
       "title": "快速操作",
-      "addAgent": "添加代理",
-      "recordStake": "记录质押交易"
-    },
-    "authScope": {
-      "title": "授权范围",
-      "subtitle": "新注册代理的默认能力。",
-      "allowed": "允许",
-      "stakeLimit": "质押上限",
-      "expiration": "过期"
-    },
-    "events": {
-      "title": "最近安全事件",
-      "subtitle": "根钱包和会话密钥操作的审计日志。",
-      "empty": "暂无安全事件记录。"
+      "addAgent": "添加代理"
     },
     "addAgentDialog": {
       "title": "添加代理",
       "descriptorLabel": "代理描述符 JSON",
-      "createChallenge": "创建挑战",
-      "signatureMessage": "代理签名消息",
-      "sessionSigLabel": "代理提交的会话密钥签名",
-      "authorize": "用根钱包授权",
-      "challengeFirst": "请先创建挑战",
+      "add": "添加代理",
+      "adding": "正在添加代理...",
       "invalidDescriptor": "无效描述符",
-      "authFailed": "授权失败",
-      "authorizedTitle": "根钱包授权已完成",
-      "chainSetupNeeded": "会话密钥授权已完成。请先在 Console 完成身份、链上 Agent 注册和质押，再运行此命令。",
+      "addFailed": "添加代理失败",
+      "authorizedTitle": "代理已添加",
+      "chainSetupNeeded": "本地代理已添加。请先在 Console 完成身份、链上 Agent 注册和质押，再运行此命令。",
       "copyLinkHint": "复制这条命令回到 Agent 机器，然后运行 agent status。命令包含最小权限 runtime token，会写入本地 0600 profile 配置。",
       "copyLink": "复制回填命令"
     },
@@ -430,9 +414,11 @@
       "claimVib": "领取 VIB",
       "details": "领取详情",
       "nextRootIn": "预计 {minutes} 分钟后发布下一个 Root",
+      "rootNotUploaded": "你的分配已准备好，但 claim root 尚未发布到链上。",
       "status": {
         "idle": "暂无分配",
         "waiting_allocation": "等待分配",
+        "waiting_root": "等待 Root 上链",
         "claimable": "可领取",
         "claiming": "领取中",
         "claimed": "已领取",
@@ -472,6 +458,7 @@
       "paymentObserved": "Coordinator 已观察到充值，分配流程正在推进。",
       "claimPendingSync": "链上领取已 finalized，正在同步 Console 侧领取记录。",
       "claimCompleted": "VIB 已领取完成。",
+      "claimRecordSyncFailed": "链上领取已成功，但 Console 侧领取记录尚未同步。",
       "claimUnavailable": "VIB claim 到激励测试网暂未上线。",
       "balanceLoading": "余额仍在加载",
       "balanceLoadingBody": "请稍等余额读取完成后再提交转账。",
