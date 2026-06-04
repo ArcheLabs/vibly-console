@@ -55,6 +55,7 @@ interface NetworkFeatureFlags {
   agentJoin: boolean;
   daemon: boolean;
   staking: boolean;
+  rewards: boolean;
   rootIdentityRegistration: boolean;
   getVibConversion: boolean;
   getVibClaim: boolean;
@@ -200,6 +201,7 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
       agentJoin: false,
       daemon: false,
       staking: false,
+      rewards: false,
       rootIdentityRegistration: false,
       getVibConversion: true,
       getVibClaim: false,

@@ -151,12 +151,13 @@ export function usePersonalCenter() {
   });
 }
 
-export function useAgentRewards(principalId?: string | null, limit = 50) {
+export function useAgentRewards(principalId?: string | null, limit = 50, enabled = true) {
   const client = useCoordinatorClient();
   const network = useActiveNetworkProfile();
   return useQuery({
     queryKey: queryKeys.agentRewards(network.id, principalId),
     queryFn: () => client.getAgentRewards({ principalId: principalId ?? undefined, limit }),
+    enabled,
   });
 }
 
@@ -170,16 +171,17 @@ export function useAgentReward(principalId?: string | null) {
   });
 }
 
-export function useRewardDays(limit = 30) {
+export function useRewardDays(limit = 30, enabled = true) {
   const client = useCoordinatorClient();
   const network = useActiveNetworkProfile();
   return useQuery({
     queryKey: queryKeys.rewardDays(network.id, limit),
     queryFn: () => client.getRewardDays({ limit }),
+    enabled,
   });
 }
 
-export function useTaskRewards(input?: { taskId?: string | null; principalId?: string | null; limit?: number }) {
+export function useTaskRewards(input?: { taskId?: string | null; principalId?: string | null; limit?: number; enabled?: boolean }) {
   const client = useCoordinatorClient();
   const network = useActiveNetworkProfile();
   return useQuery({
@@ -189,6 +191,7 @@ export function useTaskRewards(input?: { taskId?: string | null; principalId?: s
       principalId: input?.principalId ?? undefined,
       limit: input?.limit ?? 50,
     }),
+    enabled: input?.enabled ?? true,
   });
 }
 

@@ -70,10 +70,12 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const t = useTranslations("nav");
   const auth = useAuthState();
+  const activeNetwork = useActiveNetworkProfile();
 
   return (
     <nav className="space-y-1 px-3">
       {navItems.map((item) => {
+        if (item.key === "rewards" && activeNetwork.features?.rewards === false) return null;
         const Icon = item.icon;
         const active =
           item.href === "/"

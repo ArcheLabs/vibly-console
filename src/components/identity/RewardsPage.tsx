@@ -5,6 +5,7 @@ import { ErrorState, LoadingState } from "@/components/common/States";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAgentRewards, useRewardDays, useTaskRewards } from "@/lib/query/hooks";
 import type { Entity } from "@/lib/coordinator/types";
+import { useActiveNetworkProfile } from "@/lib/network/profiles";
 
 function asRecord(value: unknown): Entity {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Entity) : {};
@@ -15,9 +16,22 @@ function asArray(value: unknown): Entity[] {
 }
 
 export function RewardsPage() {
-  const rewardLedgers = useAgentRewards(undefined, 100);
-  const rewardDays = useRewardDays(20);
-  const taskRewards = useTaskRewards({ limit: 50 });
+  const network = useActiveNetworkProfile();
+  const rewardsEnabled = network.features?.rewards !== false;
+  const rewardLedgers = useAgentRewards(undefined, 100, rewardsEnabled);
+  const rewardDays = useRewardDays(20, rewardsEnabled);
+  const taskRewards = useTaskRewards({ limit: 50, enabled: rewardsEnabled });
+
+  if (!rewardsEnabled) {
+    return (
+      <div className="px-4 py-6 sm:px-8">
+        <PageHeader icon={Coins} title="Rewards" description="Protocol rewards are not enabled for the selected network." />
+        <div className="mt-6 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-6 text-sm text-[var(--text-muted)]">
+          Switch to a network manifest with <span className="font-mono">features.rewards=true</span> to view V1 incentive testnet rewards.
+        </div>
+      </div>
+    );
+  }
 
   if (rewardLedgers.isLoading || rewardDays.isLoading || taskRewards.isLoading) {
     return <div className="p-8"><LoadingState label="Loading rewards..." /></div>;

@@ -66,6 +66,7 @@ export function PersonalCenterPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = usePersonalCenter();
   const [identityTransactionId, setIdentityTransactionId] = useState<string | null>(null);
+  const [claimTransactionId, setClaimTransactionId] = useState<string | null>(null);
   const [localRootIdentity, setLocalRootIdentity] = useState<Entity | null>(null);
   const [vibBalance, setVibBalance] = useState<{ freeBaseUnits: string; free: string } | null>(null);
   const [vibBalanceError, setVibBalanceError] = useState<string | null>(null);
@@ -87,8 +88,10 @@ export function PersonalCenterPage() {
   const expiringKeys = sessionKeys.filter((item) => isExpiringSoon(String(item.key.expiresAt ?? ""))).length;
   const hasRootIdentity = Boolean(identity.identityId || identity.status);
   const identityTransaction = chainTransactions.find((item) => item.id === identityTransactionId) ?? null;
+  const claimTransaction = chainTransactions.find((item) => item.id === claimTransactionId) ?? null;
   const canRegisterRootIdentity = network.status === "active" && network.features?.rootIdentityRegistration !== false;
   const canAddAgent = network.status === "active" && network.features?.agentJoin !== false;
+  const rewardsEnabled = network.features?.rewards !== false;
   const viblyTokenSymbol = network.chains?.vibly?.tokenSymbol ?? "VIB";
   const viblyTokenDecimals = network.chains?.vibly?.tokenDecimals ?? 12;
   const viblyRpcUrls = useMemo(() => networkViblyRpcUrls(network), [network]);
@@ -106,16 +109,50 @@ export function PersonalCenterPage() {
   const claimRewardMutation = useMutation({
     mutationFn: async ({ identityId, agentId }: { identityId: string; agentId: string }) => {
       if (wallet.session?.ecosystem !== "polkadot") throw new Error("Reward claim currently requires a Polkadot wallet.");
-      return claimAgentRewardsOnChain({
-        rpcUrl: networkViblyRpcUrls(network),
-        accountId: wallet.session.address,
-        identityId,
-        agentId,
+      const tracker = createChainTransaction({
+        title: "Claim agent rewards",
+        body: "Awaiting wallet signature for reward claim.",
       });
+      setClaimTransactionId(tracker.id);
+      try {
+        const receipt = await claimAgentRewardsOnChain({
+          rpcUrl: networkViblyRpcUrls(network),
+          accountId: wallet.session.address,
+          identityId,
+          agentId,
+          onStatus: (status) => {
+            updateChainTransaction(tracker.id, {
+              phase: status.phase,
+              txHash: status.txHash,
+              explorerUrl: status.txHash ? txExplorerUrl(network, status.txHash) : undefined,
+              body:
+                status.phase === "awaiting_signature"
+                  ? "Awaiting wallet signature for reward claim."
+                  : status.phase === "broadcast"
+                    ? "Reward claim transaction broadcast."
+                    : status.phase === "in_block"
+                      ? "Reward claim included in a block."
+                      : "Reward claim finalized.",
+            });
+          },
+        });
+        return { ...receipt, trackerId: tracker.id };
+      } catch (cause) {
+        updateChainTransaction(tracker.id, {
+          phase: "failed",
+          body: cause instanceof Error ? cause.message : "Reward claim failed.",
+        });
+        throw cause;
+      }
     },
-    onSuccess: async () => {
+    onSuccess: async ({ trackerId }) => {
+      updateChainTransaction(trackerId, {
+        phase: "waiting_sync",
+        body: "Reward claim submitted. Waiting for indexer refresh.",
+      });
       await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.agentRewards(network.id, null) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.taskRewards(network.id) });
     },
   });
 
@@ -378,6 +415,7 @@ export function PersonalCenterPage() {
           </Panel>
 
           <div className="space-y-6">
+            {rewardsEnabled ? (
             <Panel title="Rewards" subtitle="Claimable protocol rewards across your bound agents.">
               <div className="grid gap-3">
                 <BalanceLine icon={Coins} label="Claimable total" value={String(rewardSummary.claimableTotal ?? "0")} hint="Base + observer + reviewer + task rewards" unit={viblyTokenSymbol} emphasis />
@@ -392,6 +430,8 @@ export function PersonalCenterPage() {
                     const rewardLedger = rewardLedgers.find((ledger) => String(asRecord(ledger).principalId ?? "") === String(agent.principalId ?? ""));
                     const reward = asRecord(rewardLedger);
                     const claimable = String(reward.claimableTotal ?? "0");
+                    const identityId = String(reward.identityId ?? "");
+                    const agentId = String(reward.chainAgentId ?? reward.agentId ?? "");
                     return (
                       <div key={`reward-${String(agent.principalId ?? "")}`} className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3">
                         <div>
@@ -400,8 +440,8 @@ export function PersonalCenterPage() {
                         </div>
                         <button
                           type="button"
-                          disabled={claimRewardMutation.isPending || claimable === "0"}
-                          onClick={() => claimRewardMutation.mutate({ identityId: String(reward.identityId ?? ""), agentId: String(reward.chainAgentId ?? reward.agentId ?? "") })}
+                          disabled={claimRewardMutation.isPending || claimable === "0" || !identityId || !agentId}
+                          onClick={() => claimRewardMutation.mutate({ identityId, agentId })}
                           className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50"
                         >
                           Claim
@@ -410,14 +450,26 @@ export function PersonalCenterPage() {
                     );
                   })}
                 </div>
+                {claimTransaction?.txHash ? (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text-muted)]">
+                    <div className="break-all font-mono">Claim tx: {claimTransaction.txHash}</div>
+                    <div className="mt-1">{claimTransaction.body}</div>
+                  </div>
+                ) : null}
+                {claimRewardMutation.error ? (
+                  <div className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-400">
+                    {claimRewardMutation.error instanceof Error ? claimRewardMutation.error.message : "Reward claim failed."}
+                  </div>
+                ) : null}
               </div>
             </Panel>
+            ) : null}
             <Panel title={t("quickActions.title")}>
               <div className="grid gap-3">
                 <button type="button" disabled={!canAddAgent} className="quick-primary disabled:cursor-not-allowed disabled:opacity-50" onClick={openAddAgent}><span><Plus className="h-4 w-4" /> {t("quickActions.addAgent")}</span><ChevronRight className="h-4 w-4" /></button>
               </div>
             </Panel>
-            {rewardHistory.length ? (
+            {rewardsEnabled && rewardHistory.length ? (
               <Panel title="Recent task rewards">
                 <div className="space-y-2">
                   {rewardHistory.slice(0, 5).map((item) => {
