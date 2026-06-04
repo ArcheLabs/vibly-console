@@ -25,9 +25,6 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 export function DetailPageHeader({
   breadcrumbs,
-  title,
-  description,
-  icon: Icon,
   right,
   sticky = false,
   emphasized = false,
@@ -43,43 +40,29 @@ export function DetailPageHeader({
       )}
     >
       <div className={cx("w-full px-4 py-4 sm:px-8", containerClassName)}>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {breadcrumbs.map((item, index) => {
-            const current = index === breadcrumbs.length - 1;
-            const content = item.href && !current ? (
-              <Link href={item.href} className="text-[var(--text-muted)] transition hover:text-[var(--text)]">
-                {item.label}
-              </Link>
-            ) : (
-              <span className={current ? "font-semibold text-[var(--text)]" : "text-[var(--text-muted)]"}>
-                {item.label}
-              </span>
-            );
-            return (
-              <span key={`${item.label}:${index}`} className="inline-flex items-center gap-2">
-                {index > 0 ? <span className="text-[var(--text-subtle)]">/</span> : null}
-                {content}
-              </span>
-            );
-          })}
-        </div>
-
-        {title || description || Icon || right ? (
-          <div className="mt-4 flex flex-col items-start gap-4">
-            <div className="flex min-w-0 items-start gap-4">
-              {Icon ? (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface)] text-[var(--text)] shadow-sm ring-1 ring-[var(--border)]">
-                  <Icon className="h-6 w-6" />
-                </div>
-              ) : null}
-              <div className="min-w-0">
-                {title ? <h1 className="truncate text-2xl font-semibold tracking-tight text-[var(--text)]">{title}</h1> : null}
-                {description ? <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
-              </div>
-            </div>
-            {right ? <div>{right}</div> : null}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            {breadcrumbs.map((item, index) => {
+              const current = index === breadcrumbs.length - 1;
+              const content = item.href && !current ? (
+                <Link href={item.href} className="text-[var(--text-muted)] transition hover:text-[var(--text)]">
+                  {item.label}
+                </Link>
+              ) : (
+                <span className={current ? "font-semibold text-[var(--text)]" : "text-[var(--text-muted)]"}>
+                  {item.label}
+                </span>
+              );
+              return (
+                <span key={`${item.label}:${index}`} className="inline-flex items-center gap-2">
+                  {index > 0 ? <span className="text-[var(--text-subtle)]">/</span> : null}
+                  {content}
+                </span>
+              );
+            })}
           </div>
-        ) : null}
+          {right ? <div className="flex-shrink-0">{right}</div> : null}
+        </div>
       </div>
     </div>
   );
