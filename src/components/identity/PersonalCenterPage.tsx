@@ -9,6 +9,7 @@ import {
   Bot,
   ChevronRight,
   Clock3,
+  Coins,
   Copy,
   Key,
   Lock,
@@ -27,6 +28,7 @@ import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import { networkViblyRpcUrls, useActiveNetworkProfile } from "@/lib/network/profiles";
 import type { Entity } from "@/lib/coordinator/types";
 import { registerRootIdentityOnChain } from "@/lib/identity/rootIdentityChain";
+import { claimAgentRewardsOnChain } from "@/lib/identity/agentRewardChain";
 import { txExplorerUrl } from "@/lib/network/explorer";
 import { queryPaymentBalance } from "@/lib/get-vib/paymentTransfer";
 import {
@@ -70,6 +72,9 @@ export function PersonalCenterPage() {
   const chainTransactions = useChainTransactions();
 
   const agents = asArray(data?.agents);
+  const rewardSummary = asRecord(data?.rewardSummary);
+  const rewardLedgers = asArray(data?.rewardLedgers);
+  const rewardHistory = asArray(data?.taskRewardHistory);
   const stakeTotals = asRecord(data?.stakeTotals);
   const serverIdentity = asRecord(data?.identity);
   const session = asRecord(data?.session ?? wallet.session);
@@ -96,6 +101,22 @@ export function PersonalCenterPage() {
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => client.revokeAgentSessionKey(keyId, { reason: "Revoked from personal center" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) }),
+  });
+
+  const claimRewardMutation = useMutation({
+    mutationFn: async ({ identityId, agentId }: { identityId: string; agentId: string }) => {
+      if (wallet.session?.ecosystem !== "polkadot") throw new Error("Reward claim currently requires a Polkadot wallet.");
+      return claimAgentRewardsOnChain({
+        rpcUrl: networkViblyRpcUrls(network),
+        accountId: wallet.session.address,
+        identityId,
+        agentId,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.agentRewards(network.id, null) });
+    },
   });
 
   const registerIdentityMutation = useMutation({
@@ -357,11 +378,60 @@ export function PersonalCenterPage() {
           </Panel>
 
           <div className="space-y-6">
+            <Panel title="Rewards" subtitle="Claimable protocol rewards across your bound agents.">
+              <div className="grid gap-3">
+                <BalanceLine icon={Coins} label="Claimable total" value={String(rewardSummary.claimableTotal ?? "0")} hint="Base + observer + reviewer + task rewards" unit={viblyTokenSymbol} emphasis />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <BalanceLine icon={Coins} label="Base staking" value={String(rewardSummary.claimableBase ?? "0")} hint="Self-stake passive rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={Coins} label="Observer" value={String(rewardSummary.claimableObserver ?? "0")} hint="Observation participation rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={Coins} label="Reviewer" value={String(rewardSummary.claimableReviewer ?? "0")} hint="Review participation rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={Coins} label="Task" value={String(rewardSummary.claimableTask ?? "0")} hint="Accepted task protocol rewards" unit={viblyTokenSymbol} />
+                </div>
+                <div className="space-y-2">
+                  {agents.map((agent) => {
+                    const rewardLedger = rewardLedgers.find((ledger) => String(asRecord(ledger).principalId ?? "") === String(agent.principalId ?? ""));
+                    const reward = asRecord(rewardLedger);
+                    const claimable = String(reward.claimableTotal ?? "0");
+                    return (
+                      <div key={`reward-${String(agent.principalId ?? "")}`} className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3">
+                        <div>
+                          <div className="font-semibold text-[var(--text)]">{String(agent.displayName ?? agent.principalId ?? "Agent")}</div>
+                          <div className="text-xs text-[var(--text-subtle)]">Claimable {claimable} {viblyTokenSymbol}</div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={claimRewardMutation.isPending || claimable === "0"}
+                          onClick={() => claimRewardMutation.mutate({ identityId: String(reward.identityId ?? ""), agentId: String(reward.chainAgentId ?? reward.agentId ?? "") })}
+                          className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50"
+                        >
+                          Claim
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Panel>
             <Panel title={t("quickActions.title")}>
               <div className="grid gap-3">
                 <button type="button" disabled={!canAddAgent} className="quick-primary disabled:cursor-not-allowed disabled:opacity-50" onClick={openAddAgent}><span><Plus className="h-4 w-4" /> {t("quickActions.addAgent")}</span><ChevronRight className="h-4 w-4" /></button>
               </div>
             </Panel>
+            {rewardHistory.length ? (
+              <Panel title="Recent task rewards">
+                <div className="space-y-2">
+                  {rewardHistory.slice(0, 5).map((item) => {
+                    const reward = asRecord(item);
+                    return (
+                      <div key={String(reward.id ?? Math.random())} className="rounded-xl bg-[var(--surface-muted)] px-4 py-3 text-sm">
+                        <div className="font-semibold text-[var(--text)]">{String(reward.taskId ?? "task")}</div>
+                        <div className="text-[var(--text-muted)]">{String(reward.difficulty ?? "normal")} · {String(reward.amount ?? "0")} {viblyTokenSymbol}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Panel>
+            ) : null}
           </div>
         </section>
       </main>

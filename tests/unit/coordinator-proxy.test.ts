@@ -159,12 +159,12 @@ describe("/api/coordinator/[...path] proxy", () => {
     expect(target.toString()).toBe("http://incentivized-coordinator.test:8790/projects?limit=10");
   });
 
-  it("rejects an unknown selected network when coordinator profiles are configured", async () => {
+  it("falls back to the default coordinator when the selected network is unknown", async () => {
     process.env.VIBLY_COORDINATOR_NETWORK_PROFILES = JSON.stringify([
       { id: "local", coordinatorUrl: "http://local-coordinator.test" },
     ]);
     authMock.mockResolvedValue({ user: { email: "u@test" } });
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(async () => Response.json({ ok: true, data: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const { GET } = await loadProxy();
@@ -175,10 +175,12 @@ describe("/api/coordinator/[...path] proxy", () => {
       makeContext(["projects"]),
     );
 
-    expect(response.status).toBe(400);
-    const body = (await response.json()) as { error?: { code: string } };
-    expect(body.error?.code).toBe("COORDINATOR_NETWORK_NOT_CONFIGURED");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    const calls = fetchMock.mock.calls as unknown as Array<[URL, RequestInit]>;
+    const [target, init] = calls[0]!;
+    expect(target.toString()).toBe("http://upstream.test/projects");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer server-token");
+    expect((init.headers as Record<string, string>)["X-Vibly-Network-Id"]).toBe("missing");
   });
 
   it("strips legacy __apiToken / __coordinatorUrl query keys before forwarding", async () => {

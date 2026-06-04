@@ -151,6 +151,74 @@ export function usePersonalCenter() {
   });
 }
 
+export function useAgentRewards(principalId?: string | null, limit = 50) {
+  const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
+  return useQuery({
+    queryKey: queryKeys.agentRewards(network.id, principalId),
+    queryFn: () => client.getAgentRewards({ principalId: principalId ?? undefined, limit }),
+  });
+}
+
+export function useAgentReward(principalId?: string | null) {
+  const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
+  return useQuery({
+    queryKey: queryKeys.agentRewards(network.id, principalId),
+    queryFn: () => client.getAgentReward(principalId ?? ""),
+    enabled: Boolean(principalId),
+  });
+}
+
+export function useRewardDays(limit = 30) {
+  const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
+  return useQuery({
+    queryKey: queryKeys.rewardDays(network.id, limit),
+    queryFn: () => client.getRewardDays({ limit }),
+  });
+}
+
+export function useTaskRewards(input?: { taskId?: string | null; principalId?: string | null; limit?: number }) {
+  const client = useCoordinatorClient();
+  const network = useActiveNetworkProfile();
+  return useQuery({
+    queryKey: queryKeys.taskRewards(network.id, input?.taskId, input?.principalId),
+    queryFn: () => client.getTaskRewards({
+      taskId: input?.taskId ?? undefined,
+      principalId: input?.principalId ?? undefined,
+      limit: input?.limit ?? 50,
+    }),
+  });
+}
+
+export function useCreateTaskRewardSuggestion() {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  const network = useActiveNetworkProfile();
+  return useMutation({
+    mutationFn: ({ taskId, body }: { taskId: string; body: Record<string, unknown> }) => client.createTaskRewardSuggestion(taskId, body),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskV2(network.id, variables.taskId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskRewards(network.id, variables.taskId, null) });
+    },
+  });
+}
+
+export function useApproveTaskReward() {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  const network = useActiveNetworkProfile();
+  return useMutation({
+    mutationFn: ({ taskId, body }: { taskId: string; body: Record<string, unknown> }) => client.approveTaskReward(taskId, body),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskV2(network.id, variables.taskId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskRewards(network.id, variables.taskId, null) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) });
+    },
+  });
+}
+
 export function useGuardianDecision(accountId?: string | null) {
   const client = useCoordinatorClient();
   const network = useActiveNetworkProfile();

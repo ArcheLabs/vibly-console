@@ -89,6 +89,12 @@ export interface CoordinatorClient {
   getNetworkAgent(agentId: string): Promise<Entity>;
   getAgentReputation(agentId: string): Promise<Entity>;
   getPersonalCenter(): Promise<Entity>;
+  getAgentRewards(input?: Record<string, unknown>): Promise<Page<Entity>>;
+  getAgentReward(principalId: string): Promise<Entity>;
+  getRewardDays(input?: Record<string, unknown>): Promise<Page<Entity>>;
+  getTaskRewards(input?: Record<string, unknown>): Promise<Page<Entity>>;
+  createTaskRewardSuggestion(taskId: string, body: Record<string, unknown>): Promise<Entity>;
+  approveTaskReward(taskId: string, body: Record<string, unknown>): Promise<Entity>;
   getGuardianDecision(accountId: string): Promise<Entity>;
   createAgentEnrollment(body: Record<string, unknown>): Promise<Entity>;
   authorizeAgentSessionPublicKey(body: Record<string, unknown>): Promise<Entity>;
@@ -973,6 +979,84 @@ class HttpCoordinatorClient implements CoordinatorClient {
       const result = await this.contract.GET("/personal-center");
       if (!result.response.ok) throw fromContract(result.error, result.response);
       return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "personalCenter");
+    });
+  }
+
+  async getAgentRewards(input: Record<string, unknown> = {}) {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: Record<string, unknown> } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/agent-rewards", { params: { query: input } });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return pageFromEnvelope(result.data, "items", Number(input.limit ?? 50));
+    });
+  }
+
+  async getAgentReward(principalId: string) {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { path: { principalId: string } } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/agent-rewards/{principalId}", { params: { path: { principalId } } });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "agentRewards");
+    });
+  }
+
+  async getRewardDays(input: Record<string, unknown> = {}) {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: Record<string, unknown> } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/reward-days", { params: { query: input } });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return pageFromEnvelope(result.data, "items", Number(input.limit ?? 30));
+    });
+  }
+
+  async getTaskRewards(input: Record<string, unknown> = {}) {
+    return await runContract(async () => {
+      const get = this.contract.GET as unknown as (
+        path: string,
+        init: { params: { query: Record<string, unknown> } },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await get("/task-rewards", { params: { query: input } });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return pageFromEnvelope(result.data, "items", Number(input.limit ?? 50));
+    });
+  }
+
+  async createTaskRewardSuggestion(taskId: string, body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const post = this.contract.POST as unknown as (
+        path: string,
+        init: { params: { path: { taskId: string } }; body: never },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/tasks/{taskId}/reward-suggestions", {
+        params: { path: { taskId } },
+        body: body as never,
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "rewardSuggestion");
+    });
+  }
+
+  async approveTaskReward(taskId: string, body: Record<string, unknown>) {
+    return await runContract(async () => {
+      const post = this.contract.POST as unknown as (
+        path: string,
+        init: { params: { path: { taskId: string } }; body: never },
+      ) => Promise<{ response: Response; data?: unknown; error?: unknown }>;
+      const result = await post("/tasks/{taskId}/approve-reward", {
+        params: { path: { taskId } },
+        body: body as never,
+      });
+      if (!result.response.ok) throw fromContract(result.error, result.response);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "taskRewardApproval");
     });
   }
 

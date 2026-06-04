@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Bot, Building2, Coins, LayoutDashboard, Menu, Network, Rss, X } from "lucide-react";
+import { Bot, Building2, Coins, LayoutDashboard, Menu, Network, Rss, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useAuthState } from "@/lib/store/authStore";
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/organizations", key: "organizations", icon: Building2 },
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/get-vib", key: "getVib", icon: Coins },
+  { href: "/rewards", key: "rewards", icon: Sparkles },
   { href: "/personal-center", key: "identity", icon: LayoutDashboard },
 ] as const;
 
