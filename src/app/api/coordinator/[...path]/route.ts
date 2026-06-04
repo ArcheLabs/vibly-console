@@ -118,6 +118,8 @@ async function proxy(
     request.method === "POST" && routePath === "/action-intents" && Boolean(walletSession);
   const allowWalletGetVibOrder =
     request.method === "POST" && routePath === "/get-vib/orders" && Boolean(walletSession);
+  const allowWalletGetVibPaymentSubmit =
+    request.method === "POST" && routePath === "/get-vib/curve/submit-payment" && Boolean(walletSession);
   const allowGetVibQuote =
     request.method === "POST" && routePath === "/get-vib/curve/quote";
   const allowAnonymous =
@@ -126,8 +128,9 @@ async function proxy(
     allowWalletSessionDelete ||
     allowWalletActionIntent ||
     allowWalletGetVibOrder ||
+    allowWalletGetVibPaymentSubmit ||
     allowGetVibQuote;
-  const requiresWalletPrincipal = (allowWalletActionIntent || allowWalletGetVibOrder) && Boolean(walletSession);
+  const requiresWalletPrincipal = (allowWalletActionIntent || allowWalletGetVibOrder || allowWalletGetVibPaymentSubmit) && Boolean(walletSession);
   // GET requests to /streams/* are SSE endpoints that may be used without a
   // console session (wallet-only users). The server-side API token is still
   // injected so the coordinator can enforce auth on its side; it is never
@@ -149,7 +152,7 @@ async function proxy(
     }
     credentials = await resolveCoordinatorCredentials(session, {
       allowAnonymous,
-      allowServerTokenWithoutSession: allowWalletActionIntent || allowWalletGetVibOrder || allowServerTokenForStream,
+      allowServerTokenWithoutSession: allowWalletActionIntent || allowWalletGetVibOrder || allowWalletGetVibPaymentSubmit || allowServerTokenForStream,
       networkId: requestedNetworkId,
     });
   } catch (e) {

@@ -75,7 +75,7 @@ export function GetVibPage() {
   const depositAddress = text(config.depositAddress);
   const networkId = normalizeNetworkId(config.networkId) || activeNetwork.id;
   const getVibConversionEnabled = activeNetwork.features?.getVibConversion !== false;
-  const getVibClaimEnabled = activeNetwork.features?.getVibClaim !== false;
+  const getVibClaimEnabled = activeNetwork.features?.getVibClaim !== false && config.claimEnabled === true;
   const polkadotAccount = wallet.session?.ecosystem === "polkadot" ? wallet.session.address : wallet.polkadotAddress;
   const accountId = polkadotAccount ?? wallet.session?.address ?? wallet.evmAddress ?? null;
   const purchaseEnabled = getVibConversionEnabled && config.purchaseEnabled !== false && Boolean(depositAddress);
@@ -102,8 +102,8 @@ export function GetVibPage() {
   const amountInvalid = !isPositiveDecimal(paymentAmount);
   const curveAmountExceeded = isCurveAmountExceeded(quoteErrorMessage);
   const records = useMemo(
-    () => mergeGetVibRecords({ pending: pendingRecords, remote: recordsQuery.data }),
-    [pendingRecords, recordsQuery.data],
+    () => mergeGetVibRecords({ pending: pendingRecords, remote: recordsQuery.data, claimEnabled: getVibClaimEnabled }),
+    [getVibClaimEnabled, pendingRecords, recordsQuery.data],
   );
   const paginated = paginateRecords(records, page, pageSize);
   const localClaimMatches = Boolean(
@@ -596,10 +596,11 @@ export function GetVibPage() {
                     claimTransaction={claimTransaction}
                     claimError={claimError}
                     onClaim={claimVib}
+                    claimEnabled={getVibClaimEnabled}
                     canClaim={Boolean(getVibClaimEnabled && polkadotAccount && proof && claimableAmount > 0 && rootUploaded)}
                     claimUnavailableMessage={
                       !getVibClaimEnabled
-                        ? activeNetwork.messages?.getVibClaim ?? t("feedback.claimUnavailable")
+                        ? activeNetwork.messages?.getVibClaim ?? text(config.claimUnavailableMessage) ?? t("feedback.claimUnavailable")
                         : proof && claimableAmount > 0 && !rootUploaded
                           ? t("claim.rootNotUploaded")
                           : undefined
@@ -784,6 +785,7 @@ function ClaimCard({
   claimTransaction,
   claimError,
   claimUnavailableMessage,
+  claimEnabled,
   canClaim,
   onClaim,
 }: {
@@ -797,6 +799,7 @@ function ClaimCard({
   claimTransaction: ReturnType<typeof useChainTransactions>[number] | null;
   claimError: string | null;
   claimUnavailableMessage?: string;
+  claimEnabled: boolean;
   canClaim: boolean;
   onClaim(): void;
 }) {
@@ -829,6 +832,8 @@ function ClaimCard({
       ? "failed"
       : claimed
         ? "claimed"
+      : claimableAmount > 0 && proof && !claimEnabled
+        ? "waiting_launch"
       : claimableAmount > 0 && proof && rootUploaded
         ? "claimable"
         : claimableAmount > 0 && proof
@@ -850,7 +855,7 @@ function ClaimCard({
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent)]/10">
           <Gift className="h-8 w-8 text-[var(--accent)]" />
         </div>
-        <div className="mt-4 text-sm text-[var(--text-muted)]">{t("claim.available")}</div>
+        <div className="mt-4 text-sm text-[var(--text-muted)]">{claimEnabled ? t("claim.available") : t("claim.allocatedPendingLaunch")}</div>
         <div className="mt-1 text-3xl font-bold tracking-tight text-[var(--accent)]">
           {formatNumber(claimableAmountText)} VIB
         </div>

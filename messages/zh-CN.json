@@ -395,8 +395,8 @@
       "title": "注意",
       "estimatedOnly": "预计数量仅供参考",
       "finalizedRule": "最终分配以 Relay Chain finalized deposit 和 Coordinator 确认为准",
-      "addressOnly": "请仅向页面展示的收款地址转账",
-      "claimLater": "分配完成后可在此页面领取 VIB"
+      "addressOnly": "请仅从当前连接的 Polkadot 钱包向页面展示的收款地址转账，不要从交易所或托管账户付款",
+      "claimLater": "分配可能先于领取开放完成；Vibly Chain 上线且 claim root 发布后，可在此页面领取 VIB"
     },
     "curve": {
       "title": "价格曲线",
@@ -418,6 +418,7 @@
     "claim": {
       "title": "领取 VIB",
       "available": "可领取",
+      "allocatedPendingLaunch": "已分配，上线后可领取",
       "waiting": "等待分配",
       "none": "暂无可领取 VIB",
       "claimVib": "领取 VIB",
@@ -427,6 +428,7 @@
       "status": {
         "idle": "暂无分配",
         "waiting_allocation": "等待分配",
+        "waiting_launch": "已分配，等待 Vibly Chain 上线",
         "waiting_root": "等待 Root 上链",
         "claimable": "可领取",
         "claiming": "领取中",
@@ -449,6 +451,7 @@
         "finalized_pending": "等待 finalized",
         "allocation_pending": "等待分配",
         "allocated": "已分配",
+        "allocated_pending_launch": "已分配，上线后开放领取",
         "claimable": "可领取",
         "claimed": "已领取",
         "failed": "失败"

@@ -6,6 +6,7 @@ export type GetVibRecordStatus =
   | "finalized_pending"
   | "allocation_pending"
   | "allocated"
+  | "allocated_pending_launch"
   | "claimable"
   | "claimed"
   | "failed";
@@ -23,6 +24,7 @@ export interface GetVibTableRecord {
 export function mergeGetVibRecords(input: {
   pending: PendingGetVibRecord[];
   remote?: Entity;
+  claimEnabled?: boolean;
 }): GetVibTableRecord[] {
   const relayDeposits = entities(input.remote?.relayDeposits);
   const deposits = entities(input.remote?.deposits);
@@ -44,7 +46,7 @@ export function mergeGetVibRecords(input: {
       paymentAmount: text(relay.dotAmount) || text(relay.paymentAmount) || text(deposit?.dotAmount),
       receivedVib: text(allocation?.vibAmount) || text(deposit?.quotedVibAmount) || "0",
       time: text(relay.finalizedAt) || text(relay.observedAt),
-      status: statusFromRemote(text(relay.status), Boolean(allocation), claimed),
+      status: statusFromRemote(text(relay.status), Boolean(allocation), claimed, input.claimEnabled !== false),
       txHash,
     };
   });
@@ -75,10 +77,10 @@ export function paginateRecords<T>(records: T[], page: number, pageSize: number)
   };
 }
 
-function statusFromRemote(relayStatus: string, hasAllocation: boolean, claimed: boolean): GetVibRecordStatus {
+function statusFromRemote(relayStatus: string, hasAllocation: boolean, claimed: boolean, claimEnabled: boolean): GetVibRecordStatus {
   if (relayStatus === "failed") return "failed";
   if (claimed && hasAllocation) return "claimed";
-  if (hasAllocation) return "claimable";
+  if (hasAllocation) return claimEnabled ? "claimable" : "allocated_pending_launch";
   if (relayStatus === "confirmed") return "allocated";
   return "allocation_pending";
 }

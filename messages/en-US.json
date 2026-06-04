@@ -395,8 +395,8 @@
       "title": "Notice",
       "estimatedOnly": "Estimated amounts are for reference only",
       "finalizedRule": "Final allocation uses Relay Chain finalized deposit and Coordinator confirmation",
-      "addressOnly": "Transfer only to the deposit address shown on this page",
-      "claimLater": "Claim VIB on this page after allocation completes"
+      "addressOnly": "Transfer only from the connected Polkadot wallet to the deposit address shown on this page; do not send from an exchange or custodial account",
+      "claimLater": "Allocation may complete before claim opens; claim VIB here after Vibly Chain is online and the claim root is published"
     },
     "curve": {
       "title": "Price curve",
@@ -418,6 +418,7 @@
     "claim": {
       "title": "Claim VIB",
       "available": "Claimable",
+      "allocatedPendingLaunch": "Allocated, available after launch",
       "waiting": "Waiting allocation",
       "none": "No claimable VIB",
       "claimVib": "Claim VIB",
@@ -427,6 +428,7 @@
       "status": {
         "idle": "No allocation yet",
         "waiting_allocation": "Waiting allocation",
+        "waiting_launch": "Allocated, waiting for Vibly Chain launch",
         "waiting_root": "Waiting root publish",
         "claimable": "Claimable",
         "claiming": "Claiming",
@@ -449,6 +451,7 @@
         "finalized_pending": "Waiting finalized",
         "allocation_pending": "Waiting allocation",
         "allocated": "Allocated",
+        "allocated_pending_launch": "Allocated, claim opens after launch",
         "claimable": "Claimable",
         "claimed": "Claimed",
         "failed": "Failed"
