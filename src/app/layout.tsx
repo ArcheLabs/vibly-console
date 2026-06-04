@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 import { Providers } from "./providers";
 import { defaultLocale, isAppLocale, localeCookieName, type AppLocale } from "@/lib/i18n/config";

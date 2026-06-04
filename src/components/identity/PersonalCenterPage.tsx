@@ -9,12 +9,15 @@ import {
   Bot,
   ChevronRight,
   Clock3,
+  ClipboardCheck,
   Coins,
   Copy,
+  Eye,
   Key,
   Lock,
   Plus,
   Shield,
+  Trophy,
   Wallet,
 } from "lucide-react";
 import { WalletConnectPanel, shortAddress } from "@/components/wallet/WalletConnectPanel";
@@ -274,9 +277,11 @@ export function PersonalCenterPage() {
     return (
       <div className="px-4 py-6 sm:px-8">
         <PageHeader icon={Wallet} title={t("title")} description={t("notConnectedSubtitle")} />
-        <div className="mt-8 flex flex-col items-start gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-5 text-center shadow-sm">
           <p className="text-sm text-[var(--text-muted)]">{t("notConnectedSubtitle")}</p>
-          <WalletConnectPanel mode="button" autoOpen />
+          <div className="[&>button]:h-9 [&>button]:px-3 [&>button]:text-xs">
+            <WalletConnectPanel mode="button" autoOpen />
+          </div>
         </div>
       </div>
     );
@@ -420,10 +425,10 @@ export function PersonalCenterPage() {
               <div className="grid gap-3">
                 <BalanceLine icon={Coins} label="Claimable total" value={String(rewardSummary.claimableTotal ?? "0")} hint="Base + observer + reviewer + task rewards" unit={viblyTokenSymbol} emphasis />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <BalanceLine icon={Coins} label="Base staking" value={String(rewardSummary.claimableBase ?? "0")} hint="Self-stake passive rewards" unit={viblyTokenSymbol} />
-                  <BalanceLine icon={Coins} label="Observer" value={String(rewardSummary.claimableObserver ?? "0")} hint="Observation participation rewards" unit={viblyTokenSymbol} />
-                  <BalanceLine icon={Coins} label="Reviewer" value={String(rewardSummary.claimableReviewer ?? "0")} hint="Review participation rewards" unit={viblyTokenSymbol} />
-                  <BalanceLine icon={Coins} label="Task" value={String(rewardSummary.claimableTask ?? "0")} hint="Accepted task protocol rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={Shield} label="Base staking" value={String(rewardSummary.claimableBase ?? "0")} hint="Self-stake passive rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={Eye} label="Observer" value={String(rewardSummary.claimableObserver ?? "0")} hint="Observation participation rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={ClipboardCheck} label="Reviewer" value={String(rewardSummary.claimableReviewer ?? "0")} hint="Review participation rewards" unit={viblyTokenSymbol} />
+                  <BalanceLine icon={Trophy} label="Task" value={String(rewardSummary.claimableTask ?? "0")} hint="Accepted task protocol rewards" unit={viblyTokenSymbol} />
                 </div>
                 <div className="space-y-2">
                   {agents.map((agent) => {
@@ -464,11 +469,6 @@ export function PersonalCenterPage() {
               </div>
             </Panel>
             ) : null}
-            <Panel title={t("quickActions.title")}>
-              <div className="grid gap-3">
-                <button type="button" disabled={!canAddAgent} className="quick-primary disabled:cursor-not-allowed disabled:opacity-50" onClick={openAddAgent}><span><Plus className="h-4 w-4" /> {t("quickActions.addAgent")}</span><ChevronRight className="h-4 w-4" /></button>
-              </div>
-            </Panel>
             {rewardsEnabled && rewardHistory.length ? (
               <Panel title="Recent task rewards">
                 <div className="space-y-2">
@@ -492,10 +492,6 @@ export function PersonalCenterPage() {
         .action-primary { display:inline-flex; align-items:center; gap:.5rem; border-radius:.75rem; background:var(--accent); padding:.75rem 1rem; color:var(--accent-foreground); font-size:.875rem; font-weight:600; }
         .action-secondary { display:inline-flex; align-items:center; gap:.5rem; border-radius:.75rem; border:1px solid var(--border); background:var(--surface-muted); padding:.75rem 1rem; color:var(--text-muted); font-size:.875rem; font-weight:500; }
         .small-button { border-radius:.5rem; border:1px solid var(--border); padding:.45rem .75rem; font-size:.75rem; font-weight:500; color:var(--text-muted); }
-        .quick-primary, .quick-secondary { display:flex; align-items:center; justify-content:space-between; border-radius:.75rem; padding:.85rem 1rem; font-size:.875rem; font-weight:600; }
-        .quick-primary { background:var(--accent); color:var(--accent-foreground); }
-        .quick-secondary { border:1px solid var(--border); color:var(--text-muted); }
-        .quick-primary span, .quick-secondary span { display:inline-flex; align-items:center; gap:.5rem; }
       `}</style>
     </div>
   );

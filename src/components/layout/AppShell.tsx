@@ -66,6 +66,26 @@ function Brand() {
   );
 }
 
+function MobileTopBar({ onMenuClick }: { onMenuClick: () => void }) {
+  const app = useTranslations("app");
+  const t = useTranslations("shell");
+  return (
+    <header className="sticky top-0 z-40 flex h-14 items-center justify-center border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 shadow-sm backdrop-blur-xl lg:hidden">
+      <button
+        type="button"
+        aria-label={t("menu")}
+        onClick={onMenuClick}
+        className="absolute left-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-muted)] transition hover:text-[var(--text)]"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+      <Link href="/" className="transition-opacity hover:opacity-80" aria-label={app("name")}>
+        <img src="/vibly-logo.svg" alt={app("name")} className="h-8 w-auto" />
+      </Link>
+    </header>
+  );
+}
+
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const t = useTranslations("nav");
@@ -159,14 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ) : null}
 
       <div className="min-h-screen lg:ml-72">
-        <button
-          type="button"
-          aria-label={t("menu")}
-          onClick={() => setMobileOpen(true)}
-          className="fixed left-4 top-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] shadow-sm hover:bg-[var(--surface-muted)] hover:text-[var(--text)] lg:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <MobileTopBar onMenuClick={() => setMobileOpen(true)} />
         <main>{children}</main>
       </div>
     </div>

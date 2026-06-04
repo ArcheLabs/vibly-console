@@ -16,11 +16,11 @@ export function useGetVibLiveEvents(options: { enabled?: boolean } = {}): { stat
 
   useEffect(() => {
     if (!enabled) {
-      setStatus("disconnected");
+      setStatus((current) => current === "disconnected" ? current : "disconnected");
       return;
     }
     return client.streamGetVibEvents({
-      onStatus: setStatus,
+      onStatus: (next) => setStatus((current) => current === next ? current : next),
       onEvent: () => {
         void queryClient.invalidateQueries({ queryKey: ["get-vib", network.id] });
       },

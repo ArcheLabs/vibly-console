@@ -40,7 +40,7 @@
     "connected": "已连接",
     "notConnected": "未连接钱包",
     "modalTitle": "钱包登录",
-    "modalDescription": "使用 Polkadot 身份插件或 EVM 钱包连接 Console。",
+    "modalDescription": "使用 Polkadot 身份插件连接 Console。",
     "connectPolkadot": "登录 Polkadot 钱包",
     "switchAccount": "切换账号",
     "choosePolkadotAccount": "选择 Polkadot 账号",
@@ -418,6 +418,8 @@
     "claim": {
       "title": "领取 VIB",
       "available": "可领取",
+      "totalAllocated": "已分配总额",
+      "waitingRoot": "等待 Root",
       "allocatedPendingLaunch": "已分配，上线后可领取",
       "waiting": "等待分配",
       "none": "暂无可领取 VIB",
@@ -477,6 +479,10 @@
       "balanceUnavailable": "余额暂不可用",
       "insufficientBalance": "余额不足",
       "insufficientBalanceBody": "当前钱包没有足够的 {symbol} 支付该金额和链上手续费。",
+      "amountTooSmall": "金额低于最小购买额",
+      "amountTooSmallBody": "该金额过小，无法分配有效 VIB。请提高支付金额，直到预计获得数量达到最小购买额。",
+      "quoteLoading": "报价更新中",
+      "quoteLoadingBody": "请等待当前金额的报价刷新完成后再提交付款。",
       "curveExceeded": "超过可兑换上限",
       "curveExceededBody": "该金额对应的 VIB 已超过当前曲线剩余额度，请降低输入金额后重试。",
       "paymentRpcUnavailable": "支付链 RPC 未配置"

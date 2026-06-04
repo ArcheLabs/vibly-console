@@ -40,7 +40,7 @@
     "connected": "Connected",
     "notConnected": "Wallet not connected",
     "modalTitle": "Wallet sign-in",
-    "modalDescription": "Connect Console with the Polkadot identity extension or an EVM wallet.",
+    "modalDescription": "Connect Console with the Polkadot identity extension.",
     "connectPolkadot": "Log in with Polkadot wallet",
     "switchAccount": "Switch Account",
     "choosePolkadotAccount": "Choose Polkadot account",
@@ -418,6 +418,8 @@
     "claim": {
       "title": "Claim VIB",
       "available": "Claimable",
+      "totalAllocated": "Total allocated",
+      "waitingRoot": "Waiting for root",
       "allocatedPendingLaunch": "Allocated, available after launch",
       "waiting": "Waiting allocation",
       "none": "No claimable VIB",
@@ -477,6 +479,10 @@
       "balanceUnavailable": "Balance unavailable",
       "insufficientBalance": "Insufficient balance",
       "insufficientBalanceBody": "This wallet does not have enough {symbol} for the payment amount and chain fees.",
+      "amountTooSmall": "Amount is below the minimum",
+      "amountTooSmallBody": "This amount is too small to allocate VIB. Increase the payment amount until the estimated receive is at least the minimum purchase.",
+      "quoteLoading": "Updating quote",
+      "quoteLoadingBody": "Please wait for the quote to refresh for the current amount before submitting payment.",
       "curveExceeded": "Amount exceeds available curve capacity",
       "curveExceededBody": "The VIB estimated for this amount exceeds the current remaining curve allocation. Lower the amount and try again.",
       "paymentRpcUnavailable": "Payment-chain RPC is not configured"

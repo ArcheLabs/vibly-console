@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Coins, Copy, ExternalLink, Gift, Info, Loader2, ShieldCheck, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -43,6 +42,8 @@ export function GetVibPage() {
   const activeNetwork = useActiveNetworkProfile();
   const paymentRpcUrls = useMemo(() => networkPaymentRpcUrls(activeNetwork), [activeNetwork]);
   const viblyRpcUrls = useMemo(() => networkViblyRpcUrls(activeNetwork), [activeNetwork]);
+  const paymentRpcKey = paymentRpcUrls.join("\n");
+  const viblyRpcKey = viblyRpcUrls.join("\n");
 
   const paymentChainInfo = usePaymentChainInfo();
 
@@ -65,6 +66,7 @@ export function GetVibPage() {
   const [chainClaimedAmount, setChainClaimedAmount] = useState<string | null>(null);
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
   const [claimTransactionId, setClaimTransactionId] = useState<string | null>(null);
+  const autoClaimRecordKeyRef = useRef<string | null>(null);
   const chainTransactions = useChainTransactions();
 
   const configQuery = useGetVibConfig();
@@ -87,20 +89,29 @@ export function GetVibPage() {
   const claimRecordMutation = useRecordGetVibClaim();
   useGetVibLiveEvents();
 
-  const quote = quoteQuery.data ?? {};
+  const rawQuote = quoteQuery.data ?? {};
   const summary = summaryQuery.data ?? {};
   const proof = proofQuery.data ?? null;
   const rootUploadStatus = text(proof?.rootUploadStatus);
   const rootUploaded = rootUploadStatus === "uploaded";
-  const curve = curvePoints(curveQuery.data);
-  const curveState = entity(curveQuery.data?.state);
+  const proofRootVersion = Number(proof?.rootVersion ?? 0);
+  const proofIdentityId = text(proof?.identityId);
+  const curve = useMemo(() => curvePoints(curveQuery.data), [curveQuery.data]);
+  const curveState = useMemo(() => entity(curveQuery.data?.state), [curveQuery.data?.state]);
   const soldOut = curveState.soldOut === true;
   const quoteErrorMessage = quoteQuery.error ? errorMessage(quoteQuery.error) : "";
   const amountBaseUnits = amountToBaseUnitsOrNull(paymentAmount, paymentTokenDecimals);
+  const rawQuoteAmountBaseUnits = amountToBaseUnitsOrNull(text(rawQuote.inputAmount) || text(rawQuote.dotAmount), paymentTokenDecimals);
+  const quoteMatchesPaymentAmount = amountBaseUnits !== null && rawQuoteAmountBaseUnits !== null && rawQuoteAmountBaseUnits === amountBaseUnits;
+  const quote = quoteMatchesPaymentAmount ? rawQuote : {};
+  const quoteVibAmountText = text(quote.vibAmount) || "0";
+  const quoteVibBaseUnits = bigIntOrNull(text(quote.vibAmountBaseUnits)) ?? decimalToBaseUnitsOrNull(quoteVibAmountText, 12);
   const balanceLoading = Boolean(polkadotAccount && paymentRpcUrls.length > 0 && !balance && !balanceError);
   const insufficientBalance = Boolean(balance && amountBaseUnits !== null && amountBaseUnits > BigInt(balance.freeBaseUnits || "0"));
   const amountInvalid = !isPositiveDecimal(paymentAmount);
   const curveAmountExceeded = isCurveAmountExceeded(quoteErrorMessage);
+  const quoteAmountTooSmall = !amountInvalid && (isGetVibAmountTooSmall(quoteErrorMessage) || (quoteMatchesPaymentAmount && quoteVibBaseUnits !== null && quoteVibBaseUnits <= 0n));
+  const quotePendingForAmount = purchaseEnabled && !amountInvalid && !quoteMatchesPaymentAmount && quoteQuery.isFetching;
   const records = useMemo(
     () => mergeGetVibRecords({ pending: pendingRecords, remote: recordsQuery.data, claimEnabled: getVibClaimEnabled }),
     [getVibClaimEnabled, pendingRecords, recordsQuery.data],
@@ -114,11 +125,31 @@ export function GetVibPage() {
     localClaimed.cumulativeAmount === text(proof?.cumulativeAmount),
   );
   const proofCumulativeAmount = text(proof?.cumulativeAmount) || "0";
+  const proofKey = proof ? [networkId, proofRootVersion, proofCumulativeAmount, rootUploadStatus].join(":") : "";
+  const summaryClaimableAmountText = text(summary.claimableAmount) || "0";
+  const totalAllocatedAmountText = text(summary.purchasedAllocation) || "0";
+  const totalAllocatedBaseUnits = decimalToBaseUnits(totalAllocatedAmountText, 12);
+  const summaryClaimedAmount = text(summary.claimedAmount) || "0";
+  const localClaimedAmount = localClaimMatches ? localClaimed?.cumulativeAmount ?? "0" : "0";
+  const effectiveClaimedBaseUnits = maxBigInt(
+    decimalToBaseUnits(summaryClaimedAmount, 12),
+    chainClaimedAmount ? decimalToBaseUnits(chainClaimedAmount, 12) : 0n,
+    decimalToBaseUnits(localClaimedAmount, 12),
+  );
+  const proofClaimableBaseUnits = proof
+    ? maxBigInt(0n, decimalToBaseUnits(proofCumulativeAmount, 12) - effectiveClaimedBaseUnits)
+    : 0n;
+  const proofClaimableAmountText = rootUploaded ? baseUnitsToDecimal(proofClaimableBaseUnits, 12, 12) : "0";
+  const pendingRootBaseUnits = getVibClaimEnabled
+    ? maxBigInt(0n, totalAllocatedBaseUnits - effectiveClaimedBaseUnits - proofClaimableBaseUnits)
+    : maxBigInt(0n, totalAllocatedBaseUnits - effectiveClaimedBaseUnits);
+  const pendingRootAmount = Number(baseUnitsToDecimal(pendingRootBaseUnits, 12, 12));
   const chainClaimMatches = Boolean(
+    proof &&
     chainClaimedAmount &&
     decimalToBaseUnits(chainClaimedAmount, 12) >= decimalToBaseUnits(proofCumulativeAmount, 12),
   );
-  const claimableAmountText = localClaimMatches || chainClaimMatches ? "0" : text(summary.claimableAmount) || "0";
+  const claimableAmountText = getVibClaimEnabled ? proofClaimableAmountText : summaryClaimableAmountText;
   const claimableAmount = Number(claimableAmountText);
   const paymentTransaction = chainTransactions.find((item) => item.id === paymentTransactionId) ?? null;
   const claimTransaction = chainTransactions.find((item) => item.id === claimTransactionId) ?? null;
@@ -134,7 +165,7 @@ export function GetVibPage() {
   useEffect(() => {
     let cancelled = false;
     setChainClaimedAmount(null);
-    if (!polkadotAccount || !proof || viblyRpcUrls.length === 0) return;
+    if (!polkadotAccount || !proofKey || viblyRpcUrls.length === 0) return;
     void queryClaimedVibAmount({
       rpcUrl: viblyRpcUrls,
       accountId: polkadotAccount,
@@ -147,27 +178,31 @@ export function GetVibPage() {
     return () => {
       cancelled = true;
     };
-  }, [polkadotAccount, proof, viblyRpcUrls]);
+  }, [polkadotAccount, proofKey, viblyRpcKey]);
 
   useEffect(() => {
     if (!polkadotAccount || !proof || !chainClaimMatches) return;
+    if (localClaimMatches) return;
     const summaryClaimedAmount = text(summary.claimedAmount) || "0";
     const missingBaseUnits =
       decimalToBaseUnits(proofCumulativeAmount, 12) - decimalToBaseUnits(summaryClaimedAmount, 12);
     if (missingBaseUnits <= 0n) return;
+    const autoRecordKey = `${networkId}:${polkadotAccount}:${proofRootVersion}:${proofCumulativeAmount}`;
+    if (autoClaimRecordKeyRef.current === autoRecordKey) return;
+    autoClaimRecordKeyRef.current = autoRecordKey;
 
     setLocalClaimed({
       networkId,
       accountId: polkadotAccount,
-      rootVersion: Number(proof.rootVersion),
+      rootVersion: proofRootVersion,
       cumulativeAmount: proofCumulativeAmount,
     });
 
     void claimRecordMutation.mutateAsync({
       networkId,
       accountId: polkadotAccount,
-      identityId: text(proof.identityId) || undefined,
-      rootVersion: Number(proof.rootVersion),
+      identityId: proofIdentityId || undefined,
+      rootVersion: proofRootVersion,
       cumulativeAmount: proofCumulativeAmount,
       claimedDelta: baseUnitsToDecimal(missingBaseUnits, 12, 12),
       status: "confirmed",
@@ -175,11 +210,13 @@ export function GetVibPage() {
   }, [
     chainClaimMatches,
     claimRecordMutation,
+    localClaimMatches,
     networkId,
     polkadotAccount,
-    proof,
     proofCumulativeAmount,
-    summary.claimedAmount,
+    proofIdentityId,
+    proofRootVersion,
+    summaryClaimedAmount,
   ]);
 
   useEffect(() => {
@@ -215,7 +252,7 @@ export function GetVibPage() {
     return () => {
       cancelled = true;
     };
-  }, [paymentRpcUrls, polkadotAccount, paymentTokenDecimals]);
+  }, [paymentRpcKey, polkadotAccount, paymentTokenDecimals]);
 
   useEffect(() => {
     if (!transferAfterLogin || !polkadotAccount) return;
@@ -250,6 +287,14 @@ export function GetVibPage() {
     }
     if (curveAmountExceeded) {
       notify(t("feedback.curveExceeded"), t("feedback.curveExceededBody"));
+      return false;
+    }
+    if (quoteAmountTooSmall) {
+      notify(t("feedback.amountTooSmall"), t("feedback.amountTooSmallBody"));
+      return false;
+    }
+    if (quotePendingForAmount) {
+      notify(t("feedback.quoteLoading"), t("feedback.quoteLoadingBody"), "info");
       return false;
     }
     if (!polkadotAccount) return true;
@@ -322,7 +367,7 @@ export function GetVibPage() {
       const pending = addPendingGetVibRecord(networkId, polkadotAccount, {
         txHash,
         paymentAmount,
-        estimatedVib: text(quote.vibAmount) || "0",
+        estimatedVib: quoteVibAmountText,
         estimatedSlippage: "",
         submittedAt: new Date().toISOString(),
         status: "submitted",
@@ -383,17 +428,17 @@ export function GetVibPage() {
       const claimBody = {
         networkId,
         accountId: polkadotAccount,
-        identityId: text(proof.identityId) || undefined,
-        rootVersion: Number(proof.rootVersion),
+        identityId: proofIdentityId || undefined,
+        rootVersion: proofRootVersion,
         cumulativeAmount: text(proof.cumulativeAmount),
-        claimedDelta: text(summary.claimableAmount) || text(proof.cumulativeAmount),
+        claimedDelta: claimableAmountText,
         txHash,
         status: "confirmed",
       };
       setLocalClaimed({
         networkId,
         accountId: polkadotAccount,
-        rootVersion: Number(proof.rootVersion),
+        rootVersion: proofRootVersion,
         cumulativeAmount: text(proof.cumulativeAmount),
       });
       await claimRecordMutation.mutateAsync(claimBody).catch((cause) => {
@@ -406,7 +451,7 @@ export function GetVibPage() {
         explorerUrl: txExplorerUrl(activeNetwork, txHash),
         body: t("feedback.claimCompleted"),
       });
-      await Promise.all([summaryQuery.refetch(), recordsQuery.refetch()]);
+      await Promise.all([summaryQuery.refetch(), proofQuery.refetch(), recordsQuery.refetch()]);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       setClaimError(message);
@@ -520,7 +565,7 @@ export function GetVibPage() {
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-5 text-center">
                   <div className="text-sm text-[var(--text-muted)]">{t("estimatedReceive")}</div>
                   <div className="mt-1 text-4xl font-bold tracking-tight text-[var(--accent)]">
-                    {formatNumber(text(quote.vibAmount) || "0")}{" "}
+                    {formatNumber(quoteVibAmountText)}{" "}
                     <span className="text-2xl font-semibold">VIB</span>
                   </div>
                 </div>
@@ -529,7 +574,7 @@ export function GetVibPage() {
                 <button
                   type="button"
                   onClick={handleGetVib}
-                  disabled={transferring}
+                  disabled={transferring || quoteAmountTooSmall || quotePendingForAmount}
                   className="mt-4 mx-auto flex items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-6 py-2 text-sm font-semibold text-[var(--accent-foreground)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -552,7 +597,9 @@ export function GetVibPage() {
                 </div>
 
                 {!purchaseEnabled ? <InlineNotice>{t("purchaseUnavailable")}</InlineNotice> : null}
-                {quoteQuery.error ? <InlineError title={t("quoteError")} error={quoteQuery.error} /> : null}
+                {quoteAmountTooSmall ? <InlineNotice>{t("feedback.amountTooSmallBody")}</InlineNotice> : null}
+                {quotePendingForAmount ? <InlineNotice>{t("feedback.quoteLoadingBody")}</InlineNotice> : null}
+                {quoteQuery.error && !quoteAmountTooSmall ? <InlineError title={t("quoteError")} error={quoteQuery.error} /> : null}
                 {transferError ? <InlineError title={t("transferError")} error={transferError} /> : null}
                 {polkadotAccount && paymentRpcUrls.length === 0 ? <InlineNotice>{t("paymentRpcUnavailable")}</InlineNotice> : null}
                 </>
@@ -589,8 +636,10 @@ export function GetVibPage() {
                     t={t}
                     summary={summary}
                     proof={proof}
+                    totalAllocatedAmountText={totalAllocatedAmountText}
                     claimableAmountText={claimableAmountText}
                     claimableAmount={claimableAmount}
+                    pendingClaimAmount={pendingRootAmount}
                     claimed={localClaimMatches || chainClaimMatches}
                     claiming={claiming}
                     claimTransaction={claimTransaction}
@@ -714,6 +763,7 @@ function MiniCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Ent
   const totalVib = curve.length > 0 ? Number(curve[curve.length - 1].soldVib) : 0;
   const soldVib = Number(text(curveState.sold)) || 0;
   const progressPct = totalVib > 0 ? Math.min(100, (soldVib / totalVib) * 100) : 0;
+  const preview = miniCurvePreview(curve, soldVib);
   return (
     <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
       <div className="flex items-center gap-1.5">
@@ -731,45 +781,59 @@ function MiniCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Ent
           </div>
         </div>
       ) : null}
-      <div className="mt-3 h-24">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart data={curve}>
+      <div className="mt-3 h-24 overflow-hidden rounded-md bg-[var(--surface)]">
+        {preview ? (
+          <svg viewBox="0 0 320 96" preserveAspectRatio="none" role="img" aria-label={t("curve.title")} className="h-full w-full">
             <defs>
-              <linearGradient id="miniVibCurve" x1="0" x2="0" y1="0" y2="1">
+              <linearGradient id="miniVibCurveSvg" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.45} />
                 <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="soldVib" hide />
-            <YAxis hide />
-            {text(curveState.sold) ? <ReferenceLine x={text(curveState.sold)} stroke="var(--warning)" strokeDasharray="4 4" label={{ value: t("curve.currentPoint"), position: "insideTopRight", fontSize: 10, fill: "var(--warning)" }} /> : null}
-            <Area type="monotone" dataKey="price" stroke="var(--accent)" fill="url(#miniVibCurve)" strokeWidth={2} />
-          </AreaChart>
-        </ResponsiveContainer>
+            <path d={preview.areaPath} fill="url(#miniVibCurveSvg)" />
+            <path d={preview.linePath} fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            {preview.markerX !== null ? (
+              <line x1={preview.markerX} x2={preview.markerX} y1="10" y2="88" stroke="var(--warning)" strokeDasharray="4 4" strokeWidth="2" />
+            ) : null}
+          </svg>
+        ) : null}
       </div>
     </div>
   );
 }
 
 function FullCurve({ curve, curveState }: { curve: CurvePoint[]; curveState: Entity }) {
+  const preview = miniCurvePreview(curve, Number(text(curveState.sold)) || 0, { width: 960, height: 416, padding: 32 });
   return (
-    <div className="mt-4 h-[26rem]">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-        <AreaChart data={curve}>
+    <div className="mt-4 h-[26rem] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-muted)]">
+      {preview ? (
+        <svg viewBox="0 0 960 416" preserveAspectRatio="none" role="img" className="h-full w-full">
           <defs>
-            <linearGradient id="fullVibCurve" x1="0" x2="0" y1="0" y2="1">
+            <linearGradient id="fullVibCurveSvg" x1="0" x2="0" y1="0" y2="1">
               <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.5} />
               <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="soldVib" stroke="var(--text-subtle)" tickLine={false} axisLine={false} />
-          <YAxis stroke="var(--text-subtle)" tickLine={false} axisLine={false} />
-          <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8 }} />
-          {text(curveState.sold) ? <ReferenceLine x={text(curveState.sold)} stroke="var(--warning)" strokeDasharray="4 4" /> : null}
-          <Area type="monotone" dataKey="price" stroke="var(--accent)" fill="url(#fullVibCurve)" strokeWidth={2} />
-        </AreaChart>
-      </ResponsiveContainer>
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <line
+              key={ratio}
+              x1="32"
+              x2="928"
+              y1={(32 + ratio * (416 - 64)).toFixed(2)}
+              y2={(32 + ratio * (416 - 64)).toFixed(2)}
+              stroke="var(--border)"
+              strokeWidth="1"
+            />
+          ))}
+          <path d={preview.areaPath} fill="url(#fullVibCurveSvg)" />
+          <path d={preview.linePath} fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          {preview.markerX !== null ? (
+            <line x1={preview.markerX} x2={preview.markerX} y1="32" y2="384" stroke="var(--warning)" strokeDasharray="6 6" strokeWidth="3" />
+          ) : null}
+        </svg>
+      ) : (
+        <div className="flex h-full items-center justify-center text-sm text-[var(--text-muted)]">—</div>
+      )}
     </div>
   );
 }
@@ -778,8 +842,10 @@ function ClaimCard({
   t,
   summary,
   proof,
+  totalAllocatedAmountText,
   claimableAmountText,
   claimableAmount,
+  pendingClaimAmount,
   claimed,
   claiming,
   claimTransaction,
@@ -792,8 +858,10 @@ function ClaimCard({
   t: ReturnType<typeof useTranslations>;
   summary: Entity;
   proof: Entity | null;
+  totalAllocatedAmountText: string;
   claimableAmountText: string;
   claimableAmount: number;
+  pendingClaimAmount: number;
   claimed: boolean;
   claiming: boolean;
   claimTransaction: ReturnType<typeof useChainTransactions>[number] | null;
@@ -803,46 +871,26 @@ function ClaimCard({
   canClaim: boolean;
   onClaim(): void;
 }) {
-  // Countdown: the protocol publishes a new Merkle root roughly every 30 minutes.
-  // We show a countdown from the last root publication time (or just cycle from now).
-  const ROOT_INTERVAL_MS = 30 * 60 * 1000;
-  const [countdown, setCountdown] = useState<number | null>(null);
-
-  useEffect(() => {
-    // Derive the last root epoch from rootVersion if available, otherwise use wall clock.
-    const rootVersion = Number(text(proof?.rootVersion)) || 0;
-    const epochStart = rootVersion > 0
-      ? new Date(text(proof?.publishedAt) || "").getTime() || (Date.now() - (Date.now() % ROOT_INTERVAL_MS))
-      : Date.now() - (Date.now() % ROOT_INTERVAL_MS);
-    const nextRoot = epochStart + ROOT_INTERVAL_MS;
-
-    function tick() {
-      const remaining = nextRoot - Date.now();
-      setCountdown(remaining > 0 ? remaining : 0);
-    }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [proof]);
-
   const rootUploaded = text(proof?.rootUploadStatus) === "uploaded";
+
   const status = claiming
     ? "claiming"
     : claimError
       ? "failed"
+      : claimEnabled && pendingClaimAmount > 0 && claimableAmount <= 0 && proof
+        ? "waiting_root"
       : claimed
         ? "claimed"
-      : claimableAmount > 0 && proof && !claimEnabled
+      : (claimableAmount > 0 || pendingClaimAmount > 0) && proof && !claimEnabled
         ? "waiting_launch"
       : claimableAmount > 0 && proof && rootUploaded
         ? "claimable"
-        : claimableAmount > 0 && proof
+        : pendingClaimAmount > 0 && proof
           ? "waiting_root"
           : Number(summary.purchasedAllocation ?? 0) > 0
             ? "waiting_allocation"
             : "idle";
   const isPending = status === "waiting_allocation";
-  const countdownMinutes = countdown !== null ? Math.ceil(countdown / 60000) : null;
 
   return (
     <div>
@@ -859,16 +907,14 @@ function ClaimCard({
         <div className="mt-1 text-3xl font-bold tracking-tight text-[var(--accent)]">
           {formatNumber(claimableAmountText)} VIB
         </div>
+        <div className="mt-4 grid w-full grid-cols-2 gap-2 text-left">
+          <ClaimMiniMetric label={t("claim.totalAllocated")} value={`${formatNumber(totalAllocatedAmountText)} VIB`} />
+          <ClaimMiniMetric label={t("claim.waitingRoot")} value={`${formatNumber(String(pendingClaimAmount || 0))} VIB`} />
+        </div>
         <div className="mt-3 flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)]">
           {isPending || status === "idle" ? <Clock className="h-3.5 w-3.5 shrink-0" /> : null}
           {t("claim.status." + status)}
         </div>
-        {isPending && countdownMinutes !== null && countdownMinutes > 0 ? (
-          <div className="mt-2 flex items-center gap-1 text-xs text-[var(--text-muted)]">
-            <Clock className="h-3 w-3 shrink-0" />
-            {t("claim.nextRootIn", { minutes: countdownMinutes })}
-          </div>
-        ) : null}
       </div>
 
       <button
@@ -894,6 +940,15 @@ function ClaimCard({
       {claimTransaction?.txHash ? <p className="mt-3 break-all text-xs text-[var(--accent)]">{t("claimSubmitted")}: {claimTransaction.txHash}</p> : null}
       {claimTransaction?.phase === "waiting_sync" && claimTransaction.body ? <p className="mt-2 text-xs text-[var(--text-muted)]">{claimTransaction.body}</p> : null}
       {claimError ? <p className="mt-3 text-xs text-[var(--danger)]">{claimError}</p> : null}
+    </div>
+  );
+}
+
+function ClaimMiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold text-[var(--text)]">{value}</div>
     </div>
   );
 }
@@ -1050,6 +1105,50 @@ function curvePoints(value: Entity | undefined): CurvePoint[] {
   }));
 }
 
+function miniCurvePreview(
+  curve: CurvePoint[],
+  soldVib: number,
+  options: { width?: number; height?: number; padding?: number } = {},
+): { linePath: string; areaPath: string; markerX: number | null } | null {
+  const numeric = curve
+    .map((point) => ({
+      soldVib: Number(point.soldVib),
+      price: Number(point.price),
+    }))
+    .filter((point) => Number.isFinite(point.soldVib) && Number.isFinite(point.price))
+    .sort((left, right) => left.soldVib - right.soldVib);
+  if (numeric.length < 2) return null;
+
+  const width = options.width ?? 320;
+  const height = options.height ?? 96;
+  const padding = options.padding ?? 10;
+  if (numeric[0].soldVib > 0) {
+    numeric.unshift({ soldVib: 0, price: numeric[0].price });
+  }
+
+  const minSold = 0;
+  const maxSold = Math.max(...numeric.map((point) => point.soldVib));
+  const rawMinPrice = Math.min(...numeric.map((point) => point.price));
+  const rawMaxPrice = Math.max(...numeric.map((point) => point.price));
+  const soldSpan = Math.max(1, maxSold - minSold);
+  const rawPriceSpan = rawMaxPrice - rawMinPrice;
+  const pricePadding = rawPriceSpan > 0 ? rawPriceSpan * 0.12 : Math.max(Math.abs(rawMaxPrice) * 0.12, 1);
+  const minPrice = rawMinPrice - pricePadding;
+  const maxPrice = rawMaxPrice + pricePadding;
+  const priceSpan = maxPrice - minPrice;
+  const points = numeric.map((point) => {
+    const x = padding + ((point.soldVib - minSold) / soldSpan) * (width - padding * 2);
+    const y = height - padding - ((point.price - minPrice) / priceSpan) * (height - padding * 2);
+    return { x, y };
+  });
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${height - padding} L ${points[0].x.toFixed(2)} ${height - padding} Z`;
+  const markerX = soldVib > 0 && maxSold > minSold
+    ? padding + ((Math.min(maxSold, Math.max(minSold, soldVib)) - minSold) / soldSpan) * (width - padding * 2)
+    : null;
+  return { linePath, areaPath, markerX };
+}
+
 function arrayOfEntities(value: unknown): Entity[] {
   return Array.isArray(value) ? value.filter((item): item is Entity => Boolean(item && typeof item === "object" && !Array.isArray(item))) : [];
 }
@@ -1081,6 +1180,10 @@ function isCurveAmountExceeded(message: string): boolean {
   return /exceed|remaining|soldAfter|allocation|maximum|capacity|sold.?out|insufficient|售罄|上限|超过/i.test(message);
 }
 
+function isGetVibAmountTooSmall(message: string): boolean {
+  return /below minimum|too small|minimum purchase|USD minimum|低于|过小|最小/i.test(message);
+}
+
 function short(value: string): string {
   if (!value) return "";
   return value.length > 22 ? `${value.slice(0, 10)}...${value.slice(-8)}` : value;
@@ -1094,6 +1197,7 @@ function formatTime(value: string): string {
 function formatNumber(value: string): string {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return value;
+  if (numeric > 0 && numeric < 0.000001) return "<0.000001";
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(numeric);
 }
 
@@ -1101,6 +1205,28 @@ function formatUsd(value: string): string {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "$0";
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: numeric < 1 ? 6 : 2 }).format(numeric);
+}
+
+function maxBigInt(first: bigint, ...rest: bigint[]): bigint {
+  return rest.reduce((max, value) => value > max ? value : max, first);
+}
+
+function bigIntOrNull(value: string): bigint | null {
+  if (!/^\d+$/.test(value)) return null;
+  try {
+    return BigInt(value);
+  } catch {
+    return null;
+  }
+}
+
+function decimalToBaseUnitsOrNull(value: string, decimals: number): bigint | null {
+  if (!value || !/^\d+(\.\d+)?$/.test(value)) return null;
+  try {
+    return decimalToBaseUnits(value, decimals);
+  } catch {
+    return null;
+  }
 }
 
 function pageNumbers(current: number, total: number): (number | "...")[] {

@@ -90,13 +90,11 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
   const t = useTranslations("wallet");
   const [polkadotSwitchMode, setPolkadotSwitchMode] = useState(false);
   const {
-    evmAddress,
     polkadotAccounts,
     session,
     busy,
     error,
     loadPolkadotAccounts,
-    loginWithEvm,
     loginWithPolkadot,
     logoutWallet,
   } = useWalletAuth();
@@ -233,15 +231,6 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
               {busy ? <InlineLoading label={t("loggingIn")} /> : <><Zap className="h-4 w-4" />{t("connectPolkadot")}</>}
             </button>
           )}
-          <button
-            type="button"
-            disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--surface-muted)] disabled:opacity-50"
-            onClick={() => void run(loginWithEvm)}
-          >
-            <Wallet className="h-4 w-4" />
-            {evmAddress ? `EVM ${shortAddress(evmAddress)}` : t("connectEvm")}
-          </button>
         </div>
       ) : (
         <div className="mt-5 grid grid-cols-2 gap-3">
