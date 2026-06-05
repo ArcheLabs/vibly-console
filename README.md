@@ -72,6 +72,13 @@ NEXT_PUBLIC_POLKADOT_RPC_URL=ws://127.0.0.1:9945
 
 Built-in payment RPC fallbacks are included for Paseo (`PAS`) and Polkadot mainnet (`DOT`); project-owned Vibly chain and Coordinator endpoints should still be supplied per deployment.
 
+For public hosted environments:
+
+- `Lumen` uses Paseo RPCs for Get VIB relay-side deposits
+- `Monolith` uses Polkadot mainnet RPCs for Get VIB relay-side deposits
+
+That means testnet and incentivized testnet deployments do not need a separate locally hosted payment chain. The extra payment chain RPC only exists for local E2E and manual Get VIB labs.
+
 The built-in public network naming used by Console is:
 
 - `substrate:vibly-testnet` -> `Lumen`
@@ -92,6 +99,8 @@ Console uses [Auth.js v5](https://authjs.dev) for server-side authentication:
 - All coordinator REST/SSE calls are proxied through `/api/coordinator/*`. The Next.js route handler resolves the upstream coordinator URL and Bearer token from server-side configuration (`src/lib/server/coordinatorSession.ts`).
 - Static deployments can set `NEXT_PUBLIC_COORDINATOR_TRANSPORT=direct` and `NEXT_PUBLIC_COORDINATOR_URL=https://...` so the browser calls Coordinator directly. In this mode, public reads use no token and user writes rely on the wallet-session header; do not expose a Coordinator API token through `NEXT_PUBLIC_*`.
 - `src/proxy.ts` (Next.js middleware) protects `/projects/*` and `/api/coordinator/*`; unauthenticated requests are redirected to `/login` or return 401.
+
+GitHub Pages is suitable only for the direct/public variant. If you need Auth.js, server-side proxying, or any server-kept coordinator credential, deploy Console as a real Next.js server app instead.
 
 ## Pages
 
