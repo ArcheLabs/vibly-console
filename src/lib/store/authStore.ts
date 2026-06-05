@@ -20,7 +20,7 @@ let cachedState: AuthState | null = null;
 
 export const defaultAuthState: AuthState = {
   coordinatorUrl: appConfig.defaultCoordinatorUrl,
-  mode: "proxy",
+  mode: appConfig.coordinatorTransport,
   connected: false,
 };
 

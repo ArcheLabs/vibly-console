@@ -79,11 +79,9 @@ function readCreatedOrganizationId(result: Entity): string {
 }
 
 function CreateOrganizationDialog({
-  principalId,
   onClose,
   onCreated,
 }: {
-  principalId: string;
   onClose: () => void;
   onCreated: (organizationId: string) => void;
 }) {
@@ -103,12 +101,11 @@ function CreateOrganizationDialog({
     try {
       const result = await submitActionIntent.mutateAsync({
         type: "CreateOrganization",
-        principalId,
         payload: {
           name: trimmedName,
           description: description.trim() || undefined,
         },
-        idempotencyKey: `console:create-organization:${principalId}:${Date.now()}`,
+        idempotencyKey: `console:create-organization:${Date.now()}`,
       });
       const organizationId = readCreatedOrganizationId(result);
       if (!organizationId) throw new Error(t("missingId"));
@@ -247,7 +244,6 @@ export function OrganizationsPage() {
       ) : null}
       {createOpen && wallet.session ? (
         <CreateOrganizationDialog
-          principalId={wallet.session.address}
           onClose={() => setCreateOpen(false)}
           onCreated={(organizationId) => {
             setCreateOpen(false);

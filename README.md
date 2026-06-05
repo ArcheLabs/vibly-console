@@ -45,6 +45,7 @@ Default addresses: Console `http://localhost:3000` · Coordinator `http://localh
 | `COORDINATOR_URL` | Upstream coordinator base URL (server-side only) |
 | `VIBLY_COORDINATOR_NETWORK_PROFILES` | Optional server-side JSON array mapping network profile ids to coordinator URLs |
 | `COORDINATOR_API_TOKEN` | Bearer token for coordinator calls (server-side only, never sent to the browser) |
+| `NEXT_PUBLIC_COORDINATOR_TRANSPORT` | `proxy` for Next.js server deployments, `direct` for static hosting such as GitHub Pages |
 
 ### Public (client-visible)
 
@@ -84,6 +85,7 @@ Console uses [Auth.js v5](https://authjs.dev) for server-side authentication:
 - Users sign in at `/login` via OIDC (production) or Dev Credentials (development).
 - The browser holds only an HttpOnly Auth.js session cookie. `COORDINATOR_API_TOKEN` is **never** sent to the browser, stored in localStorage, or embedded in URLs.
 - All coordinator REST/SSE calls are proxied through `/api/coordinator/*`. The Next.js route handler resolves the upstream coordinator URL and Bearer token from server-side configuration (`src/lib/server/coordinatorSession.ts`).
+- Static deployments can set `NEXT_PUBLIC_COORDINATOR_TRANSPORT=direct` and `NEXT_PUBLIC_COORDINATOR_URL=https://...` so the browser calls Coordinator directly. In this mode, public reads use no token and user writes rely on the wallet-session header; do not expose a Coordinator API token through `NEXT_PUBLIC_*`.
 - `src/proxy.ts` (Next.js middleware) protects `/projects/*` and `/api/coordinator/*`; unauthenticated requests are redirected to `/login` or return 401.
 
 ## Pages

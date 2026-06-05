@@ -45,14 +45,22 @@ async function validateWalletSession(baseUrl: string, walletSession: string): Pr
   return typeof address === "string" && address.length > 0 ? address : null;
 }
 
-function assertWalletPrincipal(body: string, walletPrincipalId: string): NextResponse | null {
-  return assertWalletBodyField(body, "principalId", walletPrincipalId, {
-    invalidCode: "INVALID_ACTION_INTENT_BODY",
-    invalidMessage: "ActionIntent body must be a JSON object.",
-    parseMessage: "ActionIntent body must be valid JSON.",
-    mismatchCode: "WALLET_PRINCIPAL_MISMATCH",
-    mismatchMessage: "ActionIntent principalId must match the wallet session address.",
-  });
+function bodyWithWalletPrincipal(body: string, walletPrincipalId: string): { body?: string; error?: NextResponse } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return { error: jsonError(400, "INVALID_ACTION_INTENT_BODY", "ActionIntent body must be valid JSON.") };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { error: jsonError(400, "INVALID_ACTION_INTENT_BODY", "ActionIntent body must be a JSON object.") };
+  }
+  return {
+    body: JSON.stringify({
+      ...(parsed as Record<string, unknown>),
+      principalId: walletPrincipalId,
+    }),
+  };
 }
 
 function assertWalletBodyField(
@@ -182,10 +190,11 @@ async function proxy(
   if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
 
   const isBodyless = request.method === "GET" || request.method === "HEAD";
-  const body = isBodyless ? undefined : await request.text();
+  let body = isBodyless ? undefined : await request.text();
   if (allowWalletActionIntent && body && walletPrincipalId) {
-    const principalError = assertWalletPrincipal(body, walletPrincipalId);
-    if (principalError) return principalError;
+    const rewritten = bodyWithWalletPrincipal(body, walletPrincipalId);
+    if (rewritten.error) return rewritten.error;
+    body = rewritten.body;
   }
   if (allowWalletGetVibOrder && body && walletPrincipalId) {
     const accountError = assertWalletBodyField(body, "accountId", walletPrincipalId, {
