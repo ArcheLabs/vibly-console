@@ -177,7 +177,7 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
   },
   {
     id: "substrate:vibly-testnet",
-    label: "Testnet",
+    label: "Lumen",
     stage: "testnet",
     coordinatorUrl: appConfig.defaultCoordinatorUrl,
     coordinatorUrls: [appConfig.defaultCoordinatorUrl].filter(Boolean),
@@ -188,7 +188,7 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
   },
   {
     id: "substrate:vibly-incentivized-testnet",
-    label: "Incentivized Testnet",
+    label: "Monolith",
     stage: "testnet",
     status: "prelaunch",
     coordinatorUrl: appConfig.defaultCoordinatorUrl,
@@ -207,8 +207,8 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
       getVibClaim: false,
     },
     messages: {
-      getVibClaim: "VIB claim to incentivized testnet is not live yet.",
-      prelaunch: "Incentivized testnet agent onboarding will open after the network launch.",
+      getVibClaim: "VIB claim to Monolith is not live yet.",
+      prelaunch: "Monolith agent onboarding will open after the network launch.",
     },
   },
 ]);

@@ -473,7 +473,7 @@
       "claimPendingSync": "Claim finalized on-chain. Syncing the claim record in Console.",
       "claimCompleted": "VIB claim completed.",
       "claimRecordSyncFailed": "Claim succeeded on-chain, but Console has not synced the claim record yet.",
-      "claimUnavailable": "VIB claim to incentivized testnet is not live yet.",
+      "claimUnavailable": "VIB claim to Monolith is not live yet.",
       "balanceLoading": "Balance is still loading",
       "balanceLoadingBody": "Please wait until the wallet balance has loaded before submitting the transfer.",
       "balanceUnavailable": "Balance unavailable",
