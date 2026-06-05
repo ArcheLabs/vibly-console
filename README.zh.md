@@ -71,6 +71,11 @@ NEXT_PUBLIC_POLKADOT_RPC_URL=ws://127.0.0.1:9945
 
 项目内已内置 Paseo（`PAS`）和 Polkadot 主网（`DOT`）的支付链 RPC 兜底地址；项目自己的 Vibly 链与 Coordinator 地址仍应由部署配置提供。
 
+Console 当前内置的公开网络命名口径为：
+
+- `substrate:vibly-testnet` -> `Lumen`
+- `substrate:vibly-incentivized-testnet` -> `Monolith`
+
 ### 仅限开发
 
 | 变量 | 说明 |

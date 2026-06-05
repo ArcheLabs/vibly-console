@@ -72,6 +72,11 @@ NEXT_PUBLIC_POLKADOT_RPC_URL=ws://127.0.0.1:9945
 
 Built-in payment RPC fallbacks are included for Paseo (`PAS`) and Polkadot mainnet (`DOT`); project-owned Vibly chain and Coordinator endpoints should still be supplied per deployment.
 
+The built-in public network naming used by Console is:
+
+- `substrate:vibly-testnet` -> `Lumen`
+- `substrate:vibly-incentivized-testnet` -> `Monolith`
+
 ### Development only
 
 | Variable | Description |
