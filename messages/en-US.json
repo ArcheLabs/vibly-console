@@ -470,6 +470,8 @@
       "finalized": "Transaction finalized",
       "paymentPendingAllocation": "Payment finalized. Waiting for Coordinator to observe the deposit and allocate VIB.",
       "paymentObserved": "Coordinator observed the deposit. Allocation is now progressing.",
+      "sponsoredClaiming": "Submitting sponsored claim through Coordinator...",
+      "claimPrepared": "Claim transaction prepared. Waiting for a relayer to submit it on-chain.",
       "claimPendingSync": "Claim finalized on-chain. Syncing the claim record in Console.",
       "claimCompleted": "VIB claim completed.",
       "claimRecordSyncFailed": "Claim succeeded on-chain, but Console has not synced the claim record yet.",

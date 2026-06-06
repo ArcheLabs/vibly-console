@@ -52,7 +52,7 @@ export function mergeGetVibRecords(input: {
   });
 
   const pendingRows = input.pending
-    .filter((item) => !remoteTxHashes.has(item.txHash))
+    .filter((item) => !remoteTxHashes.has(item.txHash) && !hasMatchingRemotePayment(item, remoteRows))
     .map((item) => ({
       id: item.txHash,
       type: "exchange" as const,
@@ -83,6 +83,22 @@ function statusFromRemote(relayStatus: string, hasAllocation: boolean, claimed: 
   if (hasAllocation) return claimEnabled ? "claimable" : "allocated_pending_launch";
   if (relayStatus === "confirmed") return "allocated";
   return "allocation_pending";
+}
+
+function hasMatchingRemotePayment(
+  pending: PendingGetVibRecord,
+  remoteRows: Array<{ paymentAmount: string; time: string; status: GetVibRecordStatus }>,
+): boolean {
+  const pendingAmount = Number(pending.paymentAmount);
+  const pendingTime = new Date(pending.submittedAt).getTime();
+  if (!Number.isFinite(pendingAmount) || !Number.isFinite(pendingTime)) return false;
+  return remoteRows.some((row) => {
+    const remoteAmount = Number(row.paymentAmount);
+    const remoteTime = new Date(row.time).getTime();
+    if (!Number.isFinite(remoteAmount) || Math.abs(remoteAmount - pendingAmount) > 0.0000000001) return false;
+    if (Number.isFinite(remoteTime) && remoteTime + 10 * 60_000 < pendingTime) return false;
+    return row.status !== "failed";
+  });
 }
 
 function entities(value: unknown): Entity[] {

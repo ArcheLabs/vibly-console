@@ -327,6 +327,25 @@ export function useRecordGetVibClaim() {
   });
 }
 
+export function useSponsorGetVibClaim() {
+  const client = useCoordinatorClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown> = {}) => client.sponsorGetVibClaim(body),
+    onSuccess: (_result, body) => {
+      const accountId = typeof body.accountId === "string" ? body.accountId : "";
+      const networkId = typeof body.networkId === "string" ? body.networkId : "";
+      if (accountId && networkId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.getVibSummary(networkId, accountId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.getVibRecords(networkId, accountId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.getVibProof(networkId, accountId) });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ["get-vib"] });
+      }
+    },
+  });
+}
+
 // ── V0.2 Domain objects ─────────────────────────────────────────────────
 
 export function useObservationV2(id: string) {

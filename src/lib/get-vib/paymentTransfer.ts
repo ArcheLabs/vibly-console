@@ -17,14 +17,16 @@ export interface PaymentChainInfo {
 }
 
 type ApiModules = typeof import("@polkadot/api");
+const PAYMENT_RPC_TIMEOUT_MS = 12_000;
 
 export async function queryPaymentBalance(input: {
   rpcUrl: string | string[];
   accountId: string;
   decimals: number;
+  label?: string;
 }): Promise<{ freeBaseUnits: string; free: string }> {
   const modules = await import("@polkadot/api");
-  const { api } = await connectPaymentApi(modules, input.rpcUrl);
+  const { api } = await connectPaymentApi(modules, input.rpcUrl, input.label);
   try {
     const account = await api.query.system.account(input.accountId);
     const free = (account as unknown as { data?: { free?: { toString(): string } } }).data?.free?.toString() ?? "0";
@@ -45,7 +47,7 @@ export async function submitPaymentTransfer(input: PaymentTransferInput): Promis
   if (amountBaseUnits <= 0n) throw new Error("Payment amount must be greater than zero.");
 
   const modules = await import("@polkadot/api");
-  const { api } = await connectPaymentApi(modules, input.rpcUrl);
+  const { api } = await connectPaymentApi(modules, input.rpcUrl, "payment RPC");
   try {
     const account = await api.query.system.account(input.accountId);
     const free = BigInt((account as unknown as { data?: { free?: { toString(): string } } }).data?.free?.toString() ?? "0");
@@ -63,7 +65,7 @@ export async function submitPaymentTransfer(input: PaymentTransferInput): Promis
 
 export async function queryPaymentChainInfo(rpcUrl: string | string[]): Promise<PaymentChainInfo> {
   const modules = await import("@polkadot/api");
-  const { api, endpoint } = await connectPaymentApi(modules, rpcUrl);
+  const { api, endpoint } = await connectPaymentApi(modules, rpcUrl, "payment RPC");
   try {
     const properties = await api.rpc.system.properties();
     const json = properties.toJSON() as { tokenSymbol?: unknown; tokenDecimals?: unknown };
@@ -79,14 +81,18 @@ export async function queryPaymentChainInfo(rpcUrl: string | string[]): Promise<
   }
 }
 
-async function connectPaymentApi(modules: ApiModules, rpcUrl: string | string[]) {
+async function connectPaymentApi(modules: ApiModules, rpcUrl: string | string[], label = "payment RPC") {
   const endpoints = rpcUrls(rpcUrl);
   if (endpoints.length === 0) throw new Error("Payment network RPC is not configured.");
   let lastError: unknown;
   for (const endpoint of endpoints) {
     const provider = new modules.WsProvider(endpoint);
     try {
-      const api = await modules.ApiPromise.create({ provider });
+      const api = await withTimeout(
+        modules.ApiPromise.create({ provider }),
+        PAYMENT_RPC_TIMEOUT_MS,
+        `Timed out connecting to ${label} ${endpoint}`,
+      );
       return { api, endpoint };
     } catch (cause) {
       lastError = cause;
@@ -98,6 +104,20 @@ async function connectPaymentApi(modules: ApiModules, rpcUrl: string | string[])
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Unable to connect to payment network RPC.");
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function rpcUrls(value: string | string[]): string[] {

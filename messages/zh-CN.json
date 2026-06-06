@@ -470,6 +470,8 @@
       "finalized": "交易已 finalized",
       "paymentPendingAllocation": "支付已 finalized，正在等待 Coordinator 观察到这笔充值并分配 VIB。",
       "paymentObserved": "Coordinator 已观察到充值，分配流程正在推进。",
+      "sponsoredClaiming": "Coordinator 正在代付提交领取交易...",
+      "claimPrepared": "领取交易已准备好，正在等待 relayer 上链提交。",
       "claimPendingSync": "链上领取已 finalized，正在同步 Console 侧领取记录。",
       "claimCompleted": "VIB 已领取完成。",
       "claimRecordSyncFailed": "链上领取已成功，但 Console 侧领取记录尚未同步。",

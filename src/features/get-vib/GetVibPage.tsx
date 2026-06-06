@@ -14,6 +14,7 @@ import {
   useGetVibRecords,
   useGetVibSummary,
   useRecordGetVibClaim,
+  useSponsorGetVibClaim,
 } from "@/lib/query/hooks";
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
 import type { Entity } from "@/lib/coordinator/types";
@@ -34,6 +35,7 @@ import { submitSubstrateTransaction } from "@/lib/chain/substrateTx";
 import { txExplorerUrl } from "@/lib/network/explorer";
 
 type ActiveTab = "exchange" | "curve";
+const MIN_DIRECT_CLAIM_BALANCE_BASE_UNITS = 1_000_000_000_000n;
 
 export function GetVibPage() {
   const t = useTranslations("getVib");
@@ -87,6 +89,7 @@ export function GetVibPage() {
   const recordsQuery = useGetVibRecords(accountId);
   const curveQuery = useGetVibCurve();
   const claimRecordMutation = useRecordGetVibClaim();
+  const sponsorClaimMutation = useSponsorGetVibClaim();
   useGetVibLiveEvents();
 
   const rawQuote = quoteQuery.data ?? {};
@@ -221,21 +224,40 @@ export function GetVibPage() {
 
   useEffect(() => {
     if (!accountId) return;
-    const confirmedHashes = arrayOfEntities(recordsQuery.data?.relayDeposits).map((item) => text(item.extrinsicHash)).filter(Boolean);
-    const next = reconcilePendingGetVibRecords(pendingRecords, confirmedHashes);
-    for (const record of pendingRecords) {
-      if (confirmedHashes.includes(record.txHash) && paymentTransaction?.txHash === record.txHash) {
-        updateChainTransaction(paymentTransaction.id, {
-          phase: "completed",
-          body: t("feedback.paymentObserved"),
-        });
-      }
+    const remoteRecords = arrayOfEntities(recordsQuery.data?.relayDeposits);
+    const confirmedHashes = remoteRecords.map((item) => text(item.extrinsicHash)).filter(Boolean);
+    const matchedPendingRecords = pendingRecords.filter((record) =>
+      confirmedHashes.includes(record.txHash) || hasMatchingRemoteGetVibPayment(record, remoteRecords),
+    );
+    const next = reconcilePendingGetVibRecords(pendingRecords, confirmedHashes)
+      .filter((record) => !hasMatchingRemoteGetVibPayment(record, remoteRecords));
+    const currentPaymentMatched = matchedPendingRecords.some((record) => !paymentTransaction?.txHash || paymentTransaction.txHash === record.txHash);
+    if (paymentTransaction?.phase === "waiting_sync" && (currentPaymentMatched || (matchedPendingRecords.length > 0 && pendingRecords.length === 1))) {
+      updateChainTransaction(paymentTransaction.id, {
+        phase: "completed",
+        body: t("feedback.paymentObserved"),
+      });
     }
     if (next.length !== pendingRecords.length) {
       setPendingRecords(next);
       writePendingGetVibRecords(networkId, accountId, next);
     }
   }, [accountId, networkId, paymentTransaction, pendingRecords, recordsQuery.data, t]);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const hasPendingPayment = pendingRecords.length > 0 || paymentTransaction?.phase === "waiting_sync";
+    if (!hasPendingPayment) return;
+
+    const refetchGetVibState = () => {
+      void recordsQuery.refetch();
+      void summaryQuery.refetch();
+      void curveQuery.refetch();
+    };
+    refetchGetVibState();
+    const timer = window.setInterval(refetchGetVibState, 5_000);
+    return () => window.clearInterval(timer);
+  }, [accountId, curveQuery.refetch, paymentTransaction?.phase, pendingRecords.length, recordsQuery.refetch, summaryQuery.refetch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -398,12 +420,40 @@ export function GetVibPage() {
     if (!polkadotAccount || !proof) return;
     setClaiming(true);
     setClaimError(null);
+    const sponsored = await shouldUseSponsoredClaim(polkadotAccount);
     const tracker = createChainTransaction({
       title: t("claimTitle"),
-      body: t("feedback.awaitingSignature"),
+      body: sponsored ? t("feedback.sponsoredClaiming") : t("feedback.awaitingSignature"),
     });
     setClaimTransactionId(tracker.id);
     try {
+      if (sponsored) {
+        updateChainTransaction(tracker.id, {
+          phase: "broadcast",
+          body: t("feedback.sponsoredClaiming"),
+        });
+        const result = await sponsorClaimMutation.mutateAsync({ networkId });
+        const receipt = entity(result.receipt);
+        const claim = entity(result.claim);
+        const txHash = text(receipt.txHash);
+        updateChainTransaction(tracker.id, {
+          phase: text(receipt.finality) === "prepared" ? "waiting_sync" : "completed",
+          txHash,
+          explorerUrl: txHash ? txExplorerUrl(activeNetwork, txHash) : undefined,
+          body: text(receipt.finality) === "prepared" ? t("feedback.claimPrepared") : t("feedback.claimCompleted"),
+        });
+        if (claim || text(receipt.finality) !== "prepared") {
+          setLocalClaimed({
+            networkId,
+            accountId: polkadotAccount,
+            rootVersion: proofRootVersion,
+            cumulativeAmount: text(proof.cumulativeAmount),
+          });
+        }
+        await Promise.all([summaryQuery.refetch(), proofQuery.refetch(), recordsQuery.refetch()]);
+        return;
+      }
+
       const txHash = await submitVibClaim(polkadotAccount, proof, viblyRpcUrls, (status) => {
         updateChainTransaction(tracker.id, {
           phase: status.phase,
@@ -461,6 +511,21 @@ export function GetVibPage() {
       });
     } finally {
       setClaiming(false);
+    }
+  }
+
+  async function shouldUseSponsoredClaim(account: string): Promise<boolean> {
+    if (viblyRpcUrls.length === 0) return true;
+    try {
+      const vibBalance = await queryPaymentBalance({
+        rpcUrl: viblyRpcUrls,
+        accountId: account,
+        decimals: 12,
+        label: "Vibly chain",
+      });
+      return BigInt(vibBalance.freeBaseUnits || "0") < MIN_DIRECT_CLAIM_BALANCE_BASE_UNITS;
+    } catch {
+      return true;
     }
   }
 
@@ -1182,6 +1247,21 @@ function isCurveAmountExceeded(message: string): boolean {
 
 function isGetVibAmountTooSmall(message: string): boolean {
   return /below minimum|too small|minimum purchase|DOT minimum|低于|过小|最小/i.test(message);
+}
+
+function hasMatchingRemoteGetVibPayment(pending: PendingGetVibRecord, remoteRecords: Entity[]): boolean {
+  const pendingAmount = Number(pending.paymentAmount);
+  const pendingTime = new Date(pending.submittedAt).getTime();
+  if (!Number.isFinite(pendingAmount) || !Number.isFinite(pendingTime)) return false;
+  return remoteRecords.some((record) => {
+    const status = text(record.status);
+    if (status === "failed") return false;
+    const remoteAmount = Number(text(record.dotAmount) || text(record.paymentAmount));
+    const remoteTime = new Date(text(record.finalizedAt) || text(record.observedAt)).getTime();
+    if (!Number.isFinite(remoteAmount) || Math.abs(remoteAmount - pendingAmount) > 0.0000000001) return false;
+    if (Number.isFinite(remoteTime) && remoteTime + 10 * 60_000 < pendingTime) return false;
+    return true;
+  });
 }
 
 function short(value: string): string {
