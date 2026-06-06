@@ -1100,7 +1100,7 @@ type CurvePoint = { soldVib: string; price: number; cumulativeDot: string };
 function curvePoints(value: Entity | undefined): CurvePoint[] {
   return arrayOfEntities(value?.points).map((point) => ({
     soldVib: text(point.soldVib),
-    price: Number(point.price) || Number(point.priceUsd) || 0,
+    price: Number(point.priceDot ?? point.price) || 0,
     cumulativeDot: text(point.cumulativeDot),
   }));
 }
@@ -1181,7 +1181,7 @@ function isCurveAmountExceeded(message: string): boolean {
 }
 
 function isGetVibAmountTooSmall(message: string): boolean {
-  return /below minimum|too small|minimum purchase|USD minimum|低于|过小|最小/i.test(message);
+  return /below minimum|too small|minimum purchase|DOT minimum|低于|过小|最小/i.test(message);
 }
 
 function short(value: string): string {
@@ -1199,12 +1199,6 @@ function formatNumber(value: string): string {
   if (!Number.isFinite(numeric)) return value;
   if (numeric > 0 && numeric < 0.000001) return "<0.000001";
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(numeric);
-}
-
-function formatUsd(value: string): string {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return "$0";
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: numeric < 1 ? 6 : 2 }).format(numeric);
 }
 
 function maxBigInt(first: bigint, ...rest: bigint[]): bigint {

@@ -49,8 +49,8 @@ describe("Get VIB model helpers", () => {
           {
             sourceId: "relay:1",
             vibAmount: "546",
-            startPriceUsd: 0.01,
-            averagePriceUsd: 0.01005,
+            startPriceDot: 0.00091,
+            averagePriceDot: 0.00092,
           },
         ],
       },
