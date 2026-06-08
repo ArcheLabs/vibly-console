@@ -24,6 +24,15 @@ const PROXY_BASE_PATH = "/api/coordinator";
 export type ConsoleContractClient = ContractClient;
 
 export function createConsoleContractClient(auth: AuthState, networkId?: string, walletSessionToken?: string | null): ConsoleContractClient {
+  const { baseUrl, headers } = createConsoleCoordinatorRequestContext(auth, networkId, walletSessionToken);
+  return createCoordinatorClient({ baseUrl, headers });
+}
+
+export function createConsoleCoordinatorRequestContext(
+  auth: AuthState,
+  networkId?: string,
+  walletSessionToken?: string | null,
+): { baseUrl: string; headers: Record<string, string>; proxy: boolean } {
   const proxy = auth.mode === "proxy";
   const baseUrl = proxy
     ? // Browsers resolve relative URLs against window.location.origin; on the
@@ -40,5 +49,5 @@ export function createConsoleContractClient(auth: AuthState, networkId?: string,
   if (walletSession) headers["x-wallet-session"] = walletSession;
   if (networkId) headers["X-Vibly-Network-Id"] = networkId;
 
-  return createCoordinatorClient({ baseUrl, headers });
+  return { baseUrl, headers, proxy };
 }

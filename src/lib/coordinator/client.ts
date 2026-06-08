@@ -2,7 +2,11 @@ import { unwrapEnvelope, unwrapListEnvelope } from "@vibly-ai/coordinator-http-c
 import { CoordinatorApiError as ContractApiError } from "@vibly-ai/coordinator-http-contract/errors";
 import { ConsoleApiError } from "./errors";
 import type { AuthState, Entity, EventEnvelope, Page, PageInput } from "./types";
-import { createConsoleContractClient, type ConsoleContractClient } from "./contractClient";
+import {
+  createConsoleContractClient,
+  createConsoleCoordinatorRequestContext,
+  type ConsoleContractClient,
+} from "./contractClient";
 
 export interface CoordinatorClient {
   health(): Promise<Entity>;
@@ -155,7 +159,11 @@ class HttpCoordinatorClient implements CoordinatorClient {
   private readonly contract: ConsoleContractClient;
   private readonly networkId?: string;
 
-  constructor(private readonly auth: AuthState, networkId?: string, walletSessionToken?: string | null) {
+  constructor(
+    private readonly auth: AuthState,
+    networkId?: string,
+    private readonly walletSessionToken?: string | null,
+  ) {
     this.networkId = networkId;
     this.contract = createConsoleContractClient(auth, networkId, walletSessionToken);
   }
@@ -1428,9 +1436,8 @@ class HttpCoordinatorClient implements CoordinatorClient {
 
   async sponsorGetVibClaim(body: Record<string, unknown> = {}) {
     return await runContract(async () => {
-      const result = await this.contract.POST("/get-vib/claim-for", { body: body as never });
-      if (!result.response.ok) throw fromContract(result.error, result.response);
-      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result.data), "result");
+      const result = await this.rawPost("/get-vib/claim-for", body);
+      return unwrapKey<Entity>(unwrapEnvelope<Entity>(result), "result");
     });
   }
 
@@ -1451,6 +1458,26 @@ class HttpCoordinatorClient implements CoordinatorClient {
     const url = new URL(`/api/coordinator${cleanPath}`, "http://console.local");
     if (this.networkId) url.searchParams.set("__networkId", this.networkId);
     return `${url.pathname}${url.search}`;
+  }
+
+  private async rawPost(path: string, body: Record<string, unknown>): Promise<unknown> {
+    const { baseUrl, headers, proxy } = createConsoleCoordinatorRequestContext(
+      this.auth,
+      this.networkId,
+      this.walletSessionToken,
+    );
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+      credentials: proxy ? "same-origin" : "omit",
+    });
+    const payload = await response.json().catch(() => undefined);
+    if (!response.ok) throw fromContract(payload, response);
+    return payload;
   }
 }
 

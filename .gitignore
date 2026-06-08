@@ -4,7 +4,7 @@ dist/
 coverage/
 test-results/
 playwright-report/
-agent/
+/agent/
 .turbo/
 .cache/
 data/
