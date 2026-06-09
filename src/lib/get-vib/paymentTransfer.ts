@@ -17,7 +17,7 @@ export interface PaymentChainInfo {
 }
 
 type ApiModules = typeof import("@polkadot/api");
-const PAYMENT_RPC_TIMEOUT_MS = 12_000;
+const PAYMENT_RPC_TIMEOUT_MS = 30_000;
 
 export async function queryPaymentBalance(input: {
   rpcUrl: string | string[];
