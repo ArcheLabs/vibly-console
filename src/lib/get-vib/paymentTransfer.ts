@@ -35,7 +35,7 @@ export async function queryPaymentBalance(input: {
       free: baseUnitsToDecimal(free, input.decimals, 4),
     };
   } finally {
-    await api.disconnect();
+    await api.disconnect().catch(() => {});
   }
 }
 
@@ -53,12 +53,14 @@ export async function submitPaymentTransfer(input: PaymentTransferInput): Promis
     const free = BigInt((account as unknown as { data?: { free?: { toString(): string } } }).data?.free?.toString() ?? "0");
     if (free <= amountBaseUnits) throw new Error("Insufficient payment token balance.");
   } finally {
-    await api.disconnect();
+    await api.disconnect().catch(() => {});
   }
   return await submitSubstrateTransaction({
     rpcUrl: input.rpcUrl,
     accountId: input.accountId,
     onStatus: input.onStatus,
+    // Resolve on in_block — coordinator watcher is responsible for finality.
+    resolveOn: "in_block",
     buildTx: async (api) => api.tx.balances.transferKeepAlive(input.depositAddress, amountBaseUnits.toString()),
   });
 }
@@ -77,7 +79,7 @@ export async function queryPaymentChainInfo(rpcUrl: string | string[]): Promise<
       tokenDecimals: typeof decimals === "number" ? decimals : undefined,
     };
   } finally {
-    await api.disconnect();
+    await api.disconnect().catch(() => {});
   }
 }
 

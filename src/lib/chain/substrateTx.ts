@@ -9,11 +9,21 @@ export interface SubstrateTransactionStatus {
   events?: unknown[];
 }
 
+/**
+ * When to resolve the transaction promise.
+ * - `"in_block"`: resolve as soon as the transaction is included in a block.
+ *   Use this for Get VIB payment transfers — the coordinator watcher handles
+ *   finality confirmation via GET_VIB_DEPOSIT_FINALITY_BLOCKS.
+ * - `"finalized"`: wait until the block is finalized (default).
+ */
+export type ResolveOn = "broadcast" | "in_block" | "finalized";
+
 export async function submitSubstrateTransaction(input: {
   rpcUrl: string | string[];
   accountId: string;
   buildTx(api: import("@polkadot/api").ApiPromise): Promise<{ signAndSend: Function; hash: { toHex(): string } }> | { signAndSend: Function; hash: { toHex(): string } };
   onStatus?(status: SubstrateTransactionStatus): void;
+  resolveOn?: ResolveOn;
 }): Promise<string> {
   const endpoints = rpcUrls(input.rpcUrl);
   if (endpoints.length === 0) throw new Error("Chain RPC is not configured.");
@@ -65,6 +75,12 @@ export async function submitSubstrateTransaction(input: {
             txHash,
             blockHash: result.status.asInBlock?.toHex?.(),
           });
+          if (input.resolveOn === "broadcast" || input.resolveOn === "in_block") {
+            settled = true;
+            resolve(txHash);
+            unsub?.();
+            return;
+          }
         }
         if (result.status.isFinalized) {
           settled = true;
@@ -85,7 +101,7 @@ export async function submitSubstrateTransaction(input: {
       });
     });
   } finally {
-    await api.disconnect();
+    await api.disconnect().catch(() => {});
   }
 }
 
