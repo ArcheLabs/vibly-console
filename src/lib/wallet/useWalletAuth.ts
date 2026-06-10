@@ -16,7 +16,7 @@ import {
   getAuthorizedPolkadotInjector,
 } from "@/lib/wallet/polkadotExtension";
 
-interface WalletSessionState {
+export interface WalletSessionState {
   token: string;
   ecosystem: "evm" | "polkadot";
   address: string;

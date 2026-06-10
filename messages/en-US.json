@@ -184,8 +184,11 @@
       "cancel": "Cancel",
       "close": "Close",
       "submitError": "Unable to create the organization. Please try again.",
-      "missingId": "Coordinator did not return the new organization ID."
-    }
+      "missingId": "Coordinator did not return the new organization ID.",
+      "sessionRequired": "Please sign the wallet login challenge before creating an organization."
+    },
+    "notGuardian": "You need to be a chain Guardian to create an organization.",
+    "sessionRequired": "Wallet session required. Please sign the login challenge first."
   },
   "guardianActions": {
     "title": "Human / Guardian Actions",

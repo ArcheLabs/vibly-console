@@ -63,7 +63,7 @@ export function NetworkSelector() {
             >
               <span className="min-w-0 flex-1 truncate font-medium">{profile.label}</span>
               {profile.status && profile.status !== "active" ? <span className="shrink-0 text-[10px] uppercase text-[var(--warning)]">{profile.status}</span> : null}
-              {profile.stage ? <span className="shrink-0 text-[10px] uppercase text-[var(--sidebar-text-muted)]">{profile.stage}</span> : null}
+              {!profile.status || profile.status === "active" ? profile.stage ? <span className="shrink-0 text-[10px] uppercase text-[var(--sidebar-text-muted)]">{profile.stage}</span> : null : null}
               {profile.id === active.id ? <Check className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" /> : <span className="h-3.5 w-3.5 shrink-0" />}
             </button>
           ))}

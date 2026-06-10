@@ -12,7 +12,7 @@ import { LoadingState, ErrorState, EmptyState } from "@/components/common/States
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import type { Entity } from "@/lib/coordinator/types";
 import { formatDateTime } from "@/lib/utils/format";
-import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
+import { useWalletAuth, type WalletSessionState } from "@/lib/wallet/useWalletAuth";
 
 function Field({ label, value }: { label: string; value: string | number }) {
   return (
@@ -81,9 +81,13 @@ function readCreatedOrganizationId(result: Entity): string {
 function CreateOrganizationDialog({
   onClose,
   onCreated,
+  refreshSession,
+  session,
 }: {
   onClose: () => void;
   onCreated: (organizationId: string) => void;
+  refreshSession: () => Promise<WalletSessionState | null>;
+  session: WalletSessionState | null;
 }) {
   const t = useTranslations("organizations.create");
   const submitActionIntent = useSubmitActionIntent();
@@ -97,6 +101,13 @@ function CreateOrganizationDialog({
     const trimmedName = name.trim();
     if (!trimmedName || busy) return;
     setError(null);
+
+    // Refresh wallet session before submitting
+    const refreshed = await refreshSession();
+    if (!refreshed) {
+      setError(t("sessionRequired") ?? "Please sign the wallet login challenge before creating an organization.");
+      return;
+    }
 
     try {
       const result = await submitActionIntent.mutateAsync({
@@ -194,7 +205,9 @@ export function OrganizationsPage() {
   const guardian = useGuardianDecision(wallet.session?.address ?? null);
   const [createOpen, setCreateOpen] = useState(false);
   const orgs = data?.data ?? [];
-  const canCreate = Boolean(wallet.session && guardian.data?.isGuardian === true && guardian.data?.stale !== true);
+  const walletConnected = Boolean(wallet.evmAddress || wallet.polkadotAddress);
+  const sessionAuthenticated = Boolean(wallet.session);
+  const guardianVerified = Boolean(wallet.session && guardian.data?.isGuardian === true && guardian.data?.stale !== true);
 
   return (
     <div className="px-4 py-6 sm:px-8">
@@ -208,16 +221,24 @@ export function OrganizationsPage() {
             <p className="mt-1 text-sm text-[var(--text-muted)]">{t("description")}</p>
           </div>
         </div>
-        {canCreate ? (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-foreground)] shadow-sm"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            {t("create.button")}
-          </button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {sessionAuthenticated && !guardianVerified ? (
+            <span className="text-xs text-[var(--text-subtle)]">{t("notGuardian")}</span>
+          ) : null}
+          {walletConnected && !sessionAuthenticated ? (
+            <span className="text-xs text-[var(--text-subtle)]">{t("sessionRequired")}</span>
+          ) : null}
+          {guardianVerified ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-foreground)] shadow-sm"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              {t("create.button")}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {isLoading ? (
@@ -249,6 +270,8 @@ export function OrganizationsPage() {
             setCreateOpen(false);
             router.push(`/organizations/${encodeURIComponent(organizationId)}`);
           }}
+          refreshSession={wallet.refreshSession}
+          session={wallet.session}
         />
       ) : null}
     </div>
