@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthState } from "../store/authStore";
 import { createCoordinatorClient } from "../coordinator/client";
@@ -422,9 +422,11 @@ export function useDiscussionV2(id: string) {
 
 export function useSubmitActionIntent() {
   const client = useCoordinatorClient();
+  const clientRef = useRef(client);
+  clientRef.current = client;
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, unknown>) => client.submitActionIntent(body),
+    mutationFn: (body: Record<string, unknown>) => clientRef.current.submitActionIntent(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["network-feed"] });
       void queryClient.invalidateQueries({ queryKey: ["network-organizations"] });

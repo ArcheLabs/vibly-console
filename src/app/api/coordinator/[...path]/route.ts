@@ -35,7 +35,12 @@ async function validateWalletSession(baseUrl: string, walletSession: string): Pr
   const target = new URL("/wallet/session", baseUrl);
   const response = await fetchCoordinator(target, {
     method: "GET",
-    headers: { "x-wallet-session": walletSession },
+    headers: {
+      "x-wallet-session": walletSession,
+      "x-vibly-client-version": "0.1.0",
+      "x-vibly-contract-version": "0.1.0",
+      "x-vibly-protocol-version": "v1",
+    },
   });
   if (!response.ok) return null;
   const data = readEnvelopeData(await response.json().catch(() => null));
@@ -198,6 +203,10 @@ async function proxy(
   const accept = request.headers.get("accept");
   if (accept) headers["Accept"] = accept;
   if (walletSession) headers["x-wallet-session"] = walletSession;
+  // Send client version headers so the coordinator does not reject with 426.
+  headers["x-vibly-client-version"] = "0.1.0";
+  headers["x-vibly-contract-version"] = "0.1.0";
+  headers["x-vibly-protocol-version"] = "v1";
   const networkId = requestedNetworkId;
   if (networkId) headers["X-Vibly-Network-Id"] = networkId;
   if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
