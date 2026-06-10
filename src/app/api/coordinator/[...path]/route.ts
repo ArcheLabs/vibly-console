@@ -201,6 +201,7 @@ async function proxy(
   const networkId = requestedNetworkId;
   if (networkId) headers["X-Vibly-Network-Id"] = networkId;
   if (credentials.token) headers["Authorization"] = `Bearer ${credentials.token}`;
+  headers["x-vibly-client-version"] = "0.1.0";
 
   const isBodyless = request.method === "GET" || request.method === "HEAD";
   let body = isBodyless ? undefined : await request.text();

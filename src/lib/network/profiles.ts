@@ -62,7 +62,7 @@ interface NetworkFeatureFlags {
 }
 
 const PASEO_PAYMENT_RPC_URLS = [
-  "wss://rpc.ibp.network/paseo",
+  "wss://paseo-rpc.n.dwellir.com",
   "wss://paseo.dotters.network",
   "wss://paseo-rpc.dwellir.com",
 ];
@@ -150,6 +150,37 @@ function parseConfiguredProfiles(): NetworkProfile[] {
   }
 }
 
+/**
+ * IDs reserved by built-in fallback profiles. When `defaultNetworkId` matches
+ * one of these, the dynamic default entry is skipped to avoid ID collision
+ * (which would cause `uniqueProfiles` to keep the dynamic entry with
+ * potentially wrong deployment-specific URLs and discard the correct
+ * built-in profile).
+ */
+const RESERVED_BUILTIN_NETWORK_IDS = new Set([
+  "substrate:vibly-testnet",
+  "substrate:vibly-incentivized-testnet",
+]);
+
+const defaultNetworkEntry: NetworkProfile[] = !RESERVED_BUILTIN_NETWORK_IDS.has(appConfig.defaultNetworkId)
+  ? [
+      {
+        id: appConfig.defaultNetworkId,
+        label: appConfig.defaultNetworkName,
+        stage: "local",
+        coordinatorUrl: appConfig.defaultCoordinatorUrl,
+        coordinatorUrls: [appConfig.defaultCoordinatorUrl].filter(Boolean),
+        viblyRpcUrl: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
+        viblyRpcUrls: [appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944"],
+        viblyChainEndpoint: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
+        paymentRpcUrl: appConfig.paymentRpcUrl ?? appConfig.polkadotRpcUrl ?? "ws://127.0.0.1:9945",
+        paymentRpcUrls: [appConfig.paymentRpcUrl ?? appConfig.polkadotRpcUrl ?? "ws://127.0.0.1:9945"],
+        polkadotRpcUrl: appConfig.polkadotRpcUrl ?? appConfig.paymentRpcUrl ?? "ws://127.0.0.1:9945",
+        polkadotEndpoint: appConfig.polkadotRpcUrl ?? appConfig.paymentRpcUrl ?? "ws://127.0.0.1:9945",
+      },
+    ]
+  : [];
+
 function uniqueProfiles(profiles: NetworkProfile[]): NetworkProfile[] {
   const seen = new Set<string>();
   return profiles.filter((profile) => {
@@ -159,28 +190,23 @@ function uniqueProfiles(profiles: NetworkProfile[]): NetworkProfile[] {
   });
 }
 
+/**
+ * Built-in fallback network profiles.
+ *
+ * Deployment-specific URLs (coordinator, Vibly RPC) are intentionally
+ * omitted from Lumen and Monolith — those come from the runtime network
+ * manifest fetched via `ensureRuntimeProfiles`. The helper functions
+ * (`networkCoordinatorUrls`, `networkViblyRpcUrls`) fall back to
+ * `appConfig` defaults when a profile has no URLs of its own.
+ */
 const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
   ...parseConfiguredProfiles(),
-  {
-    id: appConfig.defaultNetworkId,
-    label: appConfig.defaultNetworkName,
-    stage: "local",
-    coordinatorUrl: appConfig.defaultCoordinatorUrl,
-    coordinatorUrls: [appConfig.defaultCoordinatorUrl].filter(Boolean),
-    viblyRpcUrl: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
-    viblyRpcUrls: [appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944"],
-    viblyChainEndpoint: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
-    paymentRpcUrl: appConfig.paymentRpcUrl ?? appConfig.polkadotRpcUrl ?? "ws://127.0.0.1:9945",
-    paymentRpcUrls: [appConfig.paymentRpcUrl ?? appConfig.polkadotRpcUrl ?? "ws://127.0.0.1:9945"],
-    polkadotRpcUrl: appConfig.polkadotRpcUrl ?? appConfig.paymentRpcUrl ?? "ws://127.0.0.1:9945",
-    polkadotEndpoint: appConfig.polkadotRpcUrl ?? appConfig.paymentRpcUrl ?? "ws://127.0.0.1:9945",
-  },
+  ...defaultNetworkEntry,
   {
     id: "substrate:vibly-testnet",
     label: "Lumen",
     stage: "testnet",
-    coordinatorUrl: appConfig.defaultCoordinatorUrl,
-    coordinatorUrls: [appConfig.defaultCoordinatorUrl].filter(Boolean),
+    // coordinatorUrl / viblyRpcUrl — from runtime manifest only
     paymentRpcUrl: PASEO_PAYMENT_RPC_URLS[0],
     paymentRpcUrls: PASEO_PAYMENT_RPC_URLS,
     polkadotRpcUrl: PASEO_PAYMENT_RPC_URLS[0],
@@ -191,8 +217,7 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
     label: "Monolith",
     stage: "testnet",
     status: "prelaunch",
-    coordinatorUrl: appConfig.defaultCoordinatorUrl,
-    coordinatorUrls: [appConfig.defaultCoordinatorUrl].filter(Boolean),
+    // coordinatorUrl / viblyRpcUrl — from runtime manifest only
     paymentRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
     paymentRpcUrls: POLKADOT_PAYMENT_RPC_URLS,
     polkadotRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
@@ -218,7 +243,10 @@ export function networkProfiles(): NetworkProfile[] {
 }
 
 export function networkCoordinatorUrls(profile: NetworkProfile): string[] {
-  return profile.coordinatorUrls?.length ? profile.coordinatorUrls : [profile.coordinatorUrl, profile.coordinatorEndpoint].filter(Boolean) as string[];
+  return profile.coordinatorUrls?.length
+    ? profile.coordinatorUrls
+    : [profile.coordinatorUrl, profile.coordinatorEndpoint, appConfig.defaultCoordinatorUrl]
+        .filter(Boolean) as string[];
 }
 
 export function networkPaymentRpcUrls(profile: NetworkProfile): string[] {
@@ -226,7 +254,10 @@ export function networkPaymentRpcUrls(profile: NetworkProfile): string[] {
 }
 
 export function networkViblyRpcUrls(profile: NetworkProfile): string[] {
-  return profile.viblyRpcUrls?.length ? profile.viblyRpcUrls : [profile.viblyRpcUrl, profile.viblyChainEndpoint].filter(Boolean) as string[];
+  return profile.viblyRpcUrls?.length
+    ? profile.viblyRpcUrls
+    : [profile.viblyRpcUrl, profile.viblyChainEndpoint, appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944"]
+        .filter(Boolean) as string[];
 }
 
 export function getDefaultNetworkProfile(): NetworkProfile {
