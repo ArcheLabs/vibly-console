@@ -215,7 +215,6 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
   {
     id: "substrate:vibly-incentivized-testnet",
     label: "Monolith",
-    stage: "testnet",
     status: "prelaunch",
     // coordinatorUrl / viblyRpcUrl — from runtime manifest only
     paymentRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
