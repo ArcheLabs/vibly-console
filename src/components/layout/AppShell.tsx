@@ -56,7 +56,7 @@ function Brand() {
     <div className="px-5 pb-4 pt-8">
       <div className="flex flex-col items-start gap-3">
         <Link href="/" className="transition-opacity hover:opacity-80" aria-label={app("name")}>
-          <img src="/vibly-logo.svg" alt={app("name")} className="h-11 w-auto" />
+          <img src="/vibly-logo.svg" alt={app("name")} className="h-8 w-auto" />
         </Link>
         <div className="w-full max-w-[13rem]">
           <NetworkSelector />
