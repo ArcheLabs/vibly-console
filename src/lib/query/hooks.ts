@@ -430,6 +430,8 @@ export function useSubmitActionIntent() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["network-feed"] });
       void queryClient.invalidateQueries({ queryKey: ["network-organizations"] });
+      void queryClient.invalidateQueries({ queryKey: ["organization-feed"] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 }

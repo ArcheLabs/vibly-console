@@ -1,9 +1,11 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
-import { Building2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Building2, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useNetworkOrganization, useOrganizationFeed, useProjects } from "@/lib/query/hooks";
+import { useGuardianDecision, useNetworkOrganization, useOrganizationFeed, useProjects, useSubmitActionIntent } from "@/lib/query/hooks";
 import { StatusBadge, RoleBadge } from "@/components/common/Badge";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
@@ -13,6 +15,7 @@ import { DetailPageHeader } from "@/components/layout/DetailPageHeader";
 import type { Entity } from "@/lib/coordinator/types";
 import { entityNameMap } from "@/lib/entities/display";
 import { formatDateTime } from "@/lib/utils/format";
+import { useWalletAuth, type WalletSessionState } from "@/lib/wallet/useWalletAuth";
 
 const TABS = ["feed", "handbook", "members"] as const;
 type OrganizationTab = (typeof TABS)[number];
@@ -30,13 +33,176 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+function readCreatedProjectId(result: Entity): string {
+  const aggregateRef = result.aggregateRef;
+  if (aggregateRef && typeof aggregateRef === "object") {
+    const id = (aggregateRef as Record<string, unknown>).id;
+    if (typeof id === "string" && id.length > 0) return id;
+  }
+  return "";
+}
+
+function hasOrgAdminAccess(org: Entity, principalId?: string | null): boolean {
+  if (!principalId) return false;
+  const members = asArray(org.members);
+  const authorities = asArray(org.authorities);
+  const adminRoles = new Set(["admin", "owner"]);
+  return (
+    members.some((member) =>
+      String(member.principalId ?? member.id ?? "") === principalId &&
+      adminRoles.has(String(member.role ?? "").toLowerCase())
+    ) ||
+    authorities.some((authority) =>
+      String(authority.principalId ?? authority.id ?? "") === principalId &&
+      String(authority.authority ?? authority.scope ?? authority.role ?? "") === "approve-resource-creation"
+    )
+  );
+}
+
+function CreateProjectDialog({
+  orgId,
+  onClose,
+  onCreated,
+  refreshSession,
+}: {
+  orgId: string;
+  onClose: () => void;
+  onCreated: (projectId: string) => void;
+  refreshSession: () => Promise<WalletSessionState | null>;
+}) {
+  const t = useTranslations("organizations.createProject");
+  const submitActionIntent = useSubmitActionIntent();
+  const [slug, setSlug] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const busy = submitActionIntent.isPending;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedSlug = slug.trim();
+    const trimmedName = name.trim();
+    if (!trimmedSlug || !trimmedName || busy) return;
+    setError(null);
+
+    const refreshed = await refreshSession();
+    if (!refreshed) {
+      setError(t("sessionRequired"));
+      return;
+    }
+
+    try {
+      const result = await submitActionIntent.mutateAsync({
+        type: "CreateProject",
+        payload: {
+          organizationId: orgId,
+          slug: trimmedSlug,
+          name: trimmedName,
+          description: description.trim() || undefined,
+          metadata: { organizationId: orgId, source: "console" },
+        },
+        idempotencyKey: `console:create-project:${orgId}:${trimmedSlug}:${Date.now()}`,
+      });
+      const projectId = readCreatedProjectId(result);
+      if (!projectId) throw new Error(t("missingId"));
+      onCreated(projectId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("submitError"));
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6">
+      <button type="button" className="absolute inset-0 cursor-default" aria-label={t("close")} onClick={onClose} />
+      <form
+        onSubmit={handleSubmit}
+        className="relative w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--text)]">{t("title")}</h3>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{t("subtitle")}</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            aria-label={t("close")}
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="text-xs text-[var(--text-muted)]">{t("name")}</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+            placeholder={t("namePlaceholder")}
+            autoFocus
+          />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-xs text-[var(--text-muted)]">{t("slug")}</span>
+          <input
+            value={slug}
+            onChange={(event) => setSlug(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+            placeholder={t("slugPlaceholder")}
+          />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-xs text-[var(--text-muted)]">{t("description")}</span>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            className="mt-2 min-h-28 w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+            placeholder={t("descriptionPlaceholder")}
+          />
+        </label>
+
+        {error ? (
+          <div className="mt-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-500">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            onClick={onClose}
+          >
+            {t("cancel")}
+          </button>
+          <button
+            type="submit"
+            disabled={busy || !slug.trim() || !name.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus className="h-4 w-4" />
+            {busy ? t("submitting") : t("submit")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function OrganizationPage({ orgId }: { orgId: string }) {
   const t = useTranslations("organizations");
+  const router = useRouter();
   const [tab, setTab] = useState<OrganizationTab>("feed");
   const [feedLimit, setFeedLimit] = useState(50);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const { data: org, isLoading, error } = useNetworkOrganization(orgId);
   const feedQuery = useOrganizationFeed(orgId, feedLimit);
   const projectsQuery = useProjects(200);
+  const wallet = useWalletAuth();
+  const guardian = useGuardianDecision(wallet.session?.address ?? null);
   const hasMore = useMemo(() => {
     const count = feedQuery.data?.data.length ?? 0;
     return count >= feedLimit && feedLimit < 200;
@@ -61,6 +227,10 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
   const createdAt = org.createdAt ? formatDateTime(org.createdAt) : "—";
   const updatedAt = org.updatedAt ? formatDateTime(org.updatedAt) : "—";
   const organizationNames = { [orgId]: name };
+  const sessionAddress = wallet.session?.address ?? null;
+  const guardianVerified = Boolean(wallet.session && guardian.data?.isGuardian === true && guardian.data?.stale !== true);
+  const orgAdminVerified = hasOrgAdminAccess(org, sessionAddress);
+  const canCreateProject = status === "active" && Boolean(wallet.session) && (guardianVerified || orgAdminVerified);
 
   return (
     <div className="w-full py-6">
@@ -77,7 +247,7 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
 
       <div className="mx-auto mt-6 max-w-6xl px-4 sm:px-8">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-        <div className="flex items-start gap-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-5 min-w-0 flex-1">
             <AgentAvatar name={name} tone="org" size="h-16 w-16" />
             <div className="min-w-0 flex-1">
@@ -85,8 +255,21 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
               {description ? <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
             </div>
           </div>
-          <div className="shrink-0">
+          <div className="flex shrink-0 flex-col items-end gap-3">
             <StatusBadge status={status} />
+            {canCreateProject ? (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-foreground)] shadow-sm"
+                onClick={() => setCreateProjectOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+                {t("createProject.button")}
+              </button>
+            ) : null}
+            {wallet.session && status === "active" && !guardianVerified && !orgAdminVerified ? (
+              <span className="max-w-56 text-right text-xs text-[var(--text-subtle)]">{t("createProject.notAuthorized")}</span>
+            ) : null}
           </div>
         </div>
 
@@ -173,6 +356,17 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
         ) : null}
       </div>
       </div>
+      {createProjectOpen && wallet.session ? (
+        <CreateProjectDialog
+          orgId={orgId}
+          onClose={() => setCreateProjectOpen(false)}
+          onCreated={(projectId) => {
+            setCreateProjectOpen(false);
+            router.push(`/projects/${encodeURIComponent(projectId)}`);
+          }}
+          refreshSession={wallet.refreshSession}
+        />
+      ) : null}
     </div>
   );
 }

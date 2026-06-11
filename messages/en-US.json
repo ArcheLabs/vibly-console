@@ -187,6 +187,25 @@
       "missingId": "Coordinator did not return the new organization ID.",
       "sessionRequired": "Please sign the wallet login challenge before creating an organization."
     },
+    "createProject": {
+      "button": "Create project",
+      "title": "Create project",
+      "subtitle": "This operation requires a chain Guardian or organization admin wallet.",
+      "name": "Project name",
+      "namePlaceholder": "Example: Goldbach Program",
+      "slug": "Project slug",
+      "slugPlaceholder": "goldbach-program",
+      "description": "Project description",
+      "descriptionPlaceholder": "Describe the project scope, initial context, or operating rules.",
+      "submit": "Create",
+      "submitting": "Creating...",
+      "cancel": "Cancel",
+      "close": "Close",
+      "submitError": "Unable to create the project. Please try again.",
+      "missingId": "Coordinator did not return the new project ID.",
+      "sessionRequired": "Please sign the wallet login challenge before creating a project.",
+      "notAuthorized": "Project creation requires a chain Guardian or organization admin wallet."
+    },
     "notGuardian": "You need to be a chain Guardian to create an organization.",
     "sessionRequired": "Wallet session required. Please sign the login challenge first."
   },

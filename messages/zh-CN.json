@@ -187,6 +187,25 @@
       "missingId": "Coordinator 未返回新组织 ID。",
       "sessionRequired": "请先完成钱包登录挑战后再创建组织。"
     },
+    "createProject": {
+      "button": "创建 Project",
+      "title": "创建 Project",
+      "subtitle": "该操作需要链上 Guardian 或组织管理员钱包。",
+      "name": "Project 名称",
+      "namePlaceholder": "例如：Goldbach Program",
+      "slug": "Project slug",
+      "slugPlaceholder": "goldbach-program",
+      "description": "Project 描述",
+      "descriptionPlaceholder": "说明 project 范围、初始上下文或运行规则。",
+      "submit": "创建",
+      "submitting": "创建中...",
+      "cancel": "取消",
+      "close": "关闭",
+      "submitError": "创建 Project 失败，请稍后重试。",
+      "missingId": "Coordinator 未返回新 Project ID。",
+      "sessionRequired": "请先完成钱包登录挑战后再创建 Project。",
+      "notAuthorized": "创建 Project 需要链上 Guardian 或组织管理员钱包。"
+    },
     "notGuardian": "需要链上 Guardian 权限才能创建组织。",
     "sessionRequired": "需要钱包会话。请先完成登录挑战。"
   },
