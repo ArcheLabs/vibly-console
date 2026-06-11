@@ -11,7 +11,6 @@ import { StatusBadge, RoleBadge } from "@/components/common/Badge";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { NetworkFeed } from "@/components/feed/NetworkFeed";
-import { JsonViewer } from "@/components/common/JsonViewer";
 import { DetailPageHeader } from "@/components/layout/DetailPageHeader";
 import type { Entity } from "@/lib/coordinator/types";
 import { entityNameMap } from "@/lib/entities/display";
@@ -38,7 +37,11 @@ function projectOrganizationId(project: Entity): string {
   const metadata = project.metadata && typeof project.metadata === "object"
     ? (project.metadata as Record<string, unknown>)
     : {};
-  return String(project.organizationId ?? metadata.organizationId ?? "");
+  return String(
+    project.organizationId ??
+    metadata.organizationId ??
+    "",
+  );
 }
 
 function ProjectCard({ project }: { project: Entity }) {
@@ -77,6 +80,41 @@ function readCreatedProjectId(result: Entity): string {
     if (typeof id === "string" && id.length > 0) return id;
   }
   return "";
+}
+
+function handbookSection(title: string, content: unknown): string | null {
+  if (content === null || content === undefined) return null;
+  if (typeof content === "string" && !content.trim()) return null;
+  const body = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+  return [`## ${title}`, "", body].join("\n");
+}
+
+function HandbookViewer({ handbook }: { handbook: unknown }) {
+  const t = useTranslations("organizations");
+  const h = handbook && typeof handbook === "object" ? (handbook as Record<string, unknown>) : null;
+  if (!h || Object.keys(h).length === 0) return <EmptyState title={t("handbookEmpty")} />;
+
+  const sections = Object.entries(h)
+    .map(([key, value]) => handbookSection(key, value))
+    .filter(Boolean) as string[];
+
+  if (sections.length === 0) return <EmptyState title={t("handbookEmpty")} />;
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+      <div className="prose prose-sm max-w-none">
+        {sections.map((section, idx) => (
+          <div key={idx} className="mb-6 last:mb-0">
+            {section.split("\n").map((line, lineIdx) => {
+              if (line.startsWith("## ")) return <h3 key={lineIdx} className="text-lg font-semibold text-[var(--text)]">{line.slice(3)}</h3>;
+              if (line.startsWith("# ")) return <h2 key={lineIdx} className="text-xl font-semibold text-[var(--text)]">{line.slice(2)}</h2>;
+              return <p key={lineIdx} className="text-sm text-[var(--text-muted)]">{line || "\u00A0"}</p>;
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function hasOrgAdminAccess(org: Entity, principalId?: string | null): boolean {
@@ -313,11 +351,11 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-4">
-          <Stat label={t("members")} value={members.length} />
-          <Stat label={t("authorities")} value={authorities.length} />
-          <Stat label={t("createdAt")} value={createdAt} />
-          <Stat label={t("updatedAt")} value={updatedAt} />
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--text-subtle)]">
+          <span>{t("members")}: {members.length}</span>
+          <span>{t("authorities")}: {authorities.length}</span>
+          <span>{t("createdAt")}: {createdAt}</span>
+          <span>{t("updatedAt")}: {updatedAt}</span>
         </div>
       </div>
 
@@ -371,7 +409,7 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
         ) : null}
 
         {tab === "handbook" ? (
-          handbook ? <JsonViewer value={handbook} /> : <EmptyState title={t("handbookEmpty")} />
+          handbook ? <HandbookViewer handbook={handbook} /> : <EmptyState title={t("handbookEmpty")} />
         ) : null}
 
         {tab === "members" ? (
