@@ -173,6 +173,7 @@
     "projectsLoading": "加载项目列表...",
     "projectsErrorTitle": "无法加载项目",
     "projectsEmpty": "该组织下暂无项目。",
+    "projectSourceFeed": "来自组织动态",
     "membersEmpty": "暂无成员数据",
     "authorities": "权限",
     "create": {

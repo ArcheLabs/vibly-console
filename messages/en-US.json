@@ -173,6 +173,7 @@
     "projectsLoading": "Loading projects...",
     "projectsErrorTitle": "Unable to load projects",
     "projectsEmpty": "No projects in this organization yet.",
+    "projectSourceFeed": "From organization activity",
     "membersEmpty": "No member data",
     "authorities": "Authorities",
     "create": {

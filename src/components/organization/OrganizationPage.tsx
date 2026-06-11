@@ -9,12 +9,13 @@ import { useTranslations } from "next-intl";
 import { useGuardianDecision, useNetworkOrganization, useOrganizationFeed, useProjects, useSubmitActionIntent } from "@/lib/query/hooks";
 import { StatusBadge, RoleBadge } from "@/components/common/Badge";
 import { LoadingState, ErrorState, EmptyState } from "@/components/common/States";
+import { MarkdownBody } from "@/components/common/MarkdownBody";
 import { AgentAvatar } from "@/components/domain/AgentAvatar";
 import { NetworkFeed } from "@/components/feed/NetworkFeed";
 import { DetailPageHeader } from "@/components/layout/DetailPageHeader";
 import type { Entity } from "@/lib/coordinator/types";
 import { entityNameMap } from "@/lib/entities/display";
-import { formatDateTime } from "@/lib/utils/format";
+import { compactId, formatDateTime, readableKey } from "@/lib/utils/format";
 import { useWalletAuth, type WalletSessionState } from "@/lib/wallet/useWalletAuth";
 
 const TABS = ["feed", "projects", "handbook", "members"] as const;
@@ -22,6 +23,14 @@ type OrganizationTab = (typeof TABS)[number];
 
 function asArray(value: unknown): Entity[] {
   return Array.isArray(value) ? (value as Entity[]) : [];
+}
+
+function asRecord(value: unknown): Entity {
+  return value && typeof value === "object" ? (value as Entity) : {};
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -34,29 +43,75 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function projectOrganizationId(project: Entity): string {
-  const metadata = project.metadata && typeof project.metadata === "object"
-    ? (project.metadata as Record<string, unknown>)
-    : {};
-  return String(
+  const metadata = asRecord(project.metadata);
+  const organization = asRecord(project.organization);
+  const org = asRecord(project.org);
+  return stringValue(
     project.organizationId ??
+    project.orgId ??
+    organization.id ??
+    org.id ??
     metadata.organizationId ??
+    metadata.orgId ??
     "",
   );
 }
 
+function feedEventProjectRef(event: Entity, orgId: string): Entity | null {
+  if (stringValue(event.organizationId) !== orgId) return null;
+  const payload = asRecord(event.payload);
+  const nestedPayload = asRecord(payload.payload);
+  const observation = asRecord(payload.observation);
+  const artifact = asRecord(payload.artifact);
+  const projectId = stringValue(
+    event.projectId ??
+    payload.projectId ??
+    nestedPayload.projectId ??
+    observation.projectId ??
+    artifact.projectId,
+  );
+  if (!projectId) return null;
+
+  const createdAt = stringValue(event.createdAt ?? payload.createdAt ?? nestedPayload.createdAt);
+  return {
+    id: projectId,
+    organizationId: orgId,
+    name: stringValue(payload.projectName ?? nestedPayload.projectName) || `Project ${compactId(projectId, 12, 8)}`,
+    slug: stringValue(payload.projectSlug ?? nestedPayload.projectSlug),
+    status: "active",
+    description: stringValue(payload.projectDescription ?? nestedPayload.projectDescription),
+    updatedAt: createdAt,
+    source: "feed",
+  };
+}
+
+function mergeProjects(projects: Entity[], feedEvents: Entity[], orgId: string): Entity[] {
+  const merged = new Map<string, Entity>();
+  for (const project of projects) {
+    const id = stringValue(project.id);
+    if (!id) continue;
+    if (projectOrganizationId(project) === orgId) merged.set(id, project);
+  }
+  for (const event of feedEvents) {
+    const project = feedEventProjectRef(event, orgId);
+    if (!project) continue;
+    const id = stringValue(project.id);
+    if (id && !merged.has(id)) merged.set(id, project);
+  }
+  return [...merged.values()];
+}
+
 function ProjectCard({ project }: { project: Entity }) {
+  const t = useTranslations("organizations");
   const id = String(project.id ?? "");
   const name = String(project.name ?? project.slug ?? project.id ?? "Project");
   const description = String(project.description ?? "");
   const status = String(project.status ?? "unknown");
   const slug = project.slug ? String(project.slug) : "";
   const updatedAt = project.updatedAt ? formatDateTime(project.updatedAt) : "—";
-
-  return (
-    <Link
-      href={`/projects/${encodeURIComponent(id)}`}
-      className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-    >
+  const source = stringValue(project.source);
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
           <AgentAvatar name={name} tone="org" size="h-11 w-11" />
@@ -68,7 +123,27 @@ function ProjectCard({ project }: { project: Entity }) {
         <StatusBadge status={status} />
       </div>
       {description ? <p className="mt-4 line-clamp-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
-      <div className="mt-4 text-right text-xs text-[var(--text-subtle)]">{updatedAt}</div>
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--text-subtle)]">
+        <span>{source === "feed" ? t("projectSourceFeed") : ""}</span>
+        <span>{updatedAt}</span>
+      </div>
+    </>
+  );
+
+  if (source === "feed") {
+    return (
+      <div className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/projects/${encodeURIComponent(id)}`}
+      className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+    >
+      {content}
     </Link>
   );
 }
@@ -85,8 +160,14 @@ function readCreatedProjectId(result: Entity): string {
 function handbookSection(title: string, content: unknown): string | null {
   if (content === null || content === undefined) return null;
   if (typeof content === "string" && !content.trim()) return null;
-  const body = typeof content === "string" ? content : JSON.stringify(content, null, 2);
-  return [`## ${title}`, "", body].join("\n");
+  if (typeof content === "string") {
+    const body = content.trim();
+    return body.startsWith("#") ? body : [`## ${readableKey(title)}`, "", body].join("\n");
+  }
+  if (Array.isArray(content) && content.every((item) => typeof item === "string")) {
+    return [`## ${readableKey(title)}`, "", ...content.map((item) => `- ${item}`)].join("\n");
+  }
+  return [`## ${readableKey(title)}`, "", "```json", JSON.stringify(content, null, 2), "```"].join("\n");
 }
 
 function HandbookViewer({ handbook }: { handbook: unknown }) {
@@ -94,25 +175,16 @@ function HandbookViewer({ handbook }: { handbook: unknown }) {
   const h = handbook && typeof handbook === "object" ? (handbook as Record<string, unknown>) : null;
   if (!h || Object.keys(h).length === 0) return <EmptyState title={t("handbookEmpty")} />;
 
-  const sections = Object.entries(h)
+  const markdown = Object.entries(h)
     .map(([key, value]) => handbookSection(key, value))
-    .filter(Boolean) as string[];
+    .filter(Boolean)
+    .join("\n\n");
 
-  if (sections.length === 0) return <EmptyState title={t("handbookEmpty")} />;
+  if (!markdown) return <EmptyState title={t("handbookEmpty")} />;
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-      <div className="prose prose-sm max-w-none">
-        {sections.map((section, idx) => (
-          <div key={idx} className="mb-6 last:mb-0">
-            {section.split("\n").map((line, lineIdx) => {
-              if (line.startsWith("## ")) return <h3 key={lineIdx} className="text-lg font-semibold text-[var(--text)]">{line.slice(3)}</h3>;
-              if (line.startsWith("# ")) return <h2 key={lineIdx} className="text-xl font-semibold text-[var(--text)]">{line.slice(2)}</h2>;
-              return <p key={lineIdx} className="text-sm text-[var(--text-muted)]">{line || "\u00A0"}</p>;
-            })}
-          </div>
-        ))}
-      </div>
+      <MarkdownBody value={markdown} />
     </div>
   );
 }
@@ -290,8 +362,12 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
     return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
   }, [projectsQuery.data]);
   const organizationProjects = useMemo(() => {
-    return ((projectsQuery.data?.data ?? []) as Entity[]).filter((project) => projectOrganizationId(project) === orgId);
-  }, [orgId, projectsQuery.data]);
+    return mergeProjects(
+      (projectsQuery.data?.data ?? []) as Entity[],
+      (feedQuery.data?.data ?? []) as Entity[],
+      orgId,
+    );
+  }, [feedQuery.data, orgId, projectsQuery.data]);
 
   if (isLoading) return <div className="p-8"><LoadingState label={t("loading")} /></div>;
   if (error || !org) return <div className="p-8"><ErrorState error={error ?? new Error("Not found")} title={t("errorTitle")} /></div>;
@@ -351,9 +427,12 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Stat label={t("members")} value={members.length} />
+          <Stat label={t("authorities")} value={authorities.length} />
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--text-subtle)]">
-          <span>{t("members")}: {members.length}</span>
-          <span>{t("authorities")}: {authorities.length}</span>
           <span>{t("createdAt")}: {createdAt}</span>
           <span>{t("updatedAt")}: {updatedAt}</span>
         </div>
