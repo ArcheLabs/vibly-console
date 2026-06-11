@@ -165,10 +165,14 @@
     "unknown": "Unknown",
     "tabs": {
       "feed": "Feed",
+      "projects": "Projects",
       "handbook": "Handbook",
       "members": "Members & authorities"
     },
     "handbookEmpty": "No handbook data",
+    "projectsLoading": "Loading projects...",
+    "projectsErrorTitle": "Unable to load projects",
+    "projectsEmpty": "No projects in this organization yet.",
     "membersEmpty": "No member data",
     "authorities": "Authorities",
     "create": {

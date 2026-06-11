@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -17,7 +18,7 @@ import { entityNameMap } from "@/lib/entities/display";
 import { formatDateTime } from "@/lib/utils/format";
 import { useWalletAuth, type WalletSessionState } from "@/lib/wallet/useWalletAuth";
 
-const TABS = ["feed", "handbook", "members"] as const;
+const TABS = ["feed", "projects", "handbook", "members"] as const;
 type OrganizationTab = (typeof TABS)[number];
 
 function asArray(value: unknown): Entity[] {
@@ -30,6 +31,42 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <div className="text-xs text-[var(--text-subtle)]">{label}</div>
       <div className="mt-1 truncate text-xl font-semibold text-[var(--text)]">{value}</div>
     </div>
+  );
+}
+
+function projectOrganizationId(project: Entity): string {
+  const metadata = project.metadata && typeof project.metadata === "object"
+    ? (project.metadata as Record<string, unknown>)
+    : {};
+  return String(project.organizationId ?? metadata.organizationId ?? "");
+}
+
+function ProjectCard({ project }: { project: Entity }) {
+  const id = String(project.id ?? "");
+  const name = String(project.name ?? project.slug ?? project.id ?? "Project");
+  const description = String(project.description ?? "");
+  const status = String(project.status ?? "unknown");
+  const slug = project.slug ? String(project.slug) : "";
+  const updatedAt = project.updatedAt ? formatDateTime(project.updatedAt) : "—";
+
+  return (
+    <Link
+      href={`/projects/${encodeURIComponent(id)}`}
+      className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-4">
+          <AgentAvatar name={name} tone="org" size="h-11 w-11" />
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-semibold text-[var(--text)]">{name}</h3>
+            {slug ? <p className="mt-1 truncate text-xs text-[var(--text-subtle)]">{slug}</p> : null}
+          </div>
+        </div>
+        <StatusBadge status={status} />
+      </div>
+      {description ? <p className="mt-4 line-clamp-2 text-sm leading-6 text-[var(--text-muted)]">{description}</p> : null}
+      <div className="mt-4 text-right text-xs text-[var(--text-subtle)]">{updatedAt}</div>
+    </Link>
   );
 }
 
@@ -214,6 +251,9 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
   const projectNames = useMemo(() => {
     return entityNameMap((projectsQuery.data?.data ?? []) as Entity[]);
   }, [projectsQuery.data]);
+  const organizationProjects = useMemo(() => {
+    return ((projectsQuery.data?.data ?? []) as Entity[]).filter((project) => projectOrganizationId(project) === orgId);
+  }, [orgId, projectsQuery.data]);
 
   if (isLoading) return <div className="p-8"><LoadingState label={t("loading")} /></div>;
   if (error || !org) return <div className="p-8"><ErrorState error={error ?? new Error("Not found")} title={t("errorTitle")} /></div>;
@@ -311,6 +351,23 @@ export function OrganizationPage({ orgId }: { orgId: string }) {
             organizationNames={organizationNames}
             projectNames={projectNames}
           />
+        ) : null}
+
+        {tab === "projects" ? (
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+            {projectsQuery.isLoading ? <LoadingState label={t("projectsLoading")} /> : null}
+            {!projectsQuery.isLoading && projectsQuery.error ? <ErrorState error={projectsQuery.error} title={t("projectsErrorTitle")} /> : null}
+            {!projectsQuery.isLoading && !projectsQuery.error && organizationProjects.length === 0 ? (
+              <EmptyState title={t("projectsEmpty")} />
+            ) : null}
+            {!projectsQuery.isLoading && !projectsQuery.error && organizationProjects.length > 0 ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {organizationProjects.map((project, idx) => (
+                  <ProjectCard key={String(project.id ?? idx)} project={project} />
+                ))}
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         {tab === "handbook" ? (

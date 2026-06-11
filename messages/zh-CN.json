@@ -165,10 +165,14 @@
     "unknown": "未知",
     "tabs": {
       "feed": "组织动态",
+      "projects": "项目",
       "handbook": "Handbook",
       "members": "成员与权限"
     },
     "handbookEmpty": "暂无 handbook 数据",
+    "projectsLoading": "加载项目列表...",
+    "projectsErrorTitle": "无法加载项目",
+    "projectsEmpty": "该组织下暂无项目。",
     "membersEmpty": "暂无成员数据",
     "authorities": "权限",
     "create": {
