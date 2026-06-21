@@ -14,9 +14,11 @@ import {
   Copy,
   Eye,
   Key,
+  Link2,
   Lock,
   Plus,
   Shield,
+  Unlink,
   Trophy,
   Wallet,
 } from "lucide-react";
@@ -33,7 +35,7 @@ import type { Entity } from "@/lib/coordinator/types";
 import { registerRootIdentityOnChain } from "@/lib/identity/rootIdentityChain";
 import { claimAgentRewardsOnChain } from "@/lib/identity/agentRewardChain";
 import { txExplorerUrl } from "@/lib/network/explorer";
-import { queryPaymentBalance } from "@/lib/get-vib/paymentTransfer";
+import { queryChainBalance } from "@/lib/chain/balance";
 import {
   createChainTransaction,
   updateChainTransaction,
@@ -86,6 +88,9 @@ export function PersonalCenterPage() {
   const rootEcosystem = String(session.ecosystem ?? wallet.session?.ecosystem ?? "");
   const identity = Object.keys(serverIdentity).length ? serverIdentity : asRecord(localRootIdentity);
   const identityLabel = String(identity.displayName ?? identity.name ?? identity.identityId ?? rootAddress ?? "wallet session");
+  const identityId = String(identity.identityId ?? identity.viblyRootAddress ?? rootAddress ?? "");
+  const linkedEvmAddress = typeof identity.evmAddress === "string" ? identity.evmAddress : "";
+  const isEvmSession = wallet.session?.ecosystem === "evm";
   const activeAgents = agents.filter((agent) => String(agent.dutyStatus ?? "active") === "active").length;
   const sessionKeys = agents.flatMap((agent) => asArray(agent.sessionKeys).map((key) => ({ key, agent })));
   const expiringKeys = sessionKeys.filter((item) => isExpiringSoon(String(item.key.expiresAt ?? ""))).length;
@@ -157,6 +162,30 @@ export function PersonalCenterPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.agentRewards(network.id, null) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.taskRewards(network.id) });
     },
+  });
+
+  const linkEvmMutation = useMutation({
+    mutationFn: async () => {
+      if (!wallet.session || wallet.session.ecosystem !== "evm") throw new Error(t("identity.evmLinkEvmOnly"));
+      if (!identityId) throw new Error(t("identity.evmLinkMissingIdentity"));
+      return client.linkEvmIdentity({
+        evmAddress: wallet.session.address,
+        viblyAccountId: identityId,
+        substrateAddress: typeof identity.viblyRootAddress === "string" ? identity.viblyRootAddress : undefined,
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) }),
+  });
+
+  const unlinkEvmMutation = useMutation({
+    mutationFn: async () => {
+      if (!wallet.session || wallet.session.ecosystem !== "evm") throw new Error(t("identity.evmLinkEvmOnly"));
+      return client.unlinkEvmIdentity({
+        evmAddress: wallet.session.address,
+        viblyAccountId: identityId || undefined,
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.personalCenter(network.id) }),
   });
 
   const registerIdentityMutation = useMutation({
@@ -255,7 +284,7 @@ export function PersonalCenterPage() {
       setVibBalanceError(t("balance.rpcUnavailable"));
       return;
     }
-    void queryPaymentBalance({
+    void queryChainBalance({
       rpcUrl: viblyRpcUrls,
       accountId: rootAddress,
       decimals: viblyTokenDecimals,
@@ -346,9 +375,43 @@ export function PersonalCenterPage() {
                 </div>
               </div>
               <KeyValue label={t("identity.identityId")} value={String(identity.identityId ?? "not linked")} />
+              <KeyValue label={t("identity.evmAddress")} value={linkedEvmAddress || (isEvmSession ? rootAddress : t("identity.evmNotLinked"))} />
               <div className="grid grid-cols-2 gap-3">
                 <InfoTile label={t("identity.ecosystem")} value={String(session.ecosystem ?? "wallet")} />
                 <InfoTile label={t("identity.recovery")} value={String(identity.recoveryStatus ?? "Not set")} tone="warning" />
+              </div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+                <div className="text-sm font-semibold text-[var(--text)]">{t("identity.evmLinkTitle")}</div>
+                <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t("identity.evmLinkHint")}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="small-button"
+                    disabled={!isEvmSession || linkEvmMutation.isPending}
+                    onClick={() => linkEvmMutation.mutate()}
+                    title={!isEvmSession ? t("identity.evmLinkEvmOnly") : undefined}
+                  >
+                    <Link2 className="h-4 w-4" />
+                    {linkEvmMutation.isPending ? t("identity.evmLinkPending") : t("identity.evmLinkAction")}
+                  </button>
+                  <button
+                    type="button"
+                    className="small-button"
+                    disabled={!isEvmSession || !linkedEvmAddress || unlinkEvmMutation.isPending}
+                    onClick={() => unlinkEvmMutation.mutate()}
+                    title={!isEvmSession ? t("identity.evmLinkEvmOnly") : undefined}
+                  >
+                    <Unlink className="h-4 w-4" />
+                    {unlinkEvmMutation.isPending ? t("identity.evmUnlinkPending") : t("identity.evmUnlinkAction")}
+                  </button>
+                </div>
+                {linkEvmMutation.error || unlinkEvmMutation.error ? (
+                  <div className="mt-3 rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-400">
+                    {(linkEvmMutation.error ?? unlinkEvmMutation.error) instanceof Error
+                      ? (linkEvmMutation.error ?? unlinkEvmMutation.error)?.message
+                      : t("identity.evmLinkFailed")}
+                  </div>
+                ) : null}
               </div>
               {!hasRootIdentity ? (
                 <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">

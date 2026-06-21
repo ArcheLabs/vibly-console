@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { WalletSelect } from "@talismn/connect-components";
+import type { WalletAccount } from "@talismn/connect-wallets";
 import { LogOut, RefreshCw, Wallet, X, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddressAvatar } from "@/components/domain/AddressAvatar";
@@ -95,7 +97,9 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
     busy,
     error,
     loadPolkadotAccounts,
+    loginWithEvm,
     loginWithPolkadot,
+    loginWithPolkadotAccount,
     logoutWallet,
   } = useWalletAuth();
 
@@ -117,6 +121,16 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
   async function loginSelectedPolkadot(address: string) {
     const result = await loginWithPolkadot(address);
     if (result !== false) setPolkadotSwitchMode(false);
+    return result;
+  }
+
+  async function loginTalismanPolkadot(account: WalletAccount) {
+    const result = await loginWithPolkadotAccount({
+      address: account.address,
+      source: account.source,
+      name: account.name,
+    });
+    if (result !== false && onClose) onClose();
     return result;
   }
 
@@ -172,6 +186,14 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
 
       {!session ? (
         <div className="mt-5 grid gap-3">
+          <button
+            type="button"
+            disabled={busy}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
+            onClick={() => void run(loginWithEvm)}
+          >
+            {busy ? <InlineLoading label={t("loggingIn")} /> : <><Wallet className="h-4 w-4" />{t("connectEvm")}</>}
+          </button>
           {polkadotSwitchMode && polkadotAccounts.length > 0 ? (
             <div className="grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-3">
               <div className="flex items-start justify-between gap-3">
@@ -222,14 +244,21 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
               </div>
             </div>
           ) : (
-            <button
-              type="button"
-              disabled={busy}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
-              onClick={() => void run(loginDefaultPolkadot)}
-            >
-              {busy ? <InlineLoading label={t("loggingIn")} /> : <><Zap className="h-4 w-4" />{t("connectPolkadot")}</>}
-            </button>
+            <WalletSelect
+              dappName="Vibly Console"
+              showAccountsList
+              makeInstallable
+              onAccountSelected={(account) => void run(() => loginTalismanPolkadot(account))}
+              triggerComponent={
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--surface-muted)] disabled:opacity-50"
+                >
+                  {busy ? <InlineLoading label={t("loggingIn")} /> : <><Zap className="h-4 w-4" />{t("connectPolkadot")}</>}
+                </button>
+              }
+            />
           )}
         </div>
       ) : (

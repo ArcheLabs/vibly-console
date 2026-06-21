@@ -1,5 +1,6 @@
 const APP_NAME = "Vibly Console";
 const UNAUTHORIZED_SOURCE_PATTERN = /has not been authorized yet/i;
+const TALISMAN_SELECTED_WALLET_KEY = "@talisman-connect/selected-wallet-name";
 
 function normalizePolkadotExtensionError(cause: unknown, address?: string): Error {
   const message = cause instanceof Error ? cause.message : String(cause ?? "");

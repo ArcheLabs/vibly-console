@@ -129,28 +129,13 @@ async function proxy(
     request.method === "DELETE" && routePath === "/wallet/session" && Boolean(walletSession);
   const allowWalletActionIntent =
     request.method === "POST" && routePath === "/action-intents" && Boolean(walletSession);
-  const allowWalletGetVibOrder =
-    request.method === "POST" && routePath === "/get-vib/orders" && Boolean(walletSession);
-  const allowWalletGetVibPaymentSubmit =
-    request.method === "POST" && routePath === "/get-vib/curve/submit-payment" && Boolean(walletSession);
-  const allowWalletGetVibClaimFor =
-    request.method === "POST" && routePath === "/get-vib/claim-for" && Boolean(walletSession);
-  const allowGetVibQuote =
-    request.method === "POST" && routePath === "/get-vib/curve/quote";
   const allowAnonymous =
     allowAnonymousRead ||
     allowAnonymousWalletAuth ||
     allowWalletSessionDelete ||
-    allowWalletActionIntent ||
-    allowWalletGetVibOrder ||
-    allowWalletGetVibPaymentSubmit ||
-    allowWalletGetVibClaimFor ||
-    allowGetVibQuote;
+    allowWalletActionIntent;
   const requiresWalletPrincipal = (
-    allowWalletActionIntent ||
-    allowWalletGetVibOrder ||
-    allowWalletGetVibPaymentSubmit ||
-    allowWalletGetVibClaimFor
+    allowWalletActionIntent
   ) && Boolean(walletSession);
   // GET requests to /streams/* are SSE endpoints that may be used without a
   // console session (wallet-only users). The server-side API token is still
@@ -175,9 +160,6 @@ async function proxy(
       allowAnonymous,
       allowServerTokenWithoutSession:
         allowWalletActionIntent ||
-        allowWalletGetVibOrder ||
-        allowWalletGetVibPaymentSubmit ||
-        allowWalletGetVibClaimFor ||
         allowServerTokenForStream,
       networkId: requestedNetworkId,
     });
@@ -219,16 +201,7 @@ async function proxy(
     if (rewritten.error) return rewritten.error;
     body = rewritten.body;
   }
-  if (allowWalletGetVibOrder && body && walletPrincipalId) {
-    const accountError = assertWalletBodyField(body, "accountId", walletPrincipalId, {
-      invalidCode: "INVALID_GET_VIB_ORDER_BODY",
-      invalidMessage: "Get VIB order body must be a JSON object.",
-      parseMessage: "Get VIB order body must be valid JSON.",
-      mismatchCode: "WALLET_ACCOUNT_MISMATCH",
-      mismatchMessage: "Get VIB order accountId must match the wallet session address.",
-    });
-    if (accountError) return accountError;
-  }
+
 
   let upstream: Response | undefined;
   let lastTarget = targets[0] ?? new URL(`/${path.join("/")}`, credentials.baseUrl);

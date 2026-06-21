@@ -38,10 +38,4 @@ export const queryKeys = {
   artifactV2: (networkId: string, id: string) => ["artifact-v2", networkId, id] as const,
   discussionV2: (networkId: string, id: string) => ["discussion-v2", networkId, id] as const,
   guardianRequests: (networkId: string) => ["guardian-requests", networkId] as const,
-  getVibConfig: (networkId: string) => ["get-vib", networkId, "config"] as const,
-  getVibQuote: (networkId: string, amount: string) => ["get-vib", networkId, "quote", amount] as const,
-  getVibSummary: (networkId: string, accountId: string) => ["get-vib", networkId, "summary", accountId] as const,
-  getVibProof: (networkId: string, accountId: string) => ["get-vib", networkId, "proof", accountId] as const,
-  getVibRecords: (networkId: string, accountId: string) => ["get-vib", networkId, "records", accountId] as const,
-  getVibCurve: (networkId: string) => ["get-vib", networkId, "curve"] as const,
 };

@@ -14,11 +14,6 @@ export interface NetworkProfile {
   coordinatorUrl?: string;
   coordinatorUrls?: string[];
   coordinatorEndpoint?: string;
-  paymentRpcUrl?: string;
-  paymentRpcUrls?: string[];
-  paymentTokenSymbol?: string;
-  paymentTokenDecimals?: number;
-  paymentGenesisHash?: string;
   explorerTxUrl?: string;
   explorerAddressUrl?: string;
   polkadotRpcUrl?: string;
@@ -29,7 +24,6 @@ export interface NetworkProfile {
   viblyGenesisHash?: string;
   relayTokenSymbol?: string;
   chains?: {
-    payment?: NetworkChainManifest;
     vibly?: NetworkChainManifest;
   };
   features?: NetworkFeatureFlags;
@@ -57,21 +51,7 @@ interface NetworkFeatureFlags {
   staking: boolean;
   rewards: boolean;
   rootIdentityRegistration: boolean;
-  getVibConversion: boolean;
-  getVibClaim: boolean;
 }
-
-const PASEO_PAYMENT_RPC_URLS = [
-  "wss://paseo-rpc.n.dwellir.com",
-  "wss://paseo.dotters.network",
-  "wss://paseo-rpc.dwellir.com",
-];
-
-const POLKADOT_PAYMENT_RPC_URLS = [
-  "wss://rpc.polkadot.io",
-  "wss://polkadot.api.onfinality.io/public-ws",
-  "wss://polkadot-rpc.dwellir.com",
-];
 
 function stringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -90,10 +70,7 @@ function normalizeProfile(value: unknown): NetworkProfile | null {
   const id = typeof record.id === "string" ? record.id.trim() : "";
   if (!id) return null;
   const coordinatorUrls = stringArray(record.coordinatorUrls).concat(stringArray(record.coordinatorUrl), stringArray(record.coordinatorEndpoint));
-  const chains = record.chains && typeof record.chains === "object" ? record.chains as { payment?: NetworkChainManifest; vibly?: NetworkChainManifest } : {};
-  const paymentRpcUrls = stringArray(record.paymentRpcUrls)
-    .concat(stringArray(chains.payment?.rpcUrls))
-    .concat(stringArray(record.paymentRpcUrl), stringArray(record.polkadotRpcUrl), stringArray(record.polkadotEndpoint));
+  const chains = record.chains && typeof record.chains === "object" ? record.chains as { vibly?: NetworkChainManifest } : {};
   const viblyRpcUrls = stringArray(record.viblyRpcUrls)
     .concat(stringArray(chains.vibly?.rpcUrls))
     .concat(stringArray(record.viblyRpcUrl), stringArray(record.viblyChainEndpoint));
@@ -109,25 +86,10 @@ function normalizeProfile(value: unknown): NetworkProfile | null {
     coordinatorUrl: coordinatorUrls[0],
     coordinatorUrls,
     coordinatorEndpoint: coordinatorUrls[0],
-    paymentRpcUrl: paymentRpcUrls[0],
-    paymentRpcUrls,
-    paymentTokenSymbol: typeof record.paymentTokenSymbol === "string"
-      ? record.paymentTokenSymbol
-      : typeof chains.payment?.tokenSymbol === "string"
-        ? chains.payment.tokenSymbol
-      : typeof record.relayTokenSymbol === "string"
-        ? record.relayTokenSymbol
-        : undefined,
-    paymentTokenDecimals: typeof record.paymentTokenDecimals === "number" && Number.isFinite(record.paymentTokenDecimals)
-      ? record.paymentTokenDecimals
-      : typeof chains.payment?.tokenDecimals === "number"
-        ? chains.payment.tokenDecimals
-        : undefined,
-    paymentGenesisHash: typeof record.paymentGenesisHash === "string" ? record.paymentGenesisHash : chains.payment?.genesisHash,
     explorerTxUrl: typeof record.explorerTxUrl === "string" ? record.explorerTxUrl : undefined,
     explorerAddressUrl: typeof record.explorerAddressUrl === "string" ? record.explorerAddressUrl : undefined,
-    polkadotRpcUrl: paymentRpcUrls[0],
-    polkadotEndpoint: paymentRpcUrls[0],
+    polkadotRpcUrl: stringArray(record.polkadotRpcUrl).concat(stringArray(record.polkadotEndpoint))[0],
+    polkadotEndpoint: stringArray(record.polkadotEndpoint).concat(stringArray(record.polkadotRpcUrl))[0],
     viblyRpcUrl: viblyRpcUrls[0],
     viblyRpcUrls,
     viblyChainEndpoint: viblyRpcUrls[0],
@@ -173,10 +135,8 @@ const defaultNetworkEntry: NetworkProfile[] = !RESERVED_BUILTIN_NETWORK_IDS.has(
         viblyRpcUrl: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
         viblyRpcUrls: [appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944"],
         viblyChainEndpoint: appConfig.viblyRpcUrl ?? "ws://127.0.0.1:9944",
-        paymentRpcUrl: appConfig.paymentRpcUrl ?? appConfig.polkadotRpcUrl ?? "ws://127.0.0.1:9945",
-        paymentRpcUrls: [appConfig.paymentRpcUrl ?? appConfig.polkadotRpcUrl ?? "ws://127.0.0.1:9945"],
-        polkadotRpcUrl: appConfig.polkadotRpcUrl ?? appConfig.paymentRpcUrl ?? "ws://127.0.0.1:9945",
-        polkadotEndpoint: appConfig.polkadotRpcUrl ?? appConfig.paymentRpcUrl ?? "ws://127.0.0.1:9945",
+        polkadotRpcUrl: appConfig.polkadotRpcUrl,
+        polkadotEndpoint: appConfig.polkadotRpcUrl,
       },
     ]
   : [];
@@ -207,31 +167,20 @@ const fallbackNetworkProfiles: NetworkProfile[] = uniqueProfiles([
     label: "Lumen",
     stage: "testnet",
     // coordinatorUrl / viblyRpcUrl — from runtime manifest only
-    paymentRpcUrl: PASEO_PAYMENT_RPC_URLS[0],
-    paymentRpcUrls: PASEO_PAYMENT_RPC_URLS,
-    polkadotRpcUrl: PASEO_PAYMENT_RPC_URLS[0],
-    polkadotEndpoint: PASEO_PAYMENT_RPC_URLS[0],
   },
   {
     id: "substrate:vibly-incentivized-testnet",
     label: "Monolith",
     status: "prelaunch",
     // coordinatorUrl / viblyRpcUrl — from runtime manifest only
-    paymentRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
-    paymentRpcUrls: POLKADOT_PAYMENT_RPC_URLS,
-    polkadotRpcUrl: POLKADOT_PAYMENT_RPC_URLS[0],
-    polkadotEndpoint: POLKADOT_PAYMENT_RPC_URLS[0],
     features: {
       agentJoin: false,
       daemon: false,
       staking: false,
       rewards: false,
       rootIdentityRegistration: false,
-      getVibConversion: true,
-      getVibClaim: false,
     },
     messages: {
-      getVibClaim: "VIB claim to Monolith is not live yet.",
       prelaunch: "Monolith agent onboarding will open after the network launch.",
     },
   },
@@ -248,9 +197,6 @@ export function networkCoordinatorUrls(profile: NetworkProfile): string[] {
         .filter(Boolean) as string[];
 }
 
-export function networkPaymentRpcUrls(profile: NetworkProfile): string[] {
-  return profile.paymentRpcUrls?.length ? profile.paymentRpcUrls : [profile.paymentRpcUrl, profile.polkadotRpcUrl, profile.polkadotEndpoint].filter(Boolean) as string[];
-}
 
 export function networkViblyRpcUrls(profile: NetworkProfile): string[] {
   return profile.viblyRpcUrls?.length

@@ -11,9 +11,8 @@ export interface SubstrateTransactionStatus {
 
 /**
  * When to resolve the transaction promise.
+ * - `"broadcast"`: resolve as soon as the transaction is broadcast.
  * - `"in_block"`: resolve as soon as the transaction is included in a block.
- *   Use this for Get VIB payment transfers — the coordinator watcher handles
- *   finality confirmation via GET_VIB_DEPOSIT_FINALITY_BLOCKS.
  * - `"finalized"`: wait until the block is finalized (default).
  */
 export type ResolveOn = "broadcast" | "in_block" | "finalized";

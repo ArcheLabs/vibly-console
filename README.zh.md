@@ -55,21 +55,10 @@ pnpm dev
 | `NEXT_PUBLIC_ENABLE_DEV_TOOLS` | 设为 `true` 以显示开发者工具 |
 | `NEXT_PUBLIC_VIBLY_NETWORK_ID` | 默认 Console 网络 profile id |
 | `NEXT_PUBLIC_VIBLY_NETWORK_NAME` | 默认 Console 网络显示名称 |
-| `NEXT_PUBLIC_VIBLY_RPC_URL` | 默认 Vibly Chain RPC，用于浏览器领取流程 |
-| `NEXT_PUBLIC_PAYMENT_RPC_URL` | Get VIB 使用的支付链 RPC，用于读取 DOT/PAS 余额和提交转账 |
-| `NEXT_PUBLIC_POLKADOT_RPC_URL` | 可选的支付链 Polkadot 兼容 RPC 别名/兜底 |
-| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | 可选的网络 profile JSON 数组。建议使用地址数组（`coordinatorUrls`、`paymentRpcUrls`、`viblyRpcUrls`），这样单个端点不可用时 Console 会尝试下一个。 |
+| `NEXT_PUBLIC_VIBLY_RPC_URL` | 默认 Vibly Chain RPC，用于浏览器侧链上操作 |
+| `NEXT_PUBLIC_POLKADOT_RPC_URL` | 可选的 Polkadot 兼容 RPC 别名/兜底，用于钱包与链工具 |
+| `NEXT_PUBLIC_VIBLY_NETWORK_PROFILES` | 可选的网络 profile JSON 数组。建议使用地址数组（`coordinatorUrls`、`viblyRpcUrls`），这样单个端点不可用时 Console 会尝试下一个。 |
 | `NEXT_PUBLIC_VIBLY_NETWORK_MANIFEST_URL` | bootstrap 网络 manifest URL；默认 `https://vibly.network/networks.json` |
-
-本地 Get VIB 需要区分 Vibly 领取链和支付链 RPC：
-
-```env
-NEXT_PUBLIC_VIBLY_RPC_URL=ws://127.0.0.1:9944
-NEXT_PUBLIC_PAYMENT_RPC_URL=ws://127.0.0.1:9945
-NEXT_PUBLIC_POLKADOT_RPC_URL=ws://127.0.0.1:9945
-```
-
-项目内已内置 Paseo（`PAS`）和 Polkadot 主网（`DOT`）的支付链 RPC 兜底地址；项目自己的 Vibly 链与 Coordinator 地址仍应由部署配置提供。
 
 Console 当前内置的公开网络命名口径为：
 

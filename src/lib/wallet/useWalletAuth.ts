@@ -28,6 +28,21 @@ function isUserRejected(cause: unknown): boolean {
   return /rejected by user|user rejected|cancelled|canceled|denied/i.test(message);
 }
 
+
+function readLoginSession(entity: Entity | null): WalletSessionState | null {
+  if (!entity) return null;
+  const token = typeof entity.sessionToken === "string" ? entity.sessionToken : null;
+  const identity = entity.identity && typeof entity.identity === "object" ? entity.identity as Record<string, unknown> : null;
+  const primaryKind = identity?.primaryKind === "evm" || identity?.primaryKind === "substrate" ? identity.primaryKind : null;
+  const primaryAddress = typeof identity?.primaryAddress === "string" ? identity.primaryAddress : null;
+  if (!token || !primaryKind || !primaryAddress) return null;
+  return {
+    token,
+    ecosystem: primaryKind === "substrate" ? "polkadot" : "evm",
+    address: primaryAddress,
+  };
+}
+
 function readSession(entity: Entity | null): WalletSessionState | null {
   if (!entity) return null;
   const token = typeof entity.token === "string" ? entity.token : null;
@@ -138,22 +153,21 @@ export function useWalletAuth() {
       const normalizedAddress = evmAddress ?? (await connectEvm());
       if (!normalizedAddress) throw new Error("未获取到 EVM 地址。");
 
-      const challenge = await client.createWalletChallenge({ ecosystem: "evm", address: normalizedAddress });
-      const challengeId = typeof challenge.id === "string" ? challenge.id : "";
-      const message = typeof challenge.message === "string" ? challenge.message : "";
-      if (!challengeId || !message) throw new Error("Coordinator 返回的 challenge 不完整。");
+      const nonce = await client.createAuthNonce({ address: normalizedAddress, kind: "evm" });
+      const message = typeof nonce.message === "string" ? nonce.message : "";
+      if (!message) throw new Error("Coordinator 返回的登录消息不完整。");
 
       const signature = await signMessageAsync({ message });
-      const walletSession = await client.createWalletSession({
-        challengeId,
-        ecosystem: "evm",
+      const login = await client.loginWithWalletSignature({
         address: normalizedAddress,
+        kind: "evm",
+        message,
         signature,
       });
-      const token = typeof walletSession.token === "string" ? walletSession.token : null;
+      const token = typeof login.sessionToken === "string" ? login.sessionToken : null;
       if (!token) throw new Error("Coordinator 未返回 wallet session token。");
 
-      const next = readSession(walletSession);
+      const next = readLoginSession(login);
       setWalletSessionToken(token, next?.expiresAt);
       setSession(next);
       markConnected();
@@ -175,10 +189,9 @@ export function useWalletAuth() {
     setError(null);
     try {
       const address = await connectPolkadot(preferredAddress);
-      const challenge = await client.createWalletChallenge({ ecosystem: "polkadot", address });
-      const challengeId = typeof challenge.id === "string" ? challenge.id : "";
-      const message = typeof challenge.message === "string" ? challenge.message : "";
-      if (!challengeId || !message) throw new Error("Coordinator 返回的 challenge 不完整。");
+      const nonce = await client.createAuthNonce({ address, kind: "substrate" });
+      const message = typeof nonce.message === "string" ? nonce.message : "";
+      if (!message) throw new Error("Coordinator 返回的登录消息不完整。");
 
       const [{ stringToHex }, injector] = await Promise.all([
         import("@polkadot/util"),
@@ -192,16 +205,16 @@ export function useWalletAuth() {
         type: "bytes",
       });
 
-      const walletSession = await client.createWalletSession({
-        challengeId,
-        ecosystem: "polkadot",
+      const login = await client.loginWithWalletSignature({
         address,
+        kind: "substrate",
+        message,
         signature: signed.signature,
       });
-      const token = typeof walletSession.token === "string" ? walletSession.token : null;
+      const token = typeof login.sessionToken === "string" ? login.sessionToken : null;
       if (!token) throw new Error("Coordinator 未返回 wallet session token。");
 
-      const next = readSession(walletSession);
+      const next = readLoginSession(login);
       setWalletSessionToken(token, next?.expiresAt);
       setSession(next);
       setPolkadotAddress(address);
@@ -218,6 +231,57 @@ export function useWalletAuth() {
       setBusy(false);
     }
   }, [client, connectPolkadot, markConnected]);
+
+  const loginWithPolkadotAccount = useCallback(async (account: { address: string; source?: string; name?: string }) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const address = account.address;
+      if (!address) throw new Error("读取 Polkadot 地址失败。");
+      setPolkadotAddress(address);
+
+      const nonce = await client.createAuthNonce({ address, kind: "substrate" });
+      const message = typeof nonce.message === "string" ? nonce.message : "";
+      if (!message) throw new Error("Coordinator 返回的登录消息不完整。");
+
+      const [{ stringToHex }, injector] = await Promise.all([
+        import("@polkadot/util"),
+        getAuthorizedPolkadotInjector(address),
+      ]);
+      if (!injector.signer?.signRaw) throw new Error("当前 Polkadot 钱包不支持 signRaw。");
+
+      const signed = await injector.signer.signRaw({
+        address,
+        data: stringToHex(message),
+        type: "bytes",
+      });
+
+      const login = await client.loginWithWalletSignature({
+        address,
+        kind: "substrate",
+        walletName: account.source ?? account.name,
+        message,
+        signature: signed.signature,
+      });
+      const token = typeof login.sessionToken === "string" ? login.sessionToken : null;
+      if (!token) throw new Error("Coordinator 未返回 wallet session token。");
+
+      const next = readLoginSession(login);
+      setWalletSessionToken(token, next?.expiresAt);
+      setSession(next);
+      markConnected();
+      return true;
+    } catch (cause) {
+      if (isUserRejected(cause)) {
+        setError(null);
+        return false;
+      }
+      setError(cause instanceof Error ? cause.message : "Polkadot 钱包登录失败");
+      throw cause;
+    } finally {
+      setBusy(false);
+    }
+  }, [client, markConnected]);
 
   const signWalletMessage = useCallback(async (message: string) => {
     setError(null);
@@ -290,6 +354,7 @@ export function useWalletAuth() {
       loadPolkadotAccounts,
       loginWithEvm,
       loginWithPolkadot,
+      loginWithPolkadotAccount,
       refreshSession,
       signWalletMessage,
       logoutWallet,
@@ -304,6 +369,7 @@ export function useWalletAuth() {
       initializing,
       loginWithEvm,
       loginWithPolkadot,
+      loginWithPolkadotAccount,
       logoutWallet,
       loadPolkadotAccounts,
       polkadotAddress,

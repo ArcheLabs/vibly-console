@@ -3,22 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Bot, Building2, Coins, LayoutDashboard, Menu, Network, Rss, Sparkles, X } from "lucide-react";
+import { Bot, Building2, LayoutDashboard, Menu, Network, Rss, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { useAuthState } from "@/lib/store/authStore";
 import { useNetworkAgents, useNetworkOrganizations } from "@/lib/query/hooks";
 import { SettingsMenu } from "@/components/layout/SettingsMenu";
 import { WalletConnectPanel } from "@/components/wallet/WalletConnectPanel";
 import { NetworkSelector } from "@/components/layout/NetworkSelector";
-import { useActiveNetworkProfile, networkPaymentRpcUrls } from "@/lib/network/profiles";
-import { refreshPaymentChainInfo } from "@/lib/network/paymentChainInfo";
+import { useActiveNetworkProfile } from "@/lib/network/profiles";
 
 const navItems = [
   { href: "/", key: "feed", icon: Rss },
   { href: "/organizations", key: "organizations", icon: Building2 },
   { href: "/agents", key: "agents", icon: Bot },
-  { href: "/get-vib", key: "getVib", icon: Coins },
   { href: "/rewards", key: "rewards", icon: Sparkles },
   { href: "/personal-center", key: "identity", icon: LayoutDashboard },
 ] as const;
@@ -127,10 +124,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("shell");
   const [mobileOpen, setMobileOpen] = useState(false);
   const activeNetwork = useActiveNetworkProfile();
-
-  useEffect(() => {
-    refreshPaymentChainInfo(networkPaymentRpcUrls(activeNetwork));
-  }, [activeNetwork]);
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
