@@ -50,6 +50,17 @@ async function validateWalletSession(baseUrl: string, walletSession: string): Pr
   return typeof address === "string" && address.length > 0 ? address : null;
 }
 
+function isWalletSessionWriteRoute(method: string, routePath: string): boolean {
+  if (method === "DELETE" && routePath === "/wallet/session") return true;
+  if (method !== "POST") return false;
+  if (routePath === "/action-intents") return true;
+  if (routePath === "/identity/link-evm" || routePath === "/identity/unlink-evm") return true;
+  if (routePath === "/agent-enrollments/public-keys") return true;
+  if (/^\/agent-enrollments\/[^/]+\/revoke$/.test(routePath)) return true;
+  if (routePath === "/agent-stakes/receipts") return true;
+  return false;
+}
+
 function bodyWithWalletPrincipal(body: string, walletPrincipalId: string): { body?: string; error?: NextResponse } {
   let parsed: unknown;
   try {
@@ -123,17 +134,17 @@ async function proxy(
   const allowAnonymousRead = request.method === "GET" || request.method === "HEAD";
   const allowAnonymousWalletAuth =
     request.method === "POST" &&
-    (routePath === "/wallet/challenges" || routePath === "/wallet/sessions");
+    (routePath === "/wallet/challenges" ||
+      routePath === "/wallet/sessions" ||
+      routePath === "/auth/login");
   const walletSession = request.headers.get("x-wallet-session");
-  const allowWalletSessionDelete =
-    request.method === "DELETE" && routePath === "/wallet/session" && Boolean(walletSession);
+  const allowWalletSessionWrite = Boolean(walletSession) && isWalletSessionWriteRoute(request.method, routePath);
   const allowWalletActionIntent =
     request.method === "POST" && routePath === "/action-intents" && Boolean(walletSession);
   const allowAnonymous =
     allowAnonymousRead ||
     allowAnonymousWalletAuth ||
-    allowWalletSessionDelete ||
-    allowWalletActionIntent;
+    allowWalletSessionWrite;
   const requiresWalletPrincipal = (
     allowWalletActionIntent
   ) && Boolean(walletSession);
@@ -146,7 +157,7 @@ async function proxy(
   let credentials;
   let walletPrincipalId: string | null = null;
   try {
-    if (requiresWalletPrincipal && walletSession) {
+    if (allowWalletSessionWrite && walletSession) {
       const anonymousCredentials = await resolveCoordinatorCredentials(session, {
         allowAnonymous: true,
         networkId: requestedNetworkId,
@@ -159,7 +170,7 @@ async function proxy(
     credentials = await resolveCoordinatorCredentials(session, {
       allowAnonymous,
       allowServerTokenWithoutSession:
-        allowWalletActionIntent ||
+        allowWalletSessionWrite ||
         allowServerTokenForStream,
       networkId: requestedNetworkId,
     });

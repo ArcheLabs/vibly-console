@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@talismn/connect-components@1.1.9':
+    hash: 67025b64b1ae84c5d936aecff87839b6d8485266b17009c51a1cfe7fe6a68d1f
+    path: patches/@talismn__connect-components@1.1.9.patch
+
 importers:
 
   .:
@@ -22,7 +27,7 @@ importers:
         version: 14.0.3
       '@talismn/connect-components':
         specifier: 1.1.9
-        version: 1.1.9(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/extension-inject@0.63.1(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/util@14.0.3)(bufferutil@4.1.0)(utf-8-validate@5.0.10))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        version: 1.1.9(patch_hash=67025b64b1ae84c5d936aecff87839b6d8485266b17009c51a1cfe7fe6a68d1f)(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/extension-inject@0.63.1(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/util@14.0.3)(bufferutil@4.1.0)(utf-8-validate@5.0.10))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@talismn/connect-ui':
         specifier: 1.1.4
         version: 1.1.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -7249,7 +7254,7 @@ snapshots:
       postcss: 8.5.12
       tailwindcss: 4.2.4
 
-  '@talismn/connect-components@1.1.9(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/extension-inject@0.63.1(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/util@14.0.3)(bufferutil@4.1.0)(utf-8-validate@5.0.10))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@talismn/connect-components@1.1.9(patch_hash=67025b64b1ae84c5d936aecff87839b6d8485266b17009c51a1cfe7fe6a68d1f)(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/extension-inject@0.63.1(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/util@14.0.3)(bufferutil@4.1.0)(utf-8-validate@5.0.10))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@talismn/connect-ui': 1.1.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@talismn/connect-wallets': 1.2.8(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/extension-inject@0.63.1(@polkadot/api@16.5.6(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@polkadot/util@14.0.3)(bufferutil@4.1.0)(utf-8-validate@5.0.10))

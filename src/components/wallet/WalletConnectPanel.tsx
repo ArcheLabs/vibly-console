@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WalletSelect } from "@talismn/connect-components";
+import dynamic from "next/dynamic";
 import type { WalletAccount } from "@talismn/connect-wallets";
+import type { TalismanWalletSelectProps } from "./TalismanWalletSelect";
 import { LogOut, RefreshCw, Wallet, X, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddressAvatar } from "@/components/domain/AddressAvatar";
 import { InlineLoading } from "@/components/common/States";
 import { useWalletAuth } from "@/lib/wallet/useWalletAuth";
+
+const TalismanWalletSelect = dynamic<TalismanWalletSelectProps>(
+  () => import("./TalismanWalletSelect").then((mod) => mod.TalismanWalletSelect),
+  { ssr: false },
+);
 
 export function shortAddress(value: string | null | undefined) {
   if (!value) return "";
@@ -244,7 +250,7 @@ function WalletPanelContent({ onClose }: { onClose: (() => void) | null }) {
               </div>
             </div>
           ) : (
-            <WalletSelect
+            <TalismanWalletSelect
               dappName="Vibly Console"
               showAccountsList
               makeInstallable

@@ -1,0 +1,32 @@
+diff --git a/dist/connect-components.js b/dist/connect-components.js
+index b720b929ce58bf5a572907be13f88822af812420..4da3be84b51a9e6c1c17b88322dd6edf67990a03 100644
+--- a/dist/connect-components.js
++++ b/dist/connect-components.js
+@@ -1,6 +1,7 @@
+ (function(){"use strict";try{if(typeof document<"u"){var a=document.createElement("style");a.appendChild(document.createTextNode('._wallet-connect-button_lthz6_1{padding:var(--talisman-connect-button-gutter, 0);color:var(--talisman-connect-button-foreground, inherit);background:var(--talisman-connect-button-background, none);border-radius:var(--talisman-connect-border-radius, 0)}._modal-overrides_1jr96_1{--modal-background: var(--talisman-connect-modal-background, #fafafa);--modal-foreground: var(--talisman-connect-modal-foreground, #222);--modal-control-background: var( --talisman-connect-control-background, #f2f2f2 );--modal-active-background: var(--talisman-connect-active-background, #d2d2d2);--modal-border-radius: var(--talisman-connect-border-radius, 1rem);--modal-gutter: var(--talisman-connect-modal-gutter, 2rem);--modal-width: var(--talisman-connect-modal-min-width, 90%);--modal-max-width: var(--talisman-connect-modal-max-width, 470px);--modal-min-height: var(--talisman-connect-modal-min-height, auto);--modal-max-height: var(--talisman-connect-modal-max-height, 80vh);--modal-font-family: var(--talisman-connect-font-family, sans-serif);--modal-header-font-size: var( --talisman-connect-modal-header-font-size, 1.5rem );--modal-z-index: var(--talisman-connect-modal-z-index, 999)}._modal-overrides_1jr96_1>*+*{margin-top:2rem}._flex_1jr96_28{display:flex;align-items:center;gap:1rem}button._row-button_1jr96_34,button._row-button-unavailable_1jr96_35{display:flex;justify-content:space-between;align-items:center;padding:calc(var(--modal-gutter) * .5);border-radius:calc(var(--modal-border-radius) * .75);border:none;outline:none;font:inherit;color:inherit;background:var(--modal-control-background);cursor:pointer;width:100%;margin-bottom:.5rem}button._row-button-unavailable_1jr96_35{opacity:30%}button._row-button_1jr96_34:hover{background:var(--modal-active-background)}a._row-button_1jr96_34{text-decoration:none;color:inherit}._message_1jr96_64{text-align:center;opacity:.7}._message_1jr96_64:first-letter{text-transform:capitalize}._no-extension-message_1jr96_73{padding:1rem 2rem 2rem;text-align:center;opacity:.7}._lds-dual-ring_8bn90_1{display:inline-block;width:auto;height:100%}._lds-dual-ring_8bn90_1:after{content:" ";opacity:.8;display:block;width:64px;height:64px;margin:8px;border-radius:50%;border:6px solid currentColor;border-color:currentColor transparent currentColor transparent;animation:_lds-dual-ring_8bn90_1 1.2s linear infinite}@keyframes _lds-dual-ring_8bn90_1{0%{transform:rotate(0)}to{transform:rotate(360deg)}}')),document.head.appendChild(a)}}catch(n){console.error("vite-plugin-css-injected-by-js",n)}})();
+ import * as G from "react";
+ import Ge, { useState as ee, useEffect as re, cloneElement as Et, useRef as kt, useCallback as wt } from "react";
++import { Fragment as __talismanFragment, jsx as __talismanJsx, jsxs as __talismanJsxs } from "react/jsx-runtime";
+ import { createPortal as Nt } from "react-dom";
+ var xt = { exports: {} }, We = {};
+ /**
+@@ -630,8 +631,7 @@ React keys must be passed directly to JSX without using spread:
+     Be.Fragment = f, Be.jsx = ht, Be.jsxs = gt;
+   }()), Be;
+ }
+-process.env.NODE_ENV === "production" ? xt.exports = At() : xt.exports = $t();
+-var p = xt.exports, Ft = Object.defineProperty, Dt = (n, a, s) => a in n ? Ft(n, a, { enumerable: !0, configurable: !0, writable: !0, value: s }) : n[a] = s, u = (n, a, s) => Dt(n, typeof a != "symbol" ? a + "" : a, s);
++var p = { Fragment: __talismanFragment, jsx: __talismanJsx, jsxs: __talismanJsxs }, Ft = Object.defineProperty, Dt = (n, a, s) => a in n ? Ft(n, a, { enumerable: !0, configurable: !0, writable: !0, value: s }) : n[a] = s, u = (n, a, s) => Dt(n, typeof a != "symbol" ? a + "" : a, s);
+ class He extends Error {
+   constructor(a, s) {
+     super(a), u(this, "name", "WalletError"), u(this, "wallet"), Object.setPrototypeOf(this, new.target.prototype), Error.captureStackTrace && Error.captureStackTrace(this, He), this.wallet = s;
+@@ -1520,8 +1520,7 @@ React keys must be passed directly to JSX without using spread:
+     Ze.Fragment = f, Ze.jsx = ht, Ze.jsxs = gt;
+   }()), Ze;
+ }
+-process.env.NODE_ENV === "production" ? _t.exports = ar() : _t.exports = sr();
+-var Y = _t.exports;
++var Y = { Fragment: __talismanFragment, jsx: __talismanJsx, jsxs: __talismanJsxs };
+ const ir = (n) => /* @__PURE__ */ G.createElement("svg", { width: 10, height: 18, viewBox: "0 0 10 18", fill: "none", xmlns: "http://www.w3.org/2000/svg", ...n }, /* @__PURE__ */ G.createElement("path", { d: "M9 1L0.999999 9L9 17", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" })), lr = (n) => /* @__PURE__ */ G.createElement("svg", { width: 32, height: 32, viewBox: "0 0 40 40", fill: "none", xmlns: "http://www.w3.org/2000/svg", ...n }, /* @__PURE__ */ G.createElement("path", { d: "M30 10L10 30", stroke: "currentColor", strokeWidth: 3.33333, strokeLinecap: "round", strokeLinejoin: "round" }), /* @__PURE__ */ G.createElement("path", { d: "M10 10L30 30", stroke: "currentColor", strokeWidth: 3.33333, strokeLinecap: "round", strokeLinejoin: "round" }));
+ function cr(n, a) {
+   re(() => {

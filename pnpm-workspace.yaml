@@ -9,3 +9,5 @@ allowBuilds:
   keccak: true
   sharp: true
   utf-8-validate: true
+patchedDependencies:
+  '@talismn/connect-components@1.1.9': patches/@talismn__connect-components@1.1.9.patch
